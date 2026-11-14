@@ -1,8 +1,6 @@
 package com.cgaraydev.seismicexplorer.data.remote
 
-import com.cgaraydev.seismicexplorer.domain.model.EarthquakeQuery
-import java.time.Duration
-import java.time.Instant
+import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 
 internal enum class UsgsFeed(
     val feedName: String
@@ -13,24 +11,13 @@ internal enum class UsgsFeed(
 
     companion object {
 
-        fun forQuery(
-            query: EarthquakeQuery,
-            now: Instant
+        fun forWindow(
+            window: RecentWindow
         ): UsgsFeed {
-            require(!query.startTime.isAfter(now)) {
-                "Query cannot start in the future"
-            }
-
-            val elapsed = Duration.between(query.startTime, now)
-
-            return when {
-                elapsed <= Duration.ofDays(1) -> DAY
-                elapsed <= Duration.ofDays(7) -> WEEK
-                elapsed <= Duration.ofDays(30) -> MONTH
-
-                else -> throw UnsupportedOperationException(
-                    "Historical queries require the USGS FDSN API"
-                )
+            return when (window) {
+                RecentWindow.LAST_DAY -> DAY
+                RecentWindow.LAST_WEEK -> WEEK
+                RecentWindow.LAST_30_DAYS -> MONTH
             }
         }
     }

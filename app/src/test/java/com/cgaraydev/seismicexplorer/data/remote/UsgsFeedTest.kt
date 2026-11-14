@@ -1,63 +1,29 @@
 package com.cgaraydev.seismicexplorer.data.remote
 
-import com.cgaraydev.seismicexplorer.domain.model.EarthquakeQuery
-import java.time.Instant
-import java.time.temporal.ChronoUnit
+import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class UsgsFeedTest {
 
-    private val now = Instant.parse("2026-11-14T12:00:00Z")
-
     @Test
-    fun recentQuery_selectsDailyFeed() {
-        val feed = UsgsFeed.forQuery(
-            query = queryStartingHoursAgo(12),
-            now = now
-        )
+    fun lastDay_selectsDailyFeed() {
+        val feed = UsgsFeed.forWindow(RecentWindow.LAST_DAY)
 
-        assertEquals(UsgsFeed.DAY, feed)
+        assertEquals("all_day", feed.feedName)
     }
 
     @Test
-    fun multiDayQuery_selectsWeeklyFeed() {
-        val feed = UsgsFeed.forQuery(
-            query = queryStartingDaysAgo(3),
-            now = now
-        )
+    fun lastWeek_selectsWeeklyFeed() {
+        val feed = UsgsFeed.forWindow(RecentWindow.LAST_WEEK)
 
-        assertEquals(UsgsFeed.WEEK, feed)
+        assertEquals("all_week", feed.feedName)
     }
 
     @Test
-    fun longerQuery_selectsMonthlyFeed() {
-        val feed = UsgsFeed.forQuery(
-            query = queryStartingDaysAgo(14),
-            now = now
-        )
+    fun last30Days_selectsMonthlyFeed() {
+        val feed = UsgsFeed.forWindow(RecentWindow.LAST_30_DAYS)
 
-        assertEquals(UsgsFeed.MONTH, feed)
+        assertEquals("all_month", feed.feedName)
     }
-
-    @Test
-    fun historicalQuery_isRejectedUntilFdsnIsSupported() {
-        assertThrows(UnsupportedOperationException::class.java) {
-            UsgsFeed.forQuery(
-                query = queryStartingDaysAgo(31),
-                now = now
-            )
-        }
-    }
-
-    private fun queryStartingHoursAgo(hours: Long) = EarthquakeQuery(
-        startTime = now.minus(hours, ChronoUnit.HOURS),
-        endTime = now
-    )
-
-    private fun queryStartingDaysAgo(days: Long) = EarthquakeQuery(
-        startTime = now.minus(days, ChronoUnit.DAYS),
-        endTime = now
-    )
 }

@@ -12,11 +12,9 @@ import com.cgaraydev.seismicexplorer.data.remote.dto.UsgsEarthquakeCollectionDto
 import com.cgaraydev.seismicexplorer.data.remote.dto.UsgsEarthquakeFeatureDto
 import com.cgaraydev.seismicexplorer.data.remote.dto.UsgsEarthquakeGeometryDto
 import com.cgaraydev.seismicexplorer.data.remote.dto.UsgsEarthquakePropertiesDto
-import com.cgaraydev.seismicexplorer.domain.model.EarthquakeQuery
+import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 import java.io.IOException
-import java.time.Clock
 import java.time.Instant
-import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -37,15 +35,8 @@ class OfflineFirstEarthquakeRepositoryTest {
 
     private val now = Instant.parse("2026-11-14T12:00:00Z")
 
-    private val dayQuery = EarthquakeQuery(
-        startTime = now.minus(12, ChronoUnit.HOURS),
-        endTime = now
-    )
-
-    private val weekQuery = EarthquakeQuery(
-        startTime = now.minus(5, ChronoUnit.DAYS),
-        endTime = now
-    )
+    private val dayQuery = RecentWindow.LAST_DAY.toQuery(now)
+    private val weekQuery = RecentWindow.LAST_WEEK.toQuery(now)
 
     @Before
     fun setUp() {
@@ -60,8 +51,7 @@ class OfflineFirstEarthquakeRepositoryTest {
 
         repository = OfflineFirstEarthquakeRepository(
             api = api,
-            dao = dao,
-            clock = Clock.fixed(now, ZoneOffset.UTC)
+            dao = dao
         )
     }
 
@@ -79,7 +69,7 @@ class OfflineFirstEarthquakeRepositoryTest {
             updatedAt = now.minus(1, ChronoUnit.HOURS)
         )
 
-        repository.refresh(dayQuery)
+        repository.refreshRecent(RecentWindow.LAST_DAY)
 
         val events = repository.observeEarthquakes(dayQuery).first()
 
@@ -98,7 +88,7 @@ class OfflineFirstEarthquakeRepositoryTest {
             updatedAt = now.minus(30, ChronoUnit.MINUTES)
         )
 
-        repository.refresh(dayQuery)
+        repository.refreshRecent(RecentWindow.LAST_DAY)
 
         api.response = sampleResponse(
             id = "us1",
@@ -107,7 +97,7 @@ class OfflineFirstEarthquakeRepositoryTest {
             updatedAt = now.minus(90, ChronoUnit.MINUTES)
         )
 
-        repository.refresh(dayQuery)
+        repository.refreshRecent(RecentWindow.LAST_DAY)
 
         val events = repository.observeEarthquakes(dayQuery).first()
 
@@ -124,7 +114,7 @@ class OfflineFirstEarthquakeRepositoryTest {
             updatedAt = now.minus(3, ChronoUnit.DAYS)
         )
 
-        repository.refresh(weekQuery)
+        repository.refreshRecent(RecentWindow.LAST_WEEK)
 
         api.response = sampleResponse(
             id = "recent",
@@ -133,7 +123,7 @@ class OfflineFirstEarthquakeRepositoryTest {
             updatedAt = now.minus(1, ChronoUnit.HOURS)
         )
 
-        repository.refresh(dayQuery)
+        repository.refreshRecent(RecentWindow.LAST_DAY)
 
         val events = repository.observeEarthquakes(weekQuery).first()
 
@@ -151,14 +141,14 @@ class OfflineFirstEarthquakeRepositoryTest {
             updatedAt = now.minus(1, ChronoUnit.HOURS)
         )
 
-        repository.refresh(dayQuery)
+        repository.refreshRecent(RecentWindow.LAST_DAY)
 
         api.failure = IOException("Network unavailable")
 
         var failureReceived = false
 
         try {
-            repository.refresh(dayQuery)
+            repository.refreshRecent(RecentWindow.LAST_DAY)
         } catch (exception: IOException) {
             failureReceived = true
         }
@@ -169,6 +159,28 @@ class OfflineFirstEarthquakeRepositoryTest {
 
         assertEquals(1, events.size)
         assertEquals("cached", events.single().id)
+    }
+
+    @Test
+    fun monthlyRefresh_isIndependentOfPreviousQueryTimestamp() = runTest {
+        val earlierQuery = RecentWindow.LAST_30_DAYS.toQuery(
+            endTime = now.minus(10, ChronoUnit.MINUTES)
+        )
+
+        api.response = sampleResponse(
+            id = "monthly",
+            magnitude = 4.8,
+            occurredAt = now.minus(29, ChronoUnit.DAYS),
+            updatedAt = now.minus(28, ChronoUnit.DAYS)
+        )
+
+        repository.refreshRecent(RecentWindow.LAST_30_DAYS)
+
+        val events = repository.observeEarthquakes(earlierQuery).first()
+
+        assertEquals(listOf("all_month"), api.requestedFeeds)
+        assertEquals(1, events.size)
+        assertEquals("monthly", events.single().id)
     }
 
     private fun sampleResponse(

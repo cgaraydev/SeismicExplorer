@@ -64,6 +64,8 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - Repositorio offline-first con Room como fuente observable de datos.
 - Sincronización inicial mediante feeds recientes de USGS.
 - Actualización condicionada por la fecha de revisión de cada evento.
+- Separación entre ventanas recientes de sincronización e intervalos absolutos de consulta.
+- Ventanas USGS de 24 horas, 7 días y 30 días; cobertura histórica exacta pendiente de FDSN.
 
 ## Funcionalidades pendientes
 
