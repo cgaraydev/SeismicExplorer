@@ -58,6 +58,10 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - Pruebas de JSON malformado y tipos incompatibles.
 - Pruebas de clasificación de errores y conservación del caché.
 - Pruebas de propagación de CancellationException.
+- Pruebas JVM del HomeViewModel con repositorio falso y reloj controlado.
+- Pruebas de cambios de filtros sin descargas innecesarias.
+- Pruebas de cancelación de sincronizaciones y errores con datos almacenados.
+- Pruebas Compose de estados vacíos, actualización y datos locales visibles.
 
 ## Arquitectura
 
@@ -82,11 +86,17 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - Clasificación de errores de conexión, servicio y respuestas inválidas.
 - Propagación de cancelaciones de coroutines y excepciones inesperadas.
 - Conservación de datos locales ante errores de actualización remota.
+- HomeViewModel conectado a EarthquakeRepository mediante UDF y StateFlow.
+- Observación de Room independiente de la sincronización remota.
+- Cambios de magnitud sin solicitudes HTTP adicionales.
+- Cancelación y protección frente a resultados de sincronización obsoletos.
+- Actualización manual con renovación de los límites temporales.
+- Transformaciones de listas fuera de Main mediante Dispatchers.Default.
 
 ## Funcionalidades pendientes
 
-- Integración con los servicios sísmicos de USGS.
-- Persistencia local y sincronización offline-first.
+- Integración inicial de USGS, Room y Home implementada; pendientes mejoras de sincronización, cobertura, frescura y retención.
+- Metadatos persistentes para distinguir caché reciente, antigua e incompleta.
 - Listado y detalle de eventos sísmicos.
 - Filtros avanzados y consultas históricas.
 - Mapas interactivos.

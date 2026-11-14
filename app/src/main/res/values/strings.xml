@@ -19,12 +19,33 @@
     <string name="home_magnitude_2_5">M 2.5+</string>
     <string name="home_magnitude_4_5">M 4.5+</string>
 
+    <!-- HOME: RESULTS -->
+    <string name="home_results_title">Eventos sísmicos</string>
+    <string name="home_results_count">Eventos encontrados: %1$d</string>
+    <string name="home_refresh">Actualizar</string>
+    <string name="home_refreshing">Actualizando desde USGS…</string>
+    <string name="home_loading_local">Consultando datos guardados…</string>
+
     <!-- HOME: EMPTY STATE -->
-    <string name="home_empty_title">Todavía no hay eventos cargados</string>
-    <string name="home_empty_description">La integración con el catálogo de USGS se incorporará en una próxima etapa.</string>
+    <string name="home_empty_title">No hay eventos para estos filtros</string>
+    <string name="home_no_cache_title">No hay datos guardados disponibles</string>
+    <string name="home_empty_description">Prueba otro período o una magnitud menor. La información disponible sin conexión puede ser incompleta.</string>
+
+    <!-- HOME: ERRORS -->
+    <string name="home_error_connection">No se pudo conectar con USGS. Se mantienen los datos guardados.</string>
+    <string name="home_error_service">USGS no pudo responder correctamente. Puedes intentar actualizar nuevamente.</string>
+    <string name="home_error_response">La respuesta de USGS no pudo procesarse. Se mantienen los datos guardados.</string>
+    <string name="home_error_unexpected">Ocurrió un error inesperado durante la actualización.</string>
+    <string name="home_local_error">No se pudieron consultar los eventos almacenados.</string>
+
+    <!-- HOME: EVENT CARD -->
+    <string name="home_event_magnitude">M %1$.1f</string>
+    <string name="home_event_magnitude_unknown">Magnitud desconocida</string>
+    <string name="home_event_place_unknown">Ubicación no especificada</string>
+    <string name="home_event_depth">Profundidad: %1$.1f km</string>
 
     <!-- DATA SOURCE -->
-    <string name="home_source">Fuente prevista: USGS (U.S. Geological Survey).</string>
+    <string name="home_source">Fuente: USGS (U.S. Geological Survey).</string>
 
     <!-- SAFETY AND DISCLAIMERS -->
     <string name="home_disclaimer">Esta aplicación es informativa y no sustituye sistemas oficiales de alerta ni recomendaciones de emergencia.</string>

@@ -15,8 +15,11 @@ import com.cgaraydev.seismicexplorer.domain.repository.EarthquakeRepository
 import java.io.IOException
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import retrofit2.HttpException
 
@@ -34,7 +37,7 @@ class OfflineFirstEarthquakeRepository @Inject constructor(
             minimumMagnitude = query.minimumMagnitude
         ).map { entities ->
             entities.map { it.toDomain() }
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     override suspend fun refreshRecent(
@@ -54,7 +57,10 @@ class OfflineFirstEarthquakeRepository @Inject constructor(
             return RefreshResult.Failure(RefreshFailure.CONNECTION)
         }
 
-        val entities = response.toDomain().map { it.toEntity() }
+        val entities = withContext(Dispatchers.Default) {
+            response.toDomain()
+                .map { it.toEntity() }
+        }
 
         dao.upsertIfNewer(entities)
 

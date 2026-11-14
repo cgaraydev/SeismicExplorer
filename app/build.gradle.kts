@@ -84,6 +84,7 @@ dependencies {
     // Unit Tests
     testImplementation(libs.junit)
     testImplementation(libs.mockwebserver)
+    testImplementation(libs.kotlinx.coroutines.test)
 
     // Instrumented Tests
     androidTestImplementation(platform(libs.androidx.compose.bom))

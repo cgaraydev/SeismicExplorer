@@ -9,4 +9,6 @@ sealed interface HomeAction {
     data class SelectMagnitude(
         val value: MagnitudeThreshold
     ) : HomeAction
+
+    data object Refresh : HomeAction
 }

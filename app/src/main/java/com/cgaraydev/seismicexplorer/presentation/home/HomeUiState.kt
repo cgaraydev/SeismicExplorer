@@ -1,5 +1,8 @@
 package com.cgaraydev.seismicexplorer.presentation.home
 
+import com.cgaraydev.seismicexplorer.domain.model.Earthquake
+import com.cgaraydev.seismicexplorer.domain.model.RefreshFailure
+
 enum class TimeWindow {
     LAST_DAY,
     LAST_WEEK,
@@ -12,7 +15,21 @@ enum class MagnitudeThreshold {
     MAGNITUDE_4_5
 }
 
+sealed interface HomeRefreshState {
+    data object Idle : HomeRefreshState
+    data object Refreshing : HomeRefreshState
+    data object Completed : HomeRefreshState
+
+    data class Failed(
+        val reason: RefreshFailure?
+    ) : HomeRefreshState
+}
+
 data class HomeUiState(
     val timeWindow: TimeWindow = TimeWindow.LAST_DAY,
-    val minimumMagnitude: MagnitudeThreshold = MagnitudeThreshold.ALL
+    val minimumMagnitude: MagnitudeThreshold = MagnitudeThreshold.ALL,
+    val earthquakes: List<Earthquake> = emptyList(),
+    val isReadingLocal: Boolean = true,
+    val localReadFailed: Boolean = false,
+    val refreshState: HomeRefreshState = HomeRefreshState.Idle
 )
