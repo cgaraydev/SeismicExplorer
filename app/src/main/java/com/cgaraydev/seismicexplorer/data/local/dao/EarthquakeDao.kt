@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 abstract class EarthquakeDao {
 
+    @Transaction
     @Query(
         """
         SELECT * FROM earthquakes
@@ -29,7 +30,7 @@ abstract class EarthquakeDao {
     ): Flow<List<EarthquakeEntity>>
 
     @Upsert
-    abstract suspend fun upsertEarthquakes(
+    protected abstract suspend fun upsertEarthquakes(
         earthquakes: List<EarthquakeEntity>
     )
 

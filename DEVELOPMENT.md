@@ -49,6 +49,9 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - AndroidX Test Core: 1.7.0
 - Kotlin Coroutines Test: 1.11.0
 - Pruebas instrumentadas de consultas y escritura SQLite
+- Pruebas de observación continua de Flow.
+- Pruebas de escrituras concurrentes y selección de la revisión más reciente.
+- Pruebas de IDs duplicados, empates de timestamps y procesamiento por lotes.
 
 ## Arquitectura
 
@@ -66,6 +69,9 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - Actualización condicionada por la fecha de revisión de cada evento.
 - Separación entre ventanas recientes de sincronización e intervalos absolutos de consulta.
 - Ventanas USGS de 24 horas, 7 días y 30 días; cobertura histórica exacta pendiente de FDSN.
+- Consultas Room observables ejecutadas en transacción para conservar la consistencia de lecturas grandes.
+- Escrituras centralizadas en upsertIfNewer, con protección basada en updatedAt.
+- Ante versiones con el mismo timestamp, se conserva la versión previamente almacenada.
 
 ## Funcionalidades pendientes
 
