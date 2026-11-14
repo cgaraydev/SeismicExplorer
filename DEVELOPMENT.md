@@ -19,6 +19,9 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - GitHub Actions: integración continua
 - Dagger Hilt: 2.60.1
 - KSP: 2.3.12
+- Retrofit: 3.0.0
+- Kotlin Serialization JSON: 1.13.0
+- Retrofit Kotlin Serialization Converter: 3.0.0
 
 ### Android y presentación
 
