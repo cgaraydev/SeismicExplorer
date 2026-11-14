@@ -11,12 +11,14 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - Gradle Wrapper: 9.9.1
 - Kotlin: 2.4.21
 - JDK de Gradle: 25
-- Compatibilidad Java configurada: 11
+- Compatibilidad Java configurada: 17
 - compileSdk: 37
 - targetSdk: 37
 - minSdk: 29
 - Gradle Kotlin DSL
 - GitHub Actions: integración continua
+- Dagger Hilt: 2.60.1
+- KSP: 2.3.12
 
 ### Android y presentación
 
@@ -48,14 +50,13 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - Separación entre presentación, dominio y datos.
 - Modelos de dominio independientes de Android y de las fuentes externas.
 - Enfoque offline-first.
-- Inyección de dependencias mediante Hilt, pendiente de incorporación.
+- Inyección de dependencias mediante Hilt y generación de código con KSP.
 - Preferencia por APIs estables y componentes reutilizables.
 
 ## Funcionalidades pendientes
 
 - Integración con los servicios sísmicos de USGS.
 - Persistencia local y sincronización offline-first.
-- Inyección de dependencias con Hilt.
 - Listado y detalle de eventos sísmicos.
 - Filtros avanzados y consultas históricas.
 - Mapas interactivos.
@@ -83,8 +84,12 @@ Discutir los hallazgos antes de implementar cambios. Priorizar problemas reales 
 
 ## Observaciones para próximos incrementos
 
-Este apartado se utilizará para incorporar notas, ideas y mejoras pequeñas durante el desarrollo.
+luego de conseguir un mvp, debemos darle un poco de tiempo a discutir temas visuales, la tipografia, q formas vamos a usar, vamos a usar lo q recomienda material3? lo mismo los iconoes, ocuparemos recursos de google icons o google fonts? crearemos nuestros iconos
+no escatimes en badges en el readme, puedes poner de kotlin entre otras
+en el build gradle de la app, comentar la libreria q usaremos antes de la implementation, por ejemplo:
+// Hilt
+implementation(libs.hilt.android)
+ksp(libs.hilt.compiler)
+crear paletas de colores opcionales para ver ambos modos, no me convence la paleta actual de ambos modos pero esta queda para mas adelante, una vez q tengamos varias screens integradas para poder decidir mejor 
 
-Las observaciones pendientes se revisarán después de cada push y podrán incorporarse a los incrementos siguientes.
 
-Conservar las observaciones que todavía no hayan sido analizadas o resueltas.
