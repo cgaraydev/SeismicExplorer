@@ -1,3 +1,32 @@
 <resources>
+
+    <!-- GENERAL -->
     <string name="app_name">SeismicExplorer</string>
+
+    <!-- HOME: HEADER -->
+    <string name="home_title">Actividad sísmica mundial</string>
+    <string name="home_description">Selecciona un período y una magnitud mínima para explorar los eventos sísmicos.</string>
+
+    <!-- HOME: PERIOD FILTER -->
+    <string name="home_period_title">Período</string>
+    <string name="home_period_day">24 horas</string>
+    <string name="home_period_week">7 días</string>
+    <string name="home_period_month">30 días</string>
+
+    <!-- HOME: MAGNITUDE FILTER -->
+    <string name="home_magnitude_title">Magnitud mínima</string>
+    <string name="home_magnitude_all">Todas</string>
+    <string name="home_magnitude_2_5">M 2.5+</string>
+    <string name="home_magnitude_4_5">M 4.5+</string>
+
+    <!-- HOME: EMPTY STATE -->
+    <string name="home_empty_title">Todavía no hay eventos cargados</string>
+    <string name="home_empty_description">La integración con el catálogo de USGS se incorporará en una próxima etapa.</string>
+
+    <!-- DATA SOURCE -->
+    <string name="home_source">Fuente prevista: USGS (U.S. Geological Survey).</string>
+
+    <!-- SAFETY AND DISCLAIMERS -->
+    <string name="home_disclaimer">Esta aplicación es informativa y no sustituye sistemas oficiales de alerta ni recomendaciones de emergencia.</string>
+
 </resources>
