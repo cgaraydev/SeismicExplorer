@@ -130,30 +130,6 @@ private class SeismicMapHostView(
                     loadedStyle = style
                 }
             }
-
-            map.addOnMapClickListener {
-                val features = loadedStyle
-                    ?.getSourceAs<GeoJsonSource>(
-                        MapEarthquakeLayers.SOURCE_ID
-                    )
-                    ?.querySourceFeatures(null)
-                    .orEmpty()
-
-                val clusters = features.count { feature ->
-                    feature.hasProperty("point_count")
-                }
-
-                val individual = features.size - clusters
-
-                Log.d(
-                    "SeismicMapDiag",
-                    "features=${features.size}, " +
-                            "clusters=$clusters, " +
-                            "individual=$individual"
-                )
-
-                false
-            }
         }
     }
 

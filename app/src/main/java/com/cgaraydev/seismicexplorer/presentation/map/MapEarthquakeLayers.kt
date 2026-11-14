@@ -98,32 +98,28 @@ internal object MapEarthquakeLayers {
                 )
         )
 
+
         style.addLayer(
             SymbolLayer(CLUSTER_COUNT_LAYER_ID, SOURCE_ID)
-                .withFilter(Expression.has("point_count"))
+                .withFilter(
+                    Expression.has("point_count")
+                )
                 .withProperties(
                     PropertyFactory.textField(
-                        Expression.get("point_count_abbreviated")
+                        Expression.toString(
+                            Expression.get("point_count_abbreviated")
+                        )
                     ),
-                    PropertyFactory.textSize(12f),
+                    PropertyFactory.textFont(
+                        arrayOf("Noto Sans Regular")
+                    ),
+                    PropertyFactory.textSize(14f),
                     PropertyFactory.textColor("#FFFFFF"),
-                    PropertyFactory.textAllowOverlap(true)
+                    PropertyFactory.textAllowOverlap(true),
+                    PropertyFactory.textIgnorePlacement(true)
                 )
         )
 
-        // TEMPORAL: diagnóstico de todas las features visibles.
-        style.addLayer(
-            CircleLayer(
-                "seismic-debug-all-features",
-                SOURCE_ID
-            ).withProperties(
-                PropertyFactory.circleColor("#FF00FF"),
-                PropertyFactory.circleRadius(12f),
-                PropertyFactory.circleStrokeColor("#FFFFFF"),
-                PropertyFactory.circleStrokeWidth(2f),
-                PropertyFactory.circleOpacity(1f)
-            )
-        )
     }
 
     private fun addEventLayer(
