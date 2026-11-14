@@ -22,6 +22,9 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - Retrofit: 3.0.0
 - Kotlin Serialization JSON: 1.13.0
 - Retrofit Kotlin Serialization Converter: 3.0.0
+- Room 3: 3.0.3
+- Room Gradle Plugin: 3.0.3
+- AndroidX SQLite Framework: 2.7.1
 
 ### Android y presentación
 
@@ -43,6 +46,9 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - Pruebas instrumentadas Android
 - Android Lint
 - CI mediante GitHub Actions
+- AndroidX Test Core: 1.7.0
+- Kotlin Coroutines Test: 1.11.0
+- Pruebas instrumentadas de consultas y escritura SQLite
 
 ## Arquitectura
 
@@ -86,13 +92,4 @@ Aspectos a revisar:
 Discutir los hallazgos antes de implementar cambios. Priorizar problemas reales sobre recomendaciones puramente estilísticas.
 
 ## Observaciones para próximos incrementos
-
-luego de conseguir un mvp, debemos darle un poco de tiempo a discutir temas visuales, la tipografia, q formas vamos a usar, vamos a usar lo q recomienda material3? lo mismo los iconoes, ocuparemos recursos de google icons o google fonts? crearemos nuestros iconos
-no escatimes en badges en el readme, puedes poner de kotlin entre otras
-en el build gradle de la app, comentar la libreria q usaremos antes de la implementation, por ejemplo:
-// Hilt
-implementation(libs.hilt.android)
-ksp(libs.hilt.compiler)
-crear paletas de colores opcionales para ver ambos modos, no me convence la paleta actual de ambos modos pero esta queda para mas adelante, una vez q tengamos varias screens integradas para poder decidir mejor 
-
-
+libs.versions.toml tambien debe ir comentado como las dependencias en el gradle, asi mantenemos todo mas organizado y acequible en caso de q la app crezca mucho

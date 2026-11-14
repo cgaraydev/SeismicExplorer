@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.room3)
 }
 
 android {
@@ -42,6 +43,10 @@ android {
     }
 }
 
+room3 {
+    schemaDirectory("$projectDir/schemas")
+}
+
 dependencies {
     // Android Core
     implementation(libs.androidx.core.ktx)
@@ -71,6 +76,11 @@ dependencies {
     implementation(libs.retrofit.kotlinx.serialization)
     implementation(libs.kotlinx.serialization.json)
 
+    // Local Database
+    implementation(libs.room3.runtime)
+    implementation(libs.androidx.sqlite.framework)
+    ksp(libs.room3.compiler)
+
     // Unit Tests
     testImplementation(libs.junit)
 
@@ -79,6 +89,8 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
 
     // Debug Tools
     debugImplementation(libs.androidx.compose.ui.test.manifest)
