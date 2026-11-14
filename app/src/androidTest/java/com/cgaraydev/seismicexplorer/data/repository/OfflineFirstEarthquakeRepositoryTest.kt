@@ -13,17 +13,25 @@ import com.cgaraydev.seismicexplorer.data.remote.dto.UsgsEarthquakeFeatureDto
 import com.cgaraydev.seismicexplorer.data.remote.dto.UsgsEarthquakeGeometryDto
 import com.cgaraydev.seismicexplorer.data.remote.dto.UsgsEarthquakePropertiesDto
 import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
+import com.cgaraydev.seismicexplorer.domain.model.RefreshFailure
+import com.cgaraydev.seismicexplorer.domain.model.RefreshResult
 import java.io.IOException
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.SerializationException
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import retrofit2.HttpException
+import retrofit2.Response
 
 @RunWith(AndroidJUnit4::class)
 class OfflineFirstEarthquakeRepositoryTest {
@@ -69,10 +77,10 @@ class OfflineFirstEarthquakeRepositoryTest {
             updatedAt = now.minus(1, ChronoUnit.HOURS)
         )
 
-        repository.refreshRecent(RecentWindow.LAST_DAY)
-
+        val result = repository.refreshRecent(RecentWindow.LAST_DAY)
         val events = repository.observeEarthquakes(dayQuery).first()
 
+        assertEquals(RefreshResult.Success, result)
         assertEquals(listOf("all_day"), api.requestedFeeds)
         assertEquals(1, events.size)
         assertEquals("us1", events.single().id)
@@ -97,10 +105,10 @@ class OfflineFirstEarthquakeRepositoryTest {
             updatedAt = now.minus(90, ChronoUnit.MINUTES)
         )
 
-        repository.refreshRecent(RecentWindow.LAST_DAY)
-
+        val result = repository.refreshRecent(RecentWindow.LAST_DAY)
         val events = repository.observeEarthquakes(dayQuery).first()
 
+        assertEquals(RefreshResult.Success, result)
         assertEquals(1, events.size)
         assertEquals(5.2, events.single().magnitude!!, 0.0)
     }
@@ -145,20 +153,105 @@ class OfflineFirstEarthquakeRepositoryTest {
 
         api.failure = IOException("Network unavailable")
 
-        var failureReceived = false
-
-        try {
-            repository.refreshRecent(RecentWindow.LAST_DAY)
-        } catch (exception: IOException) {
-            failureReceived = true
-        }
-
-        assertTrue(failureReceived)
-
+        val result = repository.refreshRecent(RecentWindow.LAST_DAY)
         val events = repository.observeEarthquakes(dayQuery).first()
 
+        assertEquals(
+            RefreshResult.Failure(RefreshFailure.CONNECTION),
+            result
+        )
         assertEquals(1, events.size)
         assertEquals("cached", events.single().id)
+    }
+
+    @Test
+    fun initialNetworkFailure_returnsFailureAndLeavesCacheEmpty() = runTest {
+        api.failure = IOException("Network unavailable")
+
+        val result = repository.refreshRecent(RecentWindow.LAST_DAY)
+        val events = repository.observeEarthquakes(dayQuery).first()
+
+        assertEquals(
+            RefreshResult.Failure(RefreshFailure.CONNECTION),
+            result
+        )
+        assertTrue(events.isEmpty())
+    }
+
+    @Test
+    fun httpError_returnsServiceFailureWithoutDeletingCache() = runTest {
+        api.response = sampleResponse(
+            id = "cached",
+            magnitude = 4.0,
+            occurredAt = now.minus(2, ChronoUnit.HOURS),
+            updatedAt = now.minus(1, ChronoUnit.HOURS)
+        )
+
+        repository.refreshRecent(RecentWindow.LAST_DAY)
+
+        api.failure = HttpException(
+            Response.error<String>(
+                503,
+                "Service unavailable".toResponseBody(
+                    "text/plain".toMediaType()
+                )
+            )
+        )
+
+        val result = repository.refreshRecent(RecentWindow.LAST_DAY)
+        val events = repository.observeEarthquakes(dayQuery).first()
+
+        assertEquals(
+            RefreshResult.Failure(RefreshFailure.SERVICE),
+            result
+        )
+        assertEquals(listOf("cached"), events.map { it.id })
+    }
+
+    @Test
+    fun invalidResponse_returnsFailureWithoutDeletingCache() = runTest {
+        api.response = sampleResponse(
+            id = "cached",
+            magnitude = 4.0,
+            occurredAt = now.minus(2, ChronoUnit.HOURS),
+            updatedAt = now.minus(1, ChronoUnit.HOURS)
+        )
+
+        repository.refreshRecent(RecentWindow.LAST_DAY)
+
+        api.failure = SerializationException("Invalid GeoJSON")
+
+        val result = repository.refreshRecent(RecentWindow.LAST_DAY)
+        val events = repository.observeEarthquakes(dayQuery).first()
+
+        assertEquals(
+            RefreshResult.Failure(RefreshFailure.INVALID_RESPONSE),
+            result
+        )
+        assertEquals(listOf("cached"), events.map { it.id })
+    }
+
+    @Test
+    fun cancellation_isPropagated() = runTest {
+        api.failure = CancellationException("Refresh cancelled")
+
+        val exception = runCatching {
+            repository.refreshRecent(RecentWindow.LAST_DAY)
+        }.exceptionOrNull()
+
+        assertTrue(exception is CancellationException)
+        assertTrue(repository.observeEarthquakes(dayQuery).first().isEmpty())
+    }
+
+    @Test
+    fun unexpectedException_isNotHidden() = runTest {
+        api.failure = IllegalStateException("Unexpected state")
+
+        val exception = runCatching {
+            repository.refreshRecent(RecentWindow.LAST_DAY)
+        }.exceptionOrNull()
+
+        assertTrue(exception is IllegalStateException)
     }
 
     @Test
@@ -174,10 +267,10 @@ class OfflineFirstEarthquakeRepositoryTest {
             updatedAt = now.minus(28, ChronoUnit.DAYS)
         )
 
-        repository.refreshRecent(RecentWindow.LAST_30_DAYS)
-
+        val result = repository.refreshRecent(RecentWindow.LAST_30_DAYS)
         val events = repository.observeEarthquakes(earlierQuery).first()
 
+        assertEquals(RefreshResult.Success, result)
         assertEquals(listOf("all_month"), api.requestedFeeds)
         assertEquals(1, events.size)
         assertEquals("monthly", events.single().id)
@@ -215,7 +308,7 @@ class OfflineFirstEarthquakeRepositoryTest {
             features = emptyList()
         )
 
-        var failure: IOException? = null
+        var failure: Exception? = null
 
         val requestedFeeds = mutableListOf<String>()
 

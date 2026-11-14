@@ -52,6 +52,12 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - Pruebas de observación continua de Flow.
 - Pruebas de escrituras concurrentes y selección de la revisión más reciente.
 - Pruebas de IDs duplicados, empates de timestamps y procesamiento por lotes.
+- MockWebServer: 4.12.0 (pruebas HTTP locales)
+- Pruebas JVM de Retrofit y Kotlin Serialization con MockWebServer.
+- Validación de respuestas HTTP 200, 404, 500 y 503.
+- Pruebas de JSON malformado y tipos incompatibles.
+- Pruebas de clasificación de errores y conservación del caché.
+- Pruebas de propagación de CancellationException.
 
 ## Arquitectura
 
@@ -72,6 +78,10 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - Consultas Room observables ejecutadas en transacción para conservar la consistencia de lecturas grandes.
 - Escrituras centralizadas en upsertIfNewer, con protección basada en updatedAt.
 - Ante versiones con el mismo timestamp, se conserva la versión previamente almacenada.
+- Resultado tipado de sincronización mediante RefreshResult.
+- Clasificación de errores de conexión, servicio y respuestas inválidas.
+- Propagación de cancelaciones de coroutines y excepciones inesperadas.
+- Conservación de datos locales ante errores de actualización remota.
 
 ## Funcionalidades pendientes
 
@@ -103,4 +113,3 @@ Aspectos a revisar:
 Discutir los hallazgos antes de implementar cambios. Priorizar problemas reales sobre recomendaciones puramente estilísticas.
 
 ## Observaciones para próximos incrementos
-manejo d excepciones

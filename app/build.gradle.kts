@@ -83,6 +83,7 @@ dependencies {
 
     // Unit Tests
     testImplementation(libs.junit)
+    testImplementation(libs.mockwebserver)
 
     // Instrumented Tests
     androidTestImplementation(platform(libs.androidx.compose.bom))
