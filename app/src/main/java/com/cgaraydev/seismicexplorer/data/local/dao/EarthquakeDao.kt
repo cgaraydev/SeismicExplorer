@@ -2,12 +2,13 @@ package com.cgaraydev.seismicexplorer.data.local.dao
 
 import androidx.room3.Dao
 import androidx.room3.Query
+import androidx.room3.Transaction
 import androidx.room3.Upsert
 import com.cgaraydev.seismicexplorer.data.local.entity.EarthquakeEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface EarthquakeDao {
+abstract class EarthquakeDao {
 
     @Query(
         """
@@ -21,14 +22,53 @@ interface EarthquakeDao {
         ORDER BY occurredAtEpochMillis DESC, id ASC
         """
     )
-    fun observeEarthquakes(
+    abstract fun observeEarthquakes(
         startTime: Long,
         endTime: Long,
         minimumMagnitude: Double?
     ): Flow<List<EarthquakeEntity>>
 
     @Upsert
-    suspend fun upsertEarthquakes(
+    abstract suspend fun upsertEarthquakes(
         earthquakes: List<EarthquakeEntity>
     )
+
+    @Query(
+        """
+        SELECT id, updatedAtEpochMillis
+        FROM earthquakes
+        WHERE id IN (:ids)
+        """
+    )
+    protected abstract suspend fun getExistingVersions(
+        ids: List<String>
+    ): List<EarthquakeVersion>
+
+    @Transaction
+    open suspend fun upsertIfNewer(
+        earthquakes: List<EarthquakeEntity>
+    ) {
+        val newestPerId = earthquakes
+            .groupBy { it.id }
+            .map { (_, versions) ->
+                versions.maxBy { it.updatedAtEpochMillis }
+            }
+
+        newestPerId.chunked(400).forEach { batch ->
+            val existingVersions = getExistingVersions(
+                batch.map { it.id }
+            ).associate { it.id to it.updatedAtEpochMillis }
+
+            val newOrUpdated = batch.filter { earthquake ->
+                val storedVersion = existingVersions[earthquake.id]
+
+                storedVersion == null ||
+                        earthquake.updatedAtEpochMillis > storedVersion
+            }
+
+            if (newOrUpdated.isNotEmpty()) {
+                upsertEarthquakes(newOrUpdated)
+            }
+        }
+    }
 }

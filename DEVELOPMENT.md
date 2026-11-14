@@ -61,6 +61,9 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - Enfoque offline-first.
 - Inyección de dependencias mediante Hilt y generación de código con KSP.
 - Preferencia por APIs estables y componentes reutilizables.
+- Repositorio offline-first con Room como fuente observable de datos.
+- Sincronización inicial mediante feeds recientes de USGS.
+- Actualización condicionada por la fecha de revisión de cada evento.
 
 ## Funcionalidades pendientes
 
@@ -92,4 +95,4 @@ Aspectos a revisar:
 Discutir los hallazgos antes de implementar cambios. Priorizar problemas reales sobre recomendaciones puramente estilísticas.
 
 ## Observaciones para próximos incrementos
-libs.versions.toml tambien debe ir comentado como las dependencias en el gradle, asi mantenemos todo mas organizado y acequible en caso de q la app crezca mucho
+manejo d excepciones

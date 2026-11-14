@@ -156,6 +156,38 @@ class EarthquakeDaoTest {
         assertTrue(events.any { it.id == "recent" })
     }
 
+    @Test
+    fun upsertIfNewer_preservesMostRecentRevision() = runTest {
+        val original = sampleEntity(
+            id = "us1",
+            occurredAt = recentTime,
+            magnitude = 4.5
+        ).copy(
+            updatedAtEpochMillis = recentTime + 20_000,
+            place = "Latest location"
+        )
+
+        dao.upsertIfNewer(listOf(original))
+
+        val olderRevision = original.copy(
+            magnitude = 2.0,
+            place = "Outdated location",
+            updatedAtEpochMillis = recentTime + 10_000
+        )
+
+        dao.upsertIfNewer(listOf(olderRevision))
+
+        val events = dao.observeEarthquakes(
+            startTime = startOfDay,
+            endTime = endOfDay,
+            minimumMagnitude = null
+        ).first()
+
+        assertEquals(1, events.size)
+        assertEquals(4.5, events.single().magnitude!!, 0.0)
+        assertEquals("Latest location", events.single().place)
+    }
+
     private fun sampleEntity(
         id: String,
         occurredAt: Long,
