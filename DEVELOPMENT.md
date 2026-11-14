@@ -132,6 +132,17 @@ Aspectos a revisar:
 
 Discutir los hallazgos antes de implementar cambios. Priorizar problemas reales sobre recomendaciones puramente estilísticas.
 
+## Pendientes de presentación y publicación
+
+- Completar y validar la integración del mapa sísmico.
+- Realizar una revisión visual integral de Home, Detalle y Mapa.
+- Definir tipografía, colores, formas, componentes e iconografía.
+- Revisar los modos claro y oscuro y la accesibilidad.
+- Rehacer README.md después de aprobar el diseño visual.
+- Documentar arquitectura, tecnologías y funcionalidades.
+- Incorporar badges relevantes y capturas reales de la aplicación.
+- Actualizar el roadmap y las funcionalidades pendientes.
+
 ## Observaciones para próximos incrementos
 revisar version de mockweserber, me da una posibilidad un update a version 5.x
 OfflineFirstEarthquakeRepository - revisar wearnigns de no uso de exception:

@@ -89,6 +89,9 @@ dependencies {
     // Hilt ViewModels
     implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
 
+    // Map rendering
+    implementation(libs.maplibre.android)
+
     // Unit Tests
     testImplementation(libs.junit)
     testImplementation(libs.mockwebserver)

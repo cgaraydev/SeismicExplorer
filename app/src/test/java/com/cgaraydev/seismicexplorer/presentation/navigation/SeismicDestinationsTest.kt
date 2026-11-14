@@ -32,4 +32,13 @@ class SeismicDestinationsTest {
 
         assertEquals(HomeDestination, restored)
     }
+
+    @Test
+    fun mapDestination_roundTripsThroughSerialization() {
+        val encoded = Json.encodeToString(MapDestination)
+
+        val restored = Json.decodeFromString<MapDestination>(encoded)
+
+        assertEquals(MapDestination, restored)
+    }
 }

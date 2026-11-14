@@ -42,6 +42,7 @@ import java.time.format.FormatStyle
 @Composable
 fun HomeRoute(
     onEarthquakeClick: (String) -> Unit,
+    onMapClick: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -49,7 +50,8 @@ fun HomeRoute(
     HomeScreen(
         state = state,
         onAction = viewModel::onAction,
-        onEarthquakeClick = onEarthquakeClick
+        onEarthquakeClick = onEarthquakeClick,
+        onMapClick = onMapClick
     )
 }
 
@@ -59,7 +61,8 @@ fun HomeScreen(
     state: HomeUiState,
     onAction: (HomeAction) -> Unit,
     modifier: Modifier = Modifier,
-    onEarthquakeClick: (String) -> Unit = {}
+    onEarthquakeClick: (String) -> Unit = {},
+    onMapClick: () -> Unit = {}
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -167,6 +170,15 @@ fun HomeScreen(
                             }
                         )
                     }
+                }
+            }
+
+            item {
+                OutlinedButton(
+                    onClick = onMapClick,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.home_open_map))
                 }
             }
 

@@ -10,18 +10,22 @@ import androidx.navigation3.ui.NavDisplay
 import com.cgaraydev.seismicexplorer.presentation.detail.EarthquakeDetailRoute
 import com.cgaraydev.seismicexplorer.presentation.detail.EarthquakeDetailViewModel
 import com.cgaraydev.seismicexplorer.presentation.home.HomeRoute
+import com.cgaraydev.seismicexplorer.presentation.map.SeismicMapScreen
 
 @Composable
 fun SeismicNavHost() {
     val backStack = rememberNavBackStack(HomeDestination)
 
+    val navigateBack = {
+        if (backStack.size > 1) {
+            backStack.removeLastOrNull()
+        }
+        Unit
+    }
+
     NavDisplay(
         backStack = backStack,
-        onBack = {
-            if (backStack.size > 1) {
-                backStack.removeLastOrNull()
-            }
-        },
+        onBack = navigateBack,
         entryDecorators = listOf(
             rememberSaveableStateHolderNavEntryDecorator(),
             rememberViewModelStoreNavEntryDecorator()
@@ -37,7 +41,18 @@ fun SeismicNavHost() {
                                 )
                             )
                         }
+                    },
+                    onMapClick = {
+                        if (backStack.lastOrNull() == HomeDestination) {
+                            backStack.add(MapDestination)
+                        }
                     }
+                )
+            }
+
+            entry<MapDestination> {
+                SeismicMapScreen(
+                    onBack = navigateBack
                 )
             }
 
@@ -53,11 +68,7 @@ fun SeismicNavHost() {
 
                 EarthquakeDetailRoute(
                     viewModel = viewModel,
-                    onBack = {
-                        if (backStack.size > 1) {
-                            backStack.removeLastOrNull()
-                        }
-                    }
+                    onBack = navigateBack
                 )
             }
         }

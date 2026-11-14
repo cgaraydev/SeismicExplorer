@@ -7,6 +7,9 @@ import kotlinx.serialization.Serializable
 data object HomeDestination : NavKey
 
 @Serializable
+data object MapDestination : NavKey
+
+@Serializable
 data class EarthquakeDetailDestination(
     val earthquakeId: String
 ) : NavKey

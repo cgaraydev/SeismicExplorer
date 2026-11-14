@@ -68,6 +68,10 @@
     <string name="detail_error">No se pudo cargar el detalle</string>
     <string name="detail_error_description">Ocurrió un problema al consultar los datos locales.</string>
 
+    <!-- MAP -->
+    <string name="home_open_map">Ver mapa mundial</string>
+    <string name="map_title">Mapa sísmico</string>
+
     <!-- SAFETY AND DISCLAIMERS -->
     <string name="home_disclaimer">Esta aplicación es informativa y no sustituye sistemas oficiales de alerta ni recomendaciones de emergencia.</string>
 

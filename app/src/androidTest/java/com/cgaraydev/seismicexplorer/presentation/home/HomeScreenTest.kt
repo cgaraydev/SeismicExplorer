@@ -13,6 +13,7 @@ import com.cgaraydev.seismicexplorer.domain.model.RefreshFailure
 import com.cgaraydev.seismicexplorer.ui.theme.SeismicExplorerTheme
 import java.time.Instant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import androidx.compose.ui.test.hasTestTag
@@ -193,6 +194,37 @@ class HomeScreenTest {
 
         composeRule.runOnIdle {
             assertEquals("us123", selectedId)
+        }
+    }
+
+    @Test
+    fun mapButton_invokesNavigationCallback() {
+        var mapRequested = false
+
+        composeRule.setContent {
+            SeismicExplorerTheme {
+                HomeScreen(
+                    state = HomeUiState(isReadingLocal = false),
+                    onAction = {},
+                    onMapClick = {
+                        mapRequested = true
+                    }
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithTag("home_list")
+            .performScrollToNode(
+                hasText("Ver mapa mundial")
+            )
+
+        composeRule
+            .onNodeWithText("Ver mapa mundial")
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertTrue(mapRequested)
         }
     }
 
