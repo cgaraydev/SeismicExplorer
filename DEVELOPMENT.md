@@ -123,3 +123,8 @@ Aspectos a revisar:
 Discutir los hallazgos antes de implementar cambios. Priorizar problemas reales sobre recomendaciones puramente estilísticas.
 
 ## Observaciones para próximos incrementos
+revisar version de mockweserber, me da una posibilidad un update a version 5.x
+OfflineFirstEarthquakeRepository - revisar wearnigns de no uso de exception:
+Parameter "exception" is never used
+Parameter "exception" is never used
+Parameter "exception" is never used

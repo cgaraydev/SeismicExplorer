@@ -7,14 +7,12 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.cgaraydev.seismicexplorer.data.local.dao.EarthquakeDao
 import com.cgaraydev.seismicexplorer.data.local.entity.EarthquakeEntity
-import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
@@ -27,6 +25,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.Instant
+import kotlin.time.Duration.Companion.milliseconds
 
 @RunWith(AndroidJUnit4::class)
 class EarthquakeDaoTest {
@@ -301,7 +301,7 @@ class EarthquakeDaoTest {
         }
 
         try {
-            val initial = withTimeout(10_000) {
+            val initial = withTimeout(10_000.milliseconds) {
                 emissions.receive()
             }
 
@@ -311,7 +311,7 @@ class EarthquakeDaoTest {
                 listOf(sampleEntity("observed", recentTime, 3.0))
             )
 
-            val afterInsert = withTimeout(10_000) {
+            val afterInsert = withTimeout(10_000.milliseconds) {
                 emissions.receiveAsFlow().first { earthquakes ->
                     earthquakes.any { it.id == "observed" }
                 }
@@ -328,7 +328,7 @@ class EarthquakeDaoTest {
                 )
             )
 
-            val afterUpdate = withTimeout(10_000) {
+            val afterUpdate = withTimeout(10_000.milliseconds) {
                 emissions.receiveAsFlow().first { earthquakes ->
                     earthquakes.singleOrNull()?.magnitude == 5.0
                 }
