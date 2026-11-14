@@ -342,6 +342,54 @@ class EarthquakeDaoTest {
         }
     }
 
+    @Test
+    fun observeEarthquake_returnsRecordById() = runTest {
+        dao.upsertIfNewer(
+            listOf(
+                sampleEntity("us1", recentTime, 4.5),
+                sampleEntity("us2", recentTime, 2.0)
+            )
+        )
+
+        val earthquake = dao.observeEarthquake("us1").first()
+
+        assertEquals("us1", earthquake?.id)
+        assertEquals(4.5, earthquake?.magnitude!!, 0.0)
+    }
+
+    @Test
+    fun observeEarthquake_returnsNullWhenRecordDoesNotExist() = runTest {
+        dao.upsertIfNewer(
+            listOf(sampleEntity("us1", recentTime, 4.5))
+        )
+
+        val earthquake = dao.observeEarthquake("missing").first()
+
+        assertEquals(null, earthquake)
+    }
+
+    @Test
+    fun observeEarthquake_returnsUpdatedRevision() = runTest {
+        val original = sampleEntity("us1", recentTime, 3.0)
+
+        dao.upsertIfNewer(listOf(original))
+
+        val updated = original.copy(
+            magnitude = 5.6,
+            updatedAtEpochMillis = recentTime + 1_000
+        )
+
+        dao.upsertIfNewer(listOf(updated))
+
+        val stored = dao.observeEarthquake("us1").first()
+
+        assertEquals(5.6, stored?.magnitude!!, 0.0)
+        assertEquals(
+            recentTime + 1_000,
+            stored.updatedAtEpochMillis
+        )
+    }
+
     private fun observeAll() = dao.observeEarthquakes(
         startTime = startOfDay,
         endTime = endOfDay,

@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.cgaraydev.seismicexplorer.presentation.home.HomeRoute
+import com.cgaraydev.seismicexplorer.presentation.navigation.SeismicNavHost
 import com.cgaraydev.seismicexplorer.ui.theme.SeismicExplorerTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -17,7 +17,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SeismicExplorerTheme {
-                HomeRoute()
+                SeismicNavHost()
             }
         }
     }

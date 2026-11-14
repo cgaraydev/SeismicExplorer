@@ -8,8 +8,15 @@ import kotlinx.coroutines.flow.Flow
 
 interface EarthquakeRepository {
 
-    fun observeEarthquakes(query: EarthquakeQuery): Flow<List<Earthquake>>
+    fun observeEarthquakes(
+        query: EarthquakeQuery
+    ): Flow<List<Earthquake>>
 
-    suspend fun refreshRecent(window: RecentWindow): RefreshResult
+    fun observeEarthquake(
+        id: String
+    ): Flow<Earthquake?>
 
+    suspend fun refreshRecent(
+        window: RecentWindow
+    ): RefreshResult
 }

@@ -25,6 +25,9 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - Room 3: 3.0.3
 - Room Gradle Plugin: 3.0.3
 - AndroidX SQLite Framework: 2.7.1
+- Navigation 3: 1.2.1
+- AndroidX Hilt Lifecycle ViewModel Compose: 1.4.0
+- Lifecycle ViewModel Navigation 3: 2.11.0
 
 ### Android y presentación
 
@@ -62,6 +65,10 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - Pruebas de cambios de filtros sin descargas innecesarias.
 - Pruebas de cancelación de sincronizaciones y errores con datos almacenados.
 - Pruebas Compose de estados vacíos, actualización y datos locales visibles.
+- Pruebas de consulta individual por ID en Room.
+- Pruebas JVM del EarthquakeDetailViewModel.
+- Pruebas de serialización de destinos Navigation 3.
+- Pruebas Compose del detalle, retroceso, selección y enlaces oficiales.
 
 ## Arquitectura
 
@@ -91,18 +98,21 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - Cambios de magnitud sin solicitudes HTTP adicionales.
 - Cancelación y protección frente a resultados de sincronización obsoletos.
 - Actualización manual con renovación de los límites temporales.
-- Transformaciones de listas fuera de Main mediante Dispatchers.Default.
+- Transformaciones de listas fuera de Main mediante Dispatchers.
+- Navegación con NavDisplay y pila restaurable mediante rememberNavBackStack.
+- Destinos tipados que implementan NavKey y Kotlin Serialization.
+- ViewModels asociados a entradas de navegación mediante ViewModelStoreNavEntryDecorator.
+- Inyección asistida de argumentos de navegación mediante Hilt.
+- Detalle sísmico observable por ID desde Room, sin solicitudes HTTP adicionales.
 
 ## Funcionalidades pendientes
 
-- Integración inicial de USGS, Room y Home implementada; pendientes mejoras de sincronización, cobertura, frescura y retención.
-- Metadatos persistentes para distinguir caché reciente, antigua e incompleta.
-- Listado y detalle de eventos sísmicos.
-- Filtros avanzados y consultas históricas.
-- Mapas interactivos.
-- Estadísticas y visualización de datos.
-- Diseño visual, animaciones y accesibilidad.
-- Optimización, pruebas y preparación para Google Play.
+- Listado y detalle básico de eventos sísmicos implementados.
+- Pendiente ampliación de datos USGS: intensidad, tipo de magnitud, alertas y productos.
+- Pendiente diferenciar URL de página pública y URL del GeoJSON de detalle.
+- Pendiente mapa interactivo y navegación desde mapa al detalle.
+- Revisión visual integral después de integrar Home, Detalle y Mapa.
+- Investigación de APIs sísmicas chilenas, condiciones de uso y deduplicación.
 
 ## Revisiones técnicas periódicas
 

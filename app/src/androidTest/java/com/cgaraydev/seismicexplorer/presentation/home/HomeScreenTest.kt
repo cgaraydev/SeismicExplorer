@@ -15,6 +15,7 @@ import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
+import androidx.compose.ui.test.hasTestTag
 
 class HomeScreenTest {
 
@@ -161,6 +162,38 @@ class HomeScreenTest {
         composeRule
             .onNodeWithText("Coast of Chile")
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun selectingEarthquake_emitsItsId() {
+        var selectedId: String? = null
+
+        composeRule.setContent {
+            SeismicExplorerTheme {
+                HomeScreen(
+                    state = HomeUiState(
+                        earthquakes = listOf(sampleEarthquake()),
+                        isReadingLocal = false
+                    ),
+                    onAction = {},
+                    onEarthquakeClick = { selectedId = it }
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithTag("home_list")
+            .performScrollToNode(
+                hasTestTag("earthquake_us123")
+            )
+
+        composeRule
+            .onNodeWithTag("earthquake_us123")
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertEquals("us123", selectedId)
+        }
     }
 
     private fun sampleEarthquake() = Earthquake(

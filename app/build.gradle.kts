@@ -81,6 +81,14 @@ dependencies {
     implementation(libs.androidx.sqlite.framework)
     ksp(libs.room3.compiler)
 
+    // Navigation 3
+    implementation(libs.androidx.navigation3.runtime)
+    implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+
+    // Hilt ViewModels
+    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
+
     // Unit Tests
     testImplementation(libs.junit)
     testImplementation(libs.mockwebserver)

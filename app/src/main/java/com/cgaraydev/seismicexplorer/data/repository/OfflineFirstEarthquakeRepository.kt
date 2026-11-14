@@ -40,6 +40,15 @@ class OfflineFirstEarthquakeRepository @Inject constructor(
         }.flowOn(Dispatchers.Default)
     }
 
+    override fun observeEarthquake(
+        id: String
+    ): Flow<Earthquake?> {
+        return dao.observeEarthquake(id)
+            .map { entity ->
+                entity?.toDomain()
+            }
+    }
+
     override suspend fun refreshRecent(
         window: RecentWindow
     ): RefreshResult {

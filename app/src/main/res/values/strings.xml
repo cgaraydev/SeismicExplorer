@@ -47,6 +47,27 @@
     <!-- DATA SOURCE -->
     <string name="home_source">Fuente: USGS (U.S. Geological Survey).</string>
 
+    <!-- EARTHQUAKE DETAIL -->
+    <string name="detail_title">Detalle del sismo</string>
+    <string name="detail_back">Volver</string>
+    <string name="detail_event_information">Información del evento</string>
+    <string name="detail_occurred_at">Fecha y hora local</string>
+    <string name="detail_updated_at">Última revisión</string>
+    <string name="detail_depth">Profundidad</string>
+    <string name="detail_depth_value">%1$.1f km</string>
+    <string name="detail_location">Coordenadas geográficas</string>
+    <string name="detail_latitude">Latitud</string>
+    <string name="detail_longitude">Longitud</string>
+    <string name="detail_source">Fuente del evento</string>
+    <string name="detail_provider">U.S. Geological Survey (USGS)</string>
+    <string name="detail_event_id">Identificador USGS</string>
+    <string name="detail_open_official">Ver evento en USGS</string>
+    <string name="detail_unknown">No disponible</string>
+    <string name="detail_not_found">Evento no encontrado</string>
+    <string name="detail_not_found_description">Este sismo no está disponible en los datos almacenados.</string>
+    <string name="detail_error">No se pudo cargar el detalle</string>
+    <string name="detail_error_description">Ocurrió un problema al consultar los datos locales.</string>
+
     <!-- SAFETY AND DISCLAIMERS -->
     <string name="home_disclaimer">Esta aplicación es informativa y no sustituye sistemas oficiales de alerta ni recomendaciones de emergencia.</string>
 

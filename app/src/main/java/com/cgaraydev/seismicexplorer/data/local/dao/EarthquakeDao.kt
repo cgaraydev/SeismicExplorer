@@ -29,6 +29,17 @@ abstract class EarthquakeDao {
         minimumMagnitude: Double?
     ): Flow<List<EarthquakeEntity>>
 
+    @Query(
+        """
+    SELECT * FROM earthquakes
+    WHERE id = :id
+    LIMIT 1
+    """
+    )
+    abstract fun observeEarthquake(
+        id: String
+    ): Flow<EarthquakeEntity?>
+
     @Upsert
     protected abstract suspend fun upsertEarthquakes(
         earthquakes: List<EarthquakeEntity>

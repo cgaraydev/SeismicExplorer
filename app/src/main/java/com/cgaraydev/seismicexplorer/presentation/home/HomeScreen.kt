@@ -29,8 +29,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cgaraydev.seismicexplorer.R
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
 import com.cgaraydev.seismicexplorer.domain.model.RefreshFailure
@@ -41,13 +41,15 @@ import java.time.format.FormatStyle
 
 @Composable
 fun HomeRoute(
-    viewModel: HomeViewModel = viewModel()
+    onEarthquakeClick: (String) -> Unit,
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     HomeScreen(
         state = state,
-        onAction = viewModel::onAction
+        onAction = viewModel::onAction,
+        onEarthquakeClick = onEarthquakeClick
     )
 }
 
@@ -56,7 +58,8 @@ fun HomeRoute(
 fun HomeScreen(
     state: HomeUiState,
     onAction: (HomeAction) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onEarthquakeClick: (String) -> Unit = {}
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -104,15 +107,22 @@ fun HomeScreen(
                 ) {
                     TimeWindow.entries.forEach { window ->
                         val labelRes = when (window) {
-                            TimeWindow.LAST_DAY -> R.string.home_period_day
-                            TimeWindow.LAST_WEEK -> R.string.home_period_week
-                            TimeWindow.LAST_MONTH -> R.string.home_period_month
+                            TimeWindow.LAST_DAY ->
+                                R.string.home_period_day
+
+                            TimeWindow.LAST_WEEK ->
+                                R.string.home_period_week
+
+                            TimeWindow.LAST_MONTH ->
+                                R.string.home_period_month
                         }
 
                         FilterChip(
                             selected = state.timeWindow == window,
                             onClick = {
-                                onAction(HomeAction.SelectTimeWindow(window))
+                                onAction(
+                                    HomeAction.SelectTimeWindow(window)
+                                )
                             },
                             label = {
                                 Text(stringResource(labelRes))
@@ -135,9 +145,12 @@ fun HomeScreen(
                 ) {
                     MagnitudeThreshold.entries.forEach { threshold ->
                         val labelRes = when (threshold) {
-                            MagnitudeThreshold.ALL -> R.string.home_magnitude_all
+                            MagnitudeThreshold.ALL ->
+                                R.string.home_magnitude_all
+
                             MagnitudeThreshold.MAGNITUDE_2_5 ->
                                 R.string.home_magnitude_2_5
+
                             MagnitudeThreshold.MAGNITUDE_4_5 ->
                                 R.string.home_magnitude_4_5
                         }
@@ -145,7 +158,9 @@ fun HomeScreen(
                         FilterChip(
                             selected = state.minimumMagnitude == threshold,
                             onClick = {
-                                onAction(HomeAction.SelectMagnitude(threshold))
+                                onAction(
+                                    HomeAction.SelectMagnitude(threshold)
+                                )
                             },
                             label = {
                                 Text(stringResource(labelRes))
@@ -284,7 +299,12 @@ fun HomeScreen(
                     items = state.earthquakes,
                     key = { earthquake -> earthquake.id }
                 ) { earthquake ->
-                    EarthquakeCard(earthquake = earthquake)
+                    EarthquakeCard(
+                        earthquake = earthquake,
+                        onClick = {
+                            onEarthquakeClick(earthquake.id)
+                        }
+                    )
                 }
             }
 
@@ -309,7 +329,8 @@ fun HomeScreen(
 
 @Composable
 private fun EarthquakeCard(
-    earthquake: Earthquake
+    earthquake: Earthquake,
+    onClick: () -> Unit
 ) {
     val locale = LocalConfiguration.current.locales[0]
 
@@ -320,7 +341,10 @@ private fun EarthquakeCard(
         .format(earthquake.occurredAt)
 
     OutlinedCard(
-        modifier = Modifier.fillMaxWidth()
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("earthquake_${earthquake.id}")
     ) {
         Column(
             modifier = Modifier.padding(16.dp),

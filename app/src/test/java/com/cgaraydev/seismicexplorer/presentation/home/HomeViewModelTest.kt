@@ -337,6 +337,14 @@ class HomeViewModelTest {
             }
         }
 
+        override fun observeEarthquake(
+            id: String
+        ): Flow<Earthquake?> {
+            return events.map { earthquakes ->
+                earthquakes.firstOrNull { it.id == id }
+            }
+        }
+
         override suspend fun refreshRecent(
             window: RecentWindow
         ): RefreshResult {
