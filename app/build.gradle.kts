@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.cgaraydev.seismicexplorer"
-        minSdk = 26
+        minSdk = 29
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
@@ -56,5 +56,7 @@ dependencies {
 
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
+
+    implementation(libs.kotlinx.coroutines.core)
 
 }
