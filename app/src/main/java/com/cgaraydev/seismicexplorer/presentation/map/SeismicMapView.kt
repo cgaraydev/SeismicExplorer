@@ -3,7 +3,11 @@ package com.cgaraydev.seismicexplorer.presentation.map
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -14,9 +18,17 @@ import com.cgaraydev.seismicexplorer.data.map.MapStyleProvider
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapView
+import org.maplibre.android.maps.Style
+import org.maplibre.android.style.layers.CircleLayer
+import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.sources.GeoJsonSource
+
+private const val EARTHQUAKE_SOURCE_ID = "seismic-earthquakes"
+private const val EARTHQUAKE_LAYER_ID = "seismic-earthquake-circles"
 
 @Composable
 fun SeismicMapView(
+    geoJson: String,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -26,6 +38,10 @@ fun SeismicMapView(
         MapView(context).apply {
             onCreate(null)
         }
+    }
+
+    var loadedStyle by remember(mapView) {
+        mutableStateOf<Style?>(null)
     }
 
     AndroidView(
@@ -45,13 +61,44 @@ fun SeismicMapView(
 
                 map.setStyle(
                     MapStyleProvider.OPEN_FREE_MAP.styleUrl
-                )
+                ) { style ->
+                    if (active) {
+                        style.addSource(
+                            GeoJsonSource(
+                                EARTHQUAKE_SOURCE_ID,
+                                MapEarthquakeGeoJson.EMPTY
+                            )
+                        )
+
+                        style.addLayer(
+                            CircleLayer(
+                                EARTHQUAKE_LAYER_ID,
+                                EARTHQUAKE_SOURCE_ID
+                            ).withProperties(
+                                PropertyFactory.circleColor("#C75A45"),
+                                PropertyFactory.circleRadius(6f),
+                                PropertyFactory.circleStrokeColor("#FFFFFF"),
+                                PropertyFactory.circleStrokeWidth(1f),
+                                PropertyFactory.circleOpacity(0.9f)
+                            )
+                        )
+
+                        loadedStyle = style
+                    }
+                }
             }
         }
 
         onDispose {
             active = false
+            loadedStyle = null
         }
+    }
+
+    LaunchedEffect(mapView, loadedStyle, geoJson) {
+        loadedStyle
+            ?.getSourceAs<GeoJsonSource>(EARTHQUAKE_SOURCE_ID)
+            ?.setGeoJson(geoJson)
     }
 
     DisposableEffect(mapView, lifecycleOwner) {
@@ -72,14 +119,16 @@ fun SeismicMapView(
         onDispose {
             lifecycle.removeObserver(observer)
 
-            if (lifecycle.currentState.isAtLeast(
+            if (
+                lifecycle.currentState.isAtLeast(
                     Lifecycle.State.RESUMED
                 )
             ) {
                 mapView.onPause()
             }
 
-            if (lifecycle.currentState.isAtLeast(
+            if (
+                lifecycle.currentState.isAtLeast(
                     Lifecycle.State.STARTED
                 )
             ) {

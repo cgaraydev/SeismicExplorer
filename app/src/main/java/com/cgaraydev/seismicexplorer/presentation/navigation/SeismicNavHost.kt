@@ -10,7 +10,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.cgaraydev.seismicexplorer.presentation.detail.EarthquakeDetailRoute
 import com.cgaraydev.seismicexplorer.presentation.detail.EarthquakeDetailViewModel
 import com.cgaraydev.seismicexplorer.presentation.home.HomeRoute
-import com.cgaraydev.seismicexplorer.presentation.map.SeismicMapScreen
+import com.cgaraydev.seismicexplorer.presentation.map.SeismicMapRoute
 
 @Composable
 fun SeismicNavHost() {
@@ -51,7 +51,7 @@ fun SeismicNavHost() {
             }
 
             entry<MapDestination> {
-                SeismicMapScreen(
+                SeismicMapRoute(
                     onBack = navigateBack
                 )
             }

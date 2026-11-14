@@ -105,6 +105,18 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - Inyección asistida de argumentos de navegación mediante Hilt.
 - Detalle sísmico observable por ID desde Room, sin solicitudes HTTP adicionales.
 
+### Integración cartográfica
+
+- MapLibre Native Android con OpenFreeMap como proveedor principal.
+- MapView encapsulado mediante AndroidView.
+- SeismicMapViewModel observa EarthquakeRepository y Room.
+- La pantalla de mapa no inicia solicitudes HTTP a USGS.
+- Conversión de terremotos a GeoJSON fuera del hilo principal.
+- GeoJsonSource actualizable mediante setGeoJson.
+- CircleLayer para representar los eventos geográficos.
+- Visualización inicial de eventos almacenados de los últimos 7 días.
+- Dispatcher de procesamiento cartográfico inyectable para pruebas.
+
 ## Funcionalidades pendientes
 
 - Listado y detalle básico de eventos sísmicos implementados.
@@ -113,6 +125,29 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - Pendiente mapa interactivo y navegación desde mapa al detalle.
 - Revisión visual integral después de integrar Home, Detalle y Mapa.
 - Investigación de APIs sísmicas chilenas, condiciones de uso y deduplicación.
+
+### Próximos incrementos del mapa
+
+- Clustering de eventos y optimización con grandes volúmenes de datos.
+- Diferenciar círculos según magnitud.
+- Selección de un terremoto desde el mapa.
+- Navegación Map → Detalle mediante Navigation 3.
+- Filtros de período y magnitud compartidos o coordinados con Home.
+- Evaluar consultas geográficas eficientes sobre Room.
+- Persistir preferencias pequeñas en DataStore.
+- Implementar políticas de frescura y evitar sincronizaciones redundantes.
+- Evaluar failover entre OpenFreeMap y proveedores autorizados.
+- Preparar cartografía offline.
+- Evaluar MapLibre Compose en una pantalla experimental.
+
+### Revisión técnica posterior al mapa
+
+- Revisar arquitectura de presentación, dominio y datos.
+- Revisar rendimiento de GeoJSON y clustering.
+- Verificar ciclo de vida, memoria y recursos nativos de MapLibre.
+- Revisar sincronización, Room, caché y concurrencia.
+- Evaluar resiliencia de proveedores cartográficos.
+- Ejecutar una revisión con razonamiento Extra High antes del rediseño visual.
 
 ## Revisiones técnicas periódicas
 

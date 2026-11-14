@@ -62,4 +62,27 @@ class SeismicMapScreenTest {
             assertTrue(backRequested)
         }
     }
+
+    @Test
+    fun loadedState_displaysStoredEventCount() {
+        composeRule.setContent {
+            SeismicExplorerTheme {
+                SeismicMapScreen(
+                    onBack = {},
+                    state = SeismicMapUiState(
+                        geoJson = MapEarthquakeGeoJson.EMPTY,
+                        eventCount = 3,
+                        isLoading = false
+                    ),
+                    mapContent = {
+                        Text("Mapa de prueba")
+                    }
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithText("Eventos almacenados (7 días): 3")
+            .assertIsDisplayed()
+    }
 }

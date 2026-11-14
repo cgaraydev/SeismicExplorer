@@ -72,6 +72,11 @@
     <string name="home_open_map">Ver mapa mundial</string>
     <string name="map_title">Mapa sísmico</string>
 
+    <!-- MAP EVENTS -->
+    <string name="map_loading_events">Consultando terremotos almacenados…</string>
+    <string name="map_event_count">Eventos almacenados (7 días): %1$d</string>
+    <string name="map_local_error">No se pudieron consultar los datos sísmicos locales.</string>
+
     <!-- SAFETY AND DISCLAIMERS -->
     <string name="home_disclaimer">Esta aplicación es informativa y no sustituye sistemas oficiales de alerta ni recomendaciones de emergencia.</string>
 
