@@ -1,141 +1,231 @@
+
 package com.cgaraydev.seismicexplorer.presentation.map
 
+import android.content.Context
+import android.widget.FrameLayout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.cgaraydev.seismicexplorer.data.map.MapStyleProvider
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
-import org.maplibre.android.style.layers.CircleLayer
-import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.sources.GeoJsonSource
-
-private const val EARTHQUAKE_SOURCE_ID = "seismic-earthquakes"
-private const val EARTHQUAKE_LAYER_ID = "seismic-earthquake-circles"
+import android.util.Log
+import android.annotation.SuppressLint
 
 @Composable
 fun SeismicMapView(
     geoJson: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    styleBuilder: Style.Builder? = null
 ) {
-    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    val mapView = remember(context, lifecycleOwner) {
-        MapView(context).apply {
-            onCreate(null)
+    key(lifecycleOwner, styleBuilder) {
+        AndroidView(
+            factory = { context ->
+                SeismicMapHostView(
+                    context = context,
+                    lifecycle = lifecycleOwner.lifecycle,
+                    styleBuilder = styleBuilder
+                        ?: Style.Builder().fromUri(
+                            MapStyleProvider.OPEN_FREE_MAP.styleUrl
+                        )
+                )
+            },
+            modifier = modifier.fillMaxSize(),
+            update = { host ->
+                host.updateGeoJson(geoJson)
+            },
+            onRelease = { host ->
+                host.release()
+            }
+        )
+    }
+}
+
+@SuppressLint("ViewConstructor")
+private class SeismicMapHostView(
+    context: Context,
+    private val lifecycle: Lifecycle,
+    private val styleBuilder: Style.Builder
+) : FrameLayout(context) {
+
+    private val mapView = MapView(context)
+
+    private var loadedStyle: Style? = null
+    private var latestGeoJson = MapEarthquakeGeoJson.EMPTY
+
+    private var started = false
+    private var resumed = false
+    private var released = false
+
+    private val lifecycleObserver = object : DefaultLifecycleObserver {
+
+        override fun onStart(owner: LifecycleOwner) {
+            startMap()
+        }
+
+        override fun onResume(owner: LifecycleOwner) {
+            resumeMap()
+        }
+
+        override fun onPause(owner: LifecycleOwner) {
+            pauseMap()
+        }
+
+        override fun onStop(owner: LifecycleOwner) {
+            stopMap()
+        }
+
+        override fun onDestroy(owner: LifecycleOwner) {
+            release()
         }
     }
 
-    var loadedStyle by remember(mapView) {
-        mutableStateOf<Style?>(null)
+    init {
+        addView(
+            mapView,
+            LayoutParams(
+                LayoutParams.MATCH_PARENT,
+                LayoutParams.MATCH_PARENT
+            )
+        )
+
+        mapView.onCreate(null)
+
+        lifecycle.addObserver(lifecycleObserver)
+
+        if (!released) {
+            initializeMap()
+        }
     }
 
-    AndroidView(
-        factory = { mapView },
-        modifier = modifier.fillMaxSize()
-    )
-
-    DisposableEffect(mapView) {
-        var active = true
-
+    private fun initializeMap() {
         mapView.getMapAsync { map ->
-            if (active) {
-                map.cameraPosition = CameraPosition.Builder()
-                    .target(LatLng(0.0, 0.0))
-                    .zoom(1.5)
-                    .build()
+            if (released) {
+                return@getMapAsync
+            }
 
-                map.setStyle(
-                    MapStyleProvider.OPEN_FREE_MAP.styleUrl
-                ) { style ->
-                    if (active) {
-                        style.addSource(
-                            GeoJsonSource(
-                                EARTHQUAKE_SOURCE_ID,
-                                MapEarthquakeGeoJson.EMPTY
-                            )
-                        )
+            map.cameraPosition = CameraPosition.Builder()
+                .target(LatLng(-15.0, -125.0))
+                .zoom(2.0)
+                .build()
 
-                        style.addLayer(
-                            CircleLayer(
-                                EARTHQUAKE_LAYER_ID,
-                                EARTHQUAKE_SOURCE_ID
-                            ).withProperties(
-                                PropertyFactory.circleColor("#C75A45"),
-                                PropertyFactory.circleRadius(6f),
-                                PropertyFactory.circleStrokeColor("#FFFFFF"),
-                                PropertyFactory.circleStrokeWidth(1f),
-                                PropertyFactory.circleOpacity(0.9f)
-                            )
-                        )
+            map.setStyle(styleBuilder) { style ->
+                if (!released) {
+                    MapEarthquakeLayers.install(
+                        style = style,
+                        geoJson = latestGeoJson
+                    )
 
-                        loadedStyle = style
-                    }
+                    loadedStyle = style
                 }
             }
-        }
 
-        onDispose {
-            active = false
-            loadedStyle = null
+            map.addOnMapClickListener {
+                val features = loadedStyle
+                    ?.getSourceAs<GeoJsonSource>(
+                        MapEarthquakeLayers.SOURCE_ID
+                    )
+                    ?.querySourceFeatures(null)
+                    .orEmpty()
+
+                val clusters = features.count { feature ->
+                    feature.hasProperty("point_count")
+                }
+
+                val individual = features.size - clusters
+
+                Log.d(
+                    "SeismicMapDiag",
+                    "features=${features.size}, " +
+                            "clusters=$clusters, " +
+                            "individual=$individual"
+                )
+
+                false
+            }
         }
     }
 
-    LaunchedEffect(mapView, loadedStyle, geoJson) {
+    fun updateGeoJson(geoJson: String) {
+        if (released || geoJson == latestGeoJson) {
+            return
+        }
+
+        latestGeoJson = geoJson
+
         loadedStyle
-            ?.getSourceAs<GeoJsonSource>(EARTHQUAKE_SOURCE_ID)
+            ?.getSourceAs<GeoJsonSource>(
+                MapEarthquakeLayers.SOURCE_ID
+            )
             ?.setGeoJson(geoJson)
     }
 
-    DisposableEffect(mapView, lifecycleOwner) {
-        val lifecycle = lifecycleOwner.lifecycle
-
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_START -> mapView.onStart()
-                Lifecycle.Event.ON_RESUME -> mapView.onResume()
-                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
-                Lifecycle.Event.ON_STOP -> mapView.onStop()
-                else -> Unit
-            }
+    private fun startMap() {
+        if (released || started) {
+            return
         }
 
-        lifecycle.addObserver(observer)
+        mapView.onStart()
+        started = true
+    }
 
-        onDispose {
-            lifecycle.removeObserver(observer)
-
-            if (
-                lifecycle.currentState.isAtLeast(
-                    Lifecycle.State.RESUMED
-                )
-            ) {
-                mapView.onPause()
-            }
-
-            if (
-                lifecycle.currentState.isAtLeast(
-                    Lifecycle.State.STARTED
-                )
-            ) {
-                mapView.onStop()
-            }
-
-            mapView.onDestroy()
+    private fun resumeMap() {
+        if (released || resumed) {
+            return
         }
+
+        if (!started) {
+            startMap()
+        }
+
+        mapView.onResume()
+        resumed = true
+    }
+
+    private fun pauseMap() {
+        if (!resumed) {
+            return
+        }
+
+        mapView.onPause()
+        resumed = false
+    }
+
+    private fun stopMap() {
+        pauseMap()
+
+        if (!started) {
+            return
+        }
+
+        mapView.onStop()
+        started = false
+    }
+
+    fun release() {
+        if (released) {
+            return
+        }
+
+        released = true
+
+        lifecycle.removeObserver(lifecycleObserver)
+
+        stopMap()
+
+        loadedStyle = null
+
+        mapView.onDestroy()
     }
 }

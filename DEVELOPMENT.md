@@ -69,6 +69,10 @@ Documento interno de referencia para tecnologías, funcionalidades pendientes, o
 - Pruebas JVM del EarthquakeDetailViewModel.
 - Pruebas de serialización de destinos Navigation 3.
 - Pruebas Compose del detalle, retroceso, selección y enlaces oficiales.
+- Pruebas instrumentadas de MainActivity con HiltTestApplication.
+- Sustitución del repositorio de producción mediante @UninstallModules y @BindValue.
+- Clock fijo y repositorio falso para pruebas deterministas.
+- MainActivityTest no depende de solicitudes HTTP reales a USGS.
 
 ## Arquitectura
 
@@ -184,3 +188,49 @@ OfflineFirstEarthquakeRepository - revisar wearnigns de no uso de exception:
 Parameter "exception" is never used
 Parameter "exception" is never used
 Parameter "exception" is never used
+
+### Estabilidad de pruebas instrumentadas
+
+- Investigar fallo intermitente de ActivityScenario.close()
+  al esperar DESTROYED, con último estado PAUSED.
+- Los fallos se observaron en MainActivityTest y
+  EarthquakeDetailScreenTest durante ejecuciones completas.
+- Las mismas clases pasaron al ejecutarse aisladamente.
+- Mantener captura de Logcat y estado de Activities si reaparece.
+- No atribuir el problema a MapLibre sin evidencia.
+- Añadir una prueba independiente de integración de arranque
+  con dependencias reales, sin introducirla todavía en la
+  suite determinista.
+- Preparar inicialización de MapLibre para futuras pruebas
+  instrumentadas con MapView real.
+
+
+### Bloque 14B.2B: gestión del ciclo de vida del mapa
+
+- MapView creado y liberado mediante AndroidView.
+- Contenedor nativo con propiedad única sobre MapView.
+- Eventos lifecycle mediante DefaultLifecycleObserver.
+- Liberación idempotente para evitar destrucciones duplicadas.
+- Protección frente a callbacks asíncronos posteriores al cierre.
+- Actualización de GeoJSON sin recrear el renderer.
+- Prueba instrumentada nativa con estilo JSON local.
+
+### Pendientes
+
+- Restauración de la cámara cartográfica.
+- Manejo de memoria baja y recursos nativos.
+- Prueba de recreación real de Activity.
+- Pruebas de actualización efectiva de GeoJsonSource.
+- Medición de memoria después de ciclos repetidos.
+- Diagnóstico de ActivityScenario si reaparece el fallo.
+- 
+### Bloque 14B.3A: clustering sísmico
+
+- Agrupaciones nativas mediante GeoJsonOptions.
+- Una única GeoJsonSource para eventos individuales y clusters.
+- CircleLayers diferenciados por rangos de magnitud.
+- SymbolLayer para mostrar el número de eventos agrupados.
+- Estilos y umbrales visuales provisionales.
+- Clustering limitado hasta zoom 11.
+- Pendiente selección de clusters y navegación a eventos.
+- Pendiente medición del rendimiento con grandes conjuntos de datos.
