@@ -66,6 +66,7 @@ dependencies {
 
     // Kotlin Coroutines
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     // Hilt
     implementation(libs.hilt.android)
@@ -91,6 +92,7 @@ dependencies {
 
     // Map rendering
     implementation(libs.maplibre.android)
+    implementation(libs.play.services.location)
 
     // Unit Tests
     testImplementation(libs.junit)

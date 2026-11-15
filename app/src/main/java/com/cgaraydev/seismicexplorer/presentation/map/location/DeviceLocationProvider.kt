@@ -1,4 +1,3 @@
-
 package com.cgaraydev.seismicexplorer.presentation.map.location
 
 import android.Manifest
@@ -13,251 +12,236 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.location.LocationManagerCompat
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
+import com.google.android.gms.location.CurrentLocationRequest
+import com.google.android.gms.location.Granularity
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration.Companion.milliseconds
 
 sealed interface CurrentLocationResult {
-
-    data class Available(
-        val location: Location
-    ) : CurrentLocationResult
-
+    data class Available(val location: Location) : CurrentLocationResult
     data object PermissionRequired : CurrentLocationResult
-
     data object LocationDisabled : CurrentLocationResult
-
     data object Unavailable : CurrentLocationResult
 }
 
-class DeviceLocationProvider(
-    private val context: Context
-) {
+/**
+ * Obtiene una posición aproximada para centrar el mapa.
+ * No mantiene seguimiento ni solicita ubicación en segundo plano.
+ */
+class DeviceLocationProvider(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     suspend fun getCurrentLocation(): CurrentLocationResult {
-        val hasCoarsePermission = hasPermission(
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        )
+        val hasCoarse = hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+        val hasFine = hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+        if (!hasCoarse && !hasFine) return CurrentLocationResult.PermissionRequired
 
-        val hasFinePermission = hasPermission(
-            Manifest.permission.ACCESS_FINE_LOCATION
-        )
-
-        if (!hasCoarsePermission && !hasFinePermission) {
-            return CurrentLocationResult.PermissionRequired
-        }
-
-        val manager = context.getSystemService(
-            LocationManager::class.java
-        ) ?: return CurrentLocationResult.Unavailable
+        val manager = context.getSystemService(LocationManager::class.java)
+            ?: return CurrentLocationResult.Unavailable
 
         return try {
             if (!LocationManagerCompat.isLocationEnabled(manager)) {
                 return CurrentLocationResult.LocationDisabled
             }
 
-            val enabledProviders = manager
-                .getProviders(true)
-                .toSet()
+            val providers = eligibleNativeProviders(manager, hasFine)
+            Log.d(TAG, "Eligible native providers: $providers")
 
-            val candidates = buildList {
-                if (
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-                    LocationManager.FUSED_PROVIDER in enabledProviders
-                ) {
-                    add(LocationManager.FUSED_PROVIDER)
+            val playServicesStatus = GoogleApiAvailability.getInstance()
+                .isGooglePlayServicesAvailable(context)
+            Log.d(TAG, "Google Play services status: $playServicesStatus")
+
+            if (playServicesStatus == ConnectionResult.SUCCESS) {
+                tryGoogleLocation()?.let {
+                    Log.d(TAG, "Location acquired: google-play-services")
+                    return CurrentLocationResult.Available(it)
                 }
-
-                if (
-                    LocationManager.NETWORK_PROVIDER in enabledProviders
-                ) {
-                    add(LocationManager.NETWORK_PROVIDER)
-                }
-
-                if (
-                    hasFinePermission &&
-                    LocationManager.GPS_PROVIDER in enabledProviders
-                ) {
-                    add(LocationManager.GPS_PROVIDER)
-                }
-            }
-
-            Log.d(
-                TAG,
-                "Enabled location providers: $enabledProviders"
-            )
-
-            Log.d(
-                TAG,
-                "Eligible providers: $candidates"
-            )
-
-            if (candidates.isEmpty()) {
-                Log.w(TAG, "No eligible location provider")
-                return CurrentLocationResult.Unavailable
-            }
-
-            // Una ubicación muy reciente evita esperar
-            // innecesariamente a una nueva estimación.
-            val recentLocation = findCachedLocation(
-                manager = manager,
-                providers = candidates,
-                maxAgeMs = IMMEDIATE_CACHE_MAX_AGE_MS
-            )
-
-            if (recentLocation != null) {
-                Log.d(TAG, "Using very recent cached location")
-                return CurrentLocationResult.Available(
-                    recentLocation
-                )
-            }
-
-            // Probar proveedores alternativos cuando uno
-            // no consigue calcular la ubicación.
-            for (provider in candidates) {
-                Log.d(
-                    TAG,
-                    "Requesting current location: $provider"
-                )
-
-                val location = try {
-                    withTimeoutOrNull(
-                        PROVIDER_TIMEOUT_MS.milliseconds
-                    ) {
-                        requestCurrentLocation(
-                            manager = manager,
-                            provider = provider
-                        )
-                    }
-                } catch (_: IllegalArgumentException) {
-                    Log.w(
-                        TAG,
-                        "Location provider became unavailable: $provider"
-                    )
-                    null
-                }
-
-                if (location != null) {
-                    Log.d(
-                        TAG,
-                        "Current location obtained from: $provider"
-                    )
-
-                    return CurrentLocationResult.Available(
-                        location
-                    )
-                }
-
-                Log.w(
-                    TAG,
-                    "No current location from: $provider"
-                )
-            }
-
-            // Último recurso: usar una posición reciente,
-            // pero nunca una localización antigua sin límite.
-            val cachedLocation = findCachedLocation(
-                manager = manager,
-                providers = candidates,
-                maxAgeMs = FALLBACK_CACHE_MAX_AGE_MS
-            )
-
-            if (cachedLocation != null) {
-                Log.d(
-                    TAG,
-                    "Using recent cached location as fallback"
-                )
-
-                CurrentLocationResult.Available(cachedLocation)
             } else {
-                Log.w(
-                    TAG,
-                    "No current or recent cached location available"
-                )
-
-                CurrentLocationResult.Unavailable
+                Log.w(TAG, "Google Play services unavailable; using native fallback")
             }
 
+            findCachedNativeLocation(manager, providers)?.let {
+                Log.d(TAG, "Location acquired: native-cache")
+                return CurrentLocationResult.Available(it)
+            }
+
+            requestNativeFallback(manager, providers)?.let {
+                Log.d(TAG, "Location acquired: native-provider")
+                return CurrentLocationResult.Available(it)
+            }
+
+            Log.w(TAG, "No acceptable location from Google or native providers")
+            CurrentLocationResult.Unavailable
         } catch (_: SecurityException) {
-            Log.w(TAG, "Location permission was revoked")
+            Log.w(TAG, "Location permission revoked during request")
             CurrentLocationResult.PermissionRequired
         }
     }
 
-    private fun hasPermission(
-        permission: String
-    ): Boolean {
-        return ContextCompat.checkSelfPermission(
-            context,
-            permission
-        ) == PackageManager.PERMISSION_GRANTED
-    }
-
+    /**
+     * Permite reutilizar una estimación de hasta cinco minutos.
+     * Es suficiente para centrar un mapa regional, sin exigir GPS preciso.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
     @SuppressLint("MissingPermission")
-    private suspend fun requestCurrentLocation(
-        manager: LocationManager,
-        provider: String
-    ): Location? {
-        return suspendCancellableCoroutine { continuation ->
-            val cancellationSignal = CancellationSignal()
+    private suspend fun tryGoogleLocation(): Location? {
+        val request = CurrentLocationRequest.Builder()
+            .setPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY)
+            .setGranularity(Granularity.GRANULARITY_PERMISSION_LEVEL)
+            .setMaxUpdateAgeMillis(MAX_CACHE_AGE_MS)
+            .setDurationMillis(GOOGLE_REQUEST_DURATION_MS)
+            .build()
 
-            continuation.invokeOnCancellation {
-                cancellationSignal.cancel()
+        val cancellationSource = CancellationTokenSource()
+
+        return try {
+            Log.d(TAG, "Requesting location: google-play-services")
+            val response = withTimeoutOrNull(GOOGLE_OUTER_TIMEOUT_MS.milliseconds) {
+                LocationResponse(
+                    LocationServices.getFusedLocationProviderClient(context)
+                        .getCurrentLocation(request, cancellationSource.token)
+                        .await(cancellationSource)
+                )
             }
 
-            LocationManagerCompat.getCurrentLocation(
-                manager,
-                provider,
-                cancellationSignal,
-                ContextCompat.getMainExecutor(context)
-            ) { location ->
-                if (continuation.isActive) {
-                    continuation.resume(location)
-                }
+            when {
+                response == null -> Log.w(TAG, "Google location timeout")
+                response.location == null -> Log.w(TAG, "Google location callback returned null")
+                else -> Log.d(TAG, "Google location callback returned a fix")
+            }
+            response?.location
+        } catch (error: CancellationException) {
+            if (!currentCoroutineContext().isActive) throw error
+            Log.w(TAG, "Google location task was cancelled")
+            null
+        } catch (error: SecurityException) {
+            throw error
+        } catch (error: Exception) {
+            Log.w(TAG, "Google location request failed: ${error.javaClass.simpleName}")
+            null
+        }
+    }
+
+    private fun eligibleNativeProviders(
+        manager: LocationManager,
+        hasFinePermission: Boolean
+    ): List<String> {
+        val enabled = manager.getProviders(true).toSet()
+        return buildList {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                LocationManager.FUSED_PROVIDER in enabled
+            ) add(LocationManager.FUSED_PROVIDER)
+            if (LocationManager.NETWORK_PROVIDER in enabled) {
+                add(LocationManager.NETWORK_PROVIDER)
+            }
+            if (hasFinePermission && LocationManager.GPS_PROVIDER in enabled) {
+                add(LocationManager.GPS_PROVIDER)
             }
         }
     }
 
     @SuppressLint("MissingPermission")
-    private fun findCachedLocation(
+    private fun findCachedNativeLocation(
         manager: LocationManager,
-        providers: List<String>,
-        maxAgeMs: Long
+        providers: List<String>
     ): Location? {
         val nowNanos = SystemClock.elapsedRealtimeNanos()
+        return providers.mapNotNull { provider ->
+            val location = try {
+                manager.getLastKnownLocation(provider)
+            } catch (_: IllegalArgumentException) {
+                null
+            }
+            if (location == null) {
+                Log.d(TAG, "Native cache missing: $provider")
+                null
+            } else {
+                val ageMs = TimeUnit.NANOSECONDS.toMillis(
+                    nowNanos - location.elapsedRealtimeNanos
+                )
+                Log.d(TAG, "Native cache age: $provider = ${ageMs}ms")
+                location.takeIf {
+                    LocationAgePolicy.isFresh(
+                        locationElapsedNanos = it.elapsedRealtimeNanos,
+                        nowElapsedNanos = nowNanos,
+                        maxAgeMs = MAX_CACHE_AGE_MS
+                    )
+                }
+            }
+        }.maxByOrNull { it.elapsedRealtimeNanos }
+    }
 
-        val maxAgeNanos = TimeUnit.MILLISECONDS
-            .toNanos(maxAgeMs)
-
-        return providers
-            .mapNotNull { provider ->
+    /** Ejecuta los proveedores nativos en paralelo para evitar 10 s + 10 s. */
+    private suspend fun requestNativeFallback(
+        manager: LocationManager,
+        providers: List<String>
+    ): Location? = coroutineScope {
+        if (providers.isEmpty()) return@coroutineScope null
+        providers.map { provider ->
+            async {
                 try {
-                    manager.getLastKnownLocation(provider)
+                    Log.d(TAG, "Requesting native location: $provider")
+                    val response = withTimeoutOrNull(NATIVE_REQUEST_TIMEOUT_MS.milliseconds) {
+                        LocationResponse(requestNativeCurrentLocation(manager, provider))
+                    }
+                    when {
+                        response == null -> Log.w(TAG, "Native location timeout: $provider")
+                        response.location == null -> Log.w(TAG, "Native callback returned null: $provider")
+                        else -> Log.d(TAG, "Native callback returned fix: $provider")
+                    }
+                    response?.location
                 } catch (_: IllegalArgumentException) {
+                    Log.w(TAG, "Native provider became unavailable: $provider")
                     null
                 }
             }
-            .filter { location ->
-                val ageNanos = nowNanos -
-                        location.elapsedRealtimeNanos
-
-                ageNanos in 0L..maxAgeNanos
-            }
-            .maxByOrNull {
-                it.elapsedRealtimeNanos
-            }
+        }.awaitAll().firstOrNull { it != null }
     }
+
+    @SuppressLint("MissingPermission")
+    private suspend fun requestNativeCurrentLocation(
+        manager: LocationManager,
+        provider: String
+    ): Location? = suspendCancellableCoroutine { continuation ->
+        val cancellation = CancellationSignal()
+        continuation.invokeOnCancellation { cancellation.cancel() }
+        LocationManagerCompat.getCurrentLocation(
+            manager,
+            provider,
+            cancellation,
+            ContextCompat.getMainExecutor(context)
+        ) { location ->
+            if (continuation.isActive) continuation.resume(location)
+        }
+    }
+
+    private fun hasPermission(permission: String): Boolean =
+        ContextCompat.checkSelfPermission(context, permission) ==
+            PackageManager.PERMISSION_GRANTED
+
+    private data class LocationResponse(val location: Location?)
 
     private companion object {
         const val TAG = "DeviceLocationProvider"
-
-        const val PROVIDER_TIMEOUT_MS = 10_000L
-
-        const val IMMEDIATE_CACHE_MAX_AGE_MS = 10_000L
-
-        const val FALLBACK_CACHE_MAX_AGE_MS = 60_000L
+        const val MAX_CACHE_AGE_MS = 5 * 60_000L
+        const val GOOGLE_REQUEST_DURATION_MS = 12_000L
+        const val GOOGLE_OUTER_TIMEOUT_MS = 14_000L
+        const val NATIVE_REQUEST_TIMEOUT_MS = 5_000L
     }
 }

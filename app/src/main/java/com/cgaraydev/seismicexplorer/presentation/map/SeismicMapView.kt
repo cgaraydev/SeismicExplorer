@@ -201,9 +201,9 @@ private class SeismicMapHostView(
             }
 
             mapLibreMap = readyMap
+            readyMap.cameraPosition = initialCamera
             applyPendingFitIfReady()
             applyPendingUserCenter()
-            readyMap.cameraPosition = initialCamera
 
             if (resetCameraPending) {
                 resetCameraPending = false
