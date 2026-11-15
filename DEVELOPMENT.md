@@ -107,3 +107,7 @@ Documento interno de referencia sobre tecnologías, arquitectura, funcionalidade
 - Revisar periódicamente arquitectura, dependencias y rendimiento.
 - Realizar una auditoría técnica integral antes del rediseño visual.
 - Priorizar estabilidad, simplicidad y mantenibilidad sobre abstracciones innecesarias.
+
+
+pendiente:
+cambiar iconos del mapa de encuadre y mi ubicacion

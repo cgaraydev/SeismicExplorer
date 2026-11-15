@@ -36,6 +36,7 @@ class SeismicMapViewModel @Inject constructor(
                 SeismicMapUiState(
                     geoJson = MapEarthquakeGeoJson.encode(earthquakes),
                     eventCount = earthquakes.size,
+                    eventBounds = MapEventBounds.fromEarthquakes(earthquakes),
                     isLoading = false
                 )
             }

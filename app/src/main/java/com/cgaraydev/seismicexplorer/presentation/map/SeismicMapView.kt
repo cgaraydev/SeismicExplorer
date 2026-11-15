@@ -1,4 +1,3 @@
-
 package com.cgaraydev.seismicexplorer.presentation.map
 
 import android.annotation.SuppressLint
@@ -24,11 +23,19 @@ import org.maplibre.android.maps.Style
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
 import org.maplibre.geojson.Point
+import androidx.core.view.doOnLayout
+import org.maplibre.android.geometry.LatLngBounds
 
 private const val CLUSTER_ZOOM_INCREMENT = 2.0
 private const val CLUSTER_MAX_TARGET_ZOOM = 12.0
 private const val CLUSTER_ANIMATION_DURATION_MS = 450
 private const val EVENT_TOUCH_RADIUS_DP = 16f
+private const val CAMERA_RESET_ANIMATION_DURATION_MS = 600
+private const val FIT_CAMERA_ANIMATION_DURATION_MS = 600
+private const val FIT_CAMERA_PADDING_DP = 48f
+private const val SINGLE_LOCATION_ZOOM = 9.0
+private const val USER_LOCATION_ZOOM = 8.0
+private const val USER_LOCATION_ANIMATION_MS = 600
 
 internal fun defaultSeismicCameraPosition(): CameraPosition {
     return CameraPosition.Builder()
@@ -44,7 +51,12 @@ fun SeismicMapView(
     styleBuilder: Style.Builder? = null,
     initialCamera: CameraPosition = defaultSeismicCameraPosition(),
     onEarthquakeClick: (String) -> Unit = {},
-    onCameraChanged: (CameraPosition) -> Unit = {}
+    onCameraChanged: (CameraPosition) -> Unit = {},
+    resetCameraRequestId: Int = 0,
+    eventBounds: MapEventBounds? = null,
+    fitEventsRequestId: Int = 0,
+    userPosition: LatLng? = null,
+    centerUserRequestId: Int = 0
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -58,7 +70,9 @@ fun SeismicMapView(
                     styleBuilder = styleBuilder
                         ?: Style.Builder().fromUri(
                             MapStyleProvider.OPEN_FREE_MAP.styleUrl
-                        )
+                        ),
+                    initialResetCameraRequestId = resetCameraRequestId,
+                    initialFitEventsRequestId = fitEventsRequestId
                 )
             },
             modifier = modifier.fillMaxSize(),
@@ -66,6 +80,15 @@ fun SeismicMapView(
                 host.onEarthquakeClick = onEarthquakeClick
                 host.onCameraChanged = onCameraChanged
                 host.updateGeoJson(geoJson)
+                host.resetCameraIfRequested(resetCameraRequestId)
+                host.fitEventsIfRequested(
+                    requestId = fitEventsRequestId,
+                    bounds = eventBounds
+                )
+                host.centerOnUserIfRequested(
+                    requestId = centerUserRequestId,
+                    position = userPosition
+                )
             },
             onRelease = { host ->
                 host.release()
@@ -79,7 +102,9 @@ private class SeismicMapHostView(
     context: Context,
     private val lifecycle: Lifecycle,
     private val initialCamera: CameraPosition,
-    private val styleBuilder: Style.Builder
+    private val styleBuilder: Style.Builder,
+    private val initialResetCameraRequestId: Int,
+    private val initialFitEventsRequestId: Int
 ) : FrameLayout(context) {
 
     private val mapView = MapView(context)
@@ -94,6 +119,15 @@ private class SeismicMapHostView(
 
     var onEarthquakeClick: (String) -> Unit = {}
     var onCameraChanged: (CameraPosition) -> Unit = {}
+    private var lastResetCameraRequestId = initialResetCameraRequestId
+    private var resetCameraPending = false
+
+    private var lastFitEventsRequestId = initialFitEventsRequestId
+
+    private var pendingFitBounds: MapEventBounds? = null
+
+    private var lastUserCenterRequestId = 0
+    private var pendingUserCenter: LatLng? = null
 
     private val mapClickListener =
         MapLibreMap.OnMapClickListener { position ->
@@ -167,7 +201,14 @@ private class SeismicMapHostView(
             }
 
             mapLibreMap = readyMap
+            applyPendingFitIfReady()
+            applyPendingUserCenter()
             readyMap.cameraPosition = initialCamera
+
+            if (resetCameraPending) {
+                resetCameraPending = false
+                animateResetCamera(readyMap)
+            }
 
             readyMap.addOnMapClickListener(mapClickListener)
             readyMap.addOnCameraIdleListener(cameraIdleListener)
@@ -360,6 +401,8 @@ private class SeismicMapHostView(
         }
 
         mapLibreMap = null
+        pendingFitBounds = null
+        pendingUserCenter = null
 
         stopMap()
 
@@ -369,4 +412,151 @@ private class SeismicMapHostView(
 
         mapView.onDestroy()
     }
+
+
+    fun resetCameraIfRequested(requestId: Int) {
+        if (released || requestId == lastResetCameraRequestId) {
+            return
+        }
+
+        lastResetCameraRequestId = requestId
+
+        val map = mapLibreMap
+
+        if (map == null) {
+            resetCameraPending = true
+            return
+        }
+
+        pendingFitBounds = null
+
+        animateResetCamera(map)
+    }
+
+    private fun animateResetCamera(map: MapLibreMap) {
+        map.animateCamera(
+            CameraUpdateFactory.newCameraPosition(
+                defaultSeismicCameraPosition()
+            ),
+            CAMERA_RESET_ANIMATION_DURATION_MS
+        )
+    }
+
+
+    fun fitEventsIfRequested(
+        requestId: Int,
+        bounds: MapEventBounds?
+    ) {
+        if (released || requestId == lastFitEventsRequestId) {
+            return
+        }
+
+        lastFitEventsRequestId = requestId
+
+        if (bounds == null) {
+            return
+        }
+
+        // Si había una restauración de cámara pendiente,
+        // prevalece la nueva orden de encuadre.
+        resetCameraPending = false
+        pendingFitBounds = bounds
+
+        applyPendingFitIfReady()
+    }
+
+    private fun applyPendingFitIfReady() {
+        val map = mapLibreMap ?: return
+
+        mapView.doOnLayout { view ->
+            if (released || mapLibreMap !== map) {
+                return@doOnLayout
+            }
+
+            val bounds = pendingFitBounds
+                ?: return@doOnLayout
+
+            if (view.width <= 0 || view.height <= 0) {
+                return@doOnLayout
+            }
+
+            pendingFitBounds = null
+
+            val cameraUpdate = if (bounds.isSingleLocation) {
+                CameraUpdateFactory.newLatLngZoom(
+                    LatLng(
+                        bounds.south,
+                        bounds.west
+                    ),
+                    SINGLE_LOCATION_ZOOM
+                )
+            } else {
+                val geographicalBounds = LatLngBounds.from(
+                    bounds.north,
+                    bounds.east,
+                    bounds.south,
+                    bounds.west
+                )
+
+                val paddingPx = (
+                        FIT_CAMERA_PADDING_DP *
+                                resources.displayMetrics.density
+                        ).toInt()
+
+                CameraUpdateFactory.newLatLngBounds(
+                    geographicalBounds,
+                    0.0,
+                    0.0,
+                    paddingPx
+                )
+            }
+
+            map.animateCamera(
+                cameraUpdate,
+                FIT_CAMERA_ANIMATION_DURATION_MS
+            )
+        }
+    }
+
+
+    fun centerOnUserIfRequested(
+        requestId: Int,
+        position: LatLng?
+    ) {
+        if (
+            released ||
+            requestId <= 0 ||
+            requestId == lastUserCenterRequestId
+        ) {
+            return
+        }
+
+        lastUserCenterRequestId = requestId
+
+        if (position == null) return
+
+        // La orden más reciente prevalece.
+        pendingFitBounds = null
+        resetCameraPending = false
+        pendingUserCenter = position
+
+        applyPendingUserCenter()
+    }
+
+    private fun applyPendingUserCenter() {
+        if (released) return
+
+        val map = mapLibreMap ?: return
+        val position = pendingUserCenter ?: return
+
+
+        map.animateCamera(
+            CameraUpdateFactory.newLatLngZoom(
+                position,
+                USER_LOCATION_ZOOM
+            ),
+            USER_LOCATION_ANIMATION_MS
+        )
+    }
+
 }

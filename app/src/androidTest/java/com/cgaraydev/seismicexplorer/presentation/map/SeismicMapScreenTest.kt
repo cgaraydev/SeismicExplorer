@@ -27,7 +27,7 @@ class SeismicMapScreenTest {
             SeismicExplorerTheme {
                 SeismicMapScreen(
                     onBack = {},
-                    mapContent = { _, _ ->
+                    mapContent = { _, _, _, _, _ ->
                         Text("Mapa de prueba")
                     }
                 )
@@ -53,7 +53,7 @@ class SeismicMapScreenTest {
                     onBack = {
                         backRequested = true
                     },
-                    mapContent = { _, _ ->
+                    mapContent = { _, _, _, _, _ ->
                         Text("Mapa de prueba")
                     }
                 )
@@ -80,7 +80,7 @@ class SeismicMapScreenTest {
                         eventCount = 3,
                         isLoading = false
                     ),
-                    mapContent = { _, _ ->
+                    mapContent = { _, _, _, _, _ ->
                         Text("Mapa de prueba")
                     }
                 )
@@ -107,7 +107,7 @@ class SeismicMapScreenTest {
                     state = SeismicMapUiState(
                         isLoading = false
                     ),
-                    mapContent = { _, selectEarthquake ->
+                    mapContent = { _, selectEarthquake, _, _, _ ->
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
@@ -134,6 +134,74 @@ class SeismicMapScreenTest {
                 "us-test-123",
                 selectedEarthquakeId
             )
+        }
+    }
+
+    @Test
+    fun myLocationButton_invokesCallback() {
+        var locationRequested = false
+
+        composeRule.setContent {
+            SeismicExplorerTheme {
+                SeismicMapScreen(
+                    onBack = {},
+                    onLocateClick = {
+                        locationRequested = true
+                    },
+                    mapContent = { _, _, _, _, _ ->
+                        Text("Mapa de prueba")
+                    }
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithText("Mi ubicación")
+            .assertIsDisplayed()
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertTrue(locationRequested)
+        }
+    }
+
+    @Test
+    fun fitEventsButton_requestsCameraFit() {
+        val bounds = MapEventBounds(
+            south = -35.0,
+            west = -73.0,
+            north = -33.0,
+            east = -71.0
+        )
+
+        var receivedBounds: MapEventBounds? = null
+        var receivedRequestId = 0
+
+        composeRule.setContent {
+            SeismicExplorerTheme {
+                SeismicMapScreen(
+                    onBack = {},
+                    state = SeismicMapUiState(
+                        eventCount = 2,
+                        eventBounds = bounds,
+                        isLoading = false
+                    ),
+                    mapContent = { _, _, _, currentBounds, requestId ->
+                        receivedBounds = currentBounds
+                        receivedRequestId = requestId
+                        Text("Mapa de prueba")
+                    }
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithText("Encuadrar eventos")
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(bounds, receivedBounds)
+            assertEquals(1, receivedRequestId)
         }
     }
 

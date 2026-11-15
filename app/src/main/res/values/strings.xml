@@ -3,48 +3,34 @@
     <!-- GENERAL -->
     <string name="app_name">SeismicExplorer</string>
 
-    <!-- HOME: HEADER -->
+    <!-- HOME -->
     <string name="home_title">Actividad sísmica mundial</string>
     <string name="home_description">Selecciona un período y una magnitud mínima para explorar los eventos sísmicos.</string>
-
-    <!-- HOME: PERIOD FILTER -->
     <string name="home_period_title">Período</string>
     <string name="home_period_day">24 horas</string>
     <string name="home_period_week">7 días</string>
     <string name="home_period_month">30 días</string>
-
-    <!-- HOME: MAGNITUDE FILTER -->
     <string name="home_magnitude_title">Magnitud mínima</string>
     <string name="home_magnitude_all">Todas</string>
     <string name="home_magnitude_2_5">M 2.5+</string>
     <string name="home_magnitude_4_5">M 4.5+</string>
-
-    <!-- HOME: RESULTS -->
     <string name="home_results_title">Eventos sísmicos</string>
     <string name="home_results_count">Eventos encontrados: %1$d</string>
     <string name="home_refresh">Actualizar</string>
     <string name="home_refreshing">Actualizando desde USGS…</string>
     <string name="home_loading_local">Consultando datos guardados…</string>
-
-    <!-- HOME: EMPTY STATE -->
     <string name="home_empty_title">No hay eventos para estos filtros</string>
     <string name="home_no_cache_title">No hay datos guardados disponibles</string>
     <string name="home_empty_description">Prueba otro período o una magnitud menor. La información disponible sin conexión puede ser incompleta.</string>
-
-    <!-- HOME: ERRORS -->
     <string name="home_error_connection">No se pudo conectar con USGS. Se mantienen los datos guardados.</string>
     <string name="home_error_service">USGS no pudo responder correctamente. Puedes intentar actualizar nuevamente.</string>
     <string name="home_error_response">La respuesta de USGS no pudo procesarse. Se mantienen los datos guardados.</string>
     <string name="home_error_unexpected">Ocurrió un error inesperado durante la actualización.</string>
     <string name="home_local_error">No se pudieron consultar los eventos almacenados.</string>
-
-    <!-- HOME: EVENT CARD -->
     <string name="home_event_magnitude">M %1$.1f</string>
     <string name="home_event_magnitude_unknown">Magnitud desconocida</string>
     <string name="home_event_place_unknown">Ubicación no especificada</string>
     <string name="home_event_depth">Profundidad: %1$.1f km</string>
-
-    <!-- DATA SOURCE -->
     <string name="home_source">Fuente: USGS (U.S. Geological Survey).</string>
 
     <!-- EARTHQUAKE DETAIL -->
@@ -71,11 +57,17 @@
     <!-- MAP -->
     <string name="home_open_map">Ver mapa mundial</string>
     <string name="map_title">Mapa sísmico</string>
-
-    <!-- MAP EVENTS -->
+    <string name="map_reset_camera">Vista inicial</string>
     <string name="map_loading_events">Consultando terremotos almacenados…</string>
     <string name="map_event_count">Eventos almacenados (7 días): %1$d</string>
     <string name="map_local_error">No se pudieron consultar los datos sísmicos locales.</string>
+    <string name="map_fit_events">Encuadrar eventos</string>
+    <string name="map_my_location">Mi ubicación</string>
+    <string name="map_locating">Buscando ubicación…</string>
+    <string name="map_location_permission_denied">Permite el acceso a la ubicación para centrar el mapa.</string>
+    <string name="map_location_disabled">Activa la ubicación del dispositivo para utilizar esta función.</string>
+    <string name="map_location_unavailable">No se pudo obtener tu ubicación. Inténtalo nuevamente.</string>
+
 
     <!-- SAFETY AND DISCLAIMERS -->
     <string name="home_disclaimer">Esta aplicación es informativa y no sustituye sistemas oficiales de alerta ni recomendaciones de emergencia.</string>
