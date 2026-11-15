@@ -10,9 +10,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -30,7 +33,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -311,33 +317,64 @@ fun SeismicMapScreen(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilledTonalButton(
-                    enabled = state.eventBounds != null &&
-                            !state.isLoading,
+
+                val fitEventsDescription =
+                    stringResource(R.string.map_fit_events)
+
+                val locationDescription = stringResource(
+                    if (isLocating) {
+                        R.string.map_locating
+                    } else {
+                        R.string.map_my_location
+                    }
+                )
+
+                FilledTonalIconButton(
                     onClick = {
                         fitEventsRequestId++
-                    }
+                    },
+                    enabled = state.eventBounds != null &&
+                            !state.isLoading,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .semantics {
+                            contentDescription = fitEventsDescription
+                        }
                 ) {
-                    Text(
-                        stringResource(R.string.map_fit_events)
+                    Icon(
+                        painter = painterResource(
+                            R.drawable.ic_map_fit_events
+                        ),
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
 
-
-                FilledTonalButton(
+                FilledTonalIconButton(
                     onClick = onLocateClick,
-                    enabled = !isLocating
+                    enabled = !isLocating,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .semantics {
+                            contentDescription = locationDescription
+                        }
                 ) {
-                    Text(
-                        text = stringResource(
-                            if (isLocating) {
-                                R.string.map_locating
-                            } else {
-                                R.string.map_my_location
-                            }
+                    if (isLocating) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.dp
                         )
-                    )
+                    } else {
+                        Icon(
+                            painter = painterResource(
+                                R.drawable.ic_map_my_location
+                            ),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
+
 
 
                 locationStatus?.let { status ->

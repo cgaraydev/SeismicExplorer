@@ -15,6 +15,9 @@ import androidx.compose.material3.Button
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import org.junit.Assert.assertEquals
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.assertIsNotEnabled
+
 
 class SeismicMapScreenTest {
 
@@ -156,7 +159,7 @@ class SeismicMapScreenTest {
         }
 
         composeRule
-            .onNodeWithText("Mi ubicación")
+            .onNodeWithContentDescription("Mi ubicación")
             .assertIsDisplayed()
             .performClick()
 
@@ -196,7 +199,7 @@ class SeismicMapScreenTest {
         }
 
         composeRule
-            .onNodeWithText("Encuadrar eventos")
+            .onNodeWithContentDescription("Encuadrar eventos")
             .performClick()
 
         composeRule.runOnIdle {
@@ -204,5 +207,28 @@ class SeismicMapScreenTest {
             assertEquals(1, receivedRequestId)
         }
     }
+
+    @Test
+    fun myLocationButton_isDisabledWhileLocating() {
+        composeRule.setContent {
+            SeismicExplorerTheme {
+                SeismicMapScreen(
+                    onBack = {},
+                    isLocating = true,
+                    mapContent = { _, _, _, _, _ ->
+                        Text("Mapa de prueba")
+                    }
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithContentDescription(
+                "Buscando ubicación…"
+            )
+            .assertIsDisplayed()
+            .assertIsNotEnabled()
+    }
+
 
 }
