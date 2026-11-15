@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
+import kotlinx.coroutines.flow.asStateFlow
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -35,6 +37,56 @@ class SeismicMapViewModel @Inject constructor(
     private val selectedFilters = MutableStateFlow(
         MapFilterSelection()
     )
+
+    val filters: StateFlow<MapFilterSelection> =
+        selectedFilters.asStateFlow()
+
+    private val _syncState = MutableStateFlow<MapSyncState>(
+        MapSyncState.Idle
+    )
+
+    val syncState: StateFlow<MapSyncState> =
+        _syncState.asStateFlow()
+
+    suspend fun ensureFeedFresh(window: RecentWindow) {
+        _syncState.value = MapSyncState.Syncing(window)
+
+        try {
+            val result = repository.refreshIfStale(window)
+
+            _syncState.value = when (result) {
+                FeedSyncResult.UpToDate ->
+                    MapSyncState.Ready(
+                        window = window,
+                        downloaded = false
+                    )
+
+                FeedSyncResult.Updated ->
+                    MapSyncState.Ready(
+                        window = window,
+                        downloaded = true
+                    )
+
+                is FeedSyncResult.Failed ->
+                    MapSyncState.Failed(
+                        window = window,
+                        reason = result.reason
+                    )
+            }
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Log.e(
+                "SeismicMapViewModel",
+                "Unexpected feed synchronization failure",
+                exception
+            )
+
+            _syncState.value = MapSyncState.Failed(
+                window = window
+            )
+        }
+    }
 
     fun selectTimeWindow(window: RecentWindow) {
         selectedFilters.update { current ->

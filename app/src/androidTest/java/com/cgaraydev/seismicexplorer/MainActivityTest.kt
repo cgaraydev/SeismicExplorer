@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
 
 @HiltAndroidTest
 @UninstallModules(RepositoryModule::class)
@@ -116,6 +117,12 @@ class MainActivityTest {
         ): RefreshResult {
             refreshRequests.add(window)
             return RefreshResult.Success
+        }
+
+        override suspend fun refreshIfStale(
+            window: RecentWindow
+        ): FeedSyncResult {
+            return FeedSyncResult.UpToDate
         }
     }
 }

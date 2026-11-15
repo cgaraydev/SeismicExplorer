@@ -106,6 +106,7 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.room3.testing)
 
     // Hilt Instrumented Testing
     androidTestImplementation(libs.hilt.android.testing)

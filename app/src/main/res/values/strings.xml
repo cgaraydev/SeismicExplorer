@@ -70,7 +70,9 @@
     <string name="map_location_permission_denied">Permite el acceso a la ubicación para centrar el mapa.</string>
     <string name="map_location_disabled">Activa la ubicación del dispositivo para utilizar esta función.</string>
     <string name="map_location_unavailable">No se pudo obtener tu ubicación. Inténtalo nuevamente.</string>
-
+    <string name="map_syncing">Actualizando datos sísmicos desde USGS…</string>
+    <string name="map_sync_failed">No se pudo actualizar desde USGS. Se mantienen los datos guardados.</string>
+    <string name="map_sync_retry">Reintentar actualización</string>
 
     <!-- SAFETY AND DISCLAIMERS -->
     <string name="home_disclaimer">Esta aplicación es informativa y no sustituye sistemas oficiales de alerta ni recomendaciones de emergencia.</string>

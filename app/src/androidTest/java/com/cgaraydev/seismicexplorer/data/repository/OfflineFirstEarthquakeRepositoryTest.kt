@@ -32,6 +32,12 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import retrofit2.HttpException
 import retrofit2.Response
+import java.time.Clock
+import java.time.ZoneOffset
+import org.junit.Assert.assertNull
+import com.cgaraydev.seismicexplorer.data.local.entity.FeedSyncEntity
+import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
+import java.time.Duration
 
 @RunWith(AndroidJUnit4::class)
 class OfflineFirstEarthquakeRepositoryTest {
@@ -59,7 +65,9 @@ class OfflineFirstEarthquakeRepositoryTest {
 
         repository = OfflineFirstEarthquakeRepository(
             api = api,
-            dao = dao
+            dao = dao,
+            feedSyncDao = database.feedSyncDao(),
+            clock = Clock.fixed(now, ZoneOffset.UTC)
         )
     }
 
@@ -274,6 +282,125 @@ class OfflineFirstEarthquakeRepositoryTest {
         assertEquals(listOf("all_month"), api.requestedFeeds)
         assertEquals(1, events.size)
         assertEquals("monthly", events.single().id)
+    }
+
+    @Test
+    fun successfulRefresh_recordsOnlySelectedFeedTimestamp() = runTest {
+        val result = repository.refreshRecent(
+            RecentWindow.LAST_DAY
+        )
+
+        assertEquals(RefreshResult.Success, result)
+
+        assertEquals(
+            now.toEpochMilli(),
+            database.feedSyncDao()
+                .getLastSuccessEpochMillis("all_day")
+        )
+
+        assertNull(
+            database.feedSyncDao()
+                .getLastSuccessEpochMillis("all_week")
+        )
+
+        assertNull(
+            database.feedSyncDao()
+                .getLastSuccessEpochMillis("all_month")
+        )
+    }
+
+    @Test
+    fun failedRefresh_doesNotMarkFeedAsSynchronized() = runTest {
+        api.failure = IOException("Network unavailable")
+
+        val result = repository.refreshRecent(
+            RecentWindow.LAST_WEEK
+        )
+
+        assertEquals(
+            RefreshResult.Failure(
+                RefreshFailure.CONNECTION
+            ),
+            result
+        )
+
+        assertNull(
+            database.feedSyncDao()
+                .getLastSuccessEpochMillis("all_week")
+        )
+    }
+
+    @Test
+    fun refreshIfStale_skipsRecentlyDownloadedFeed() = runTest {
+        val first = repository.refreshIfStale(
+            RecentWindow.LAST_DAY
+        )
+
+        val second = repository.refreshIfStale(
+            RecentWindow.LAST_DAY
+        )
+
+        assertEquals(FeedSyncResult.Updated, first)
+        assertEquals(FeedSyncResult.UpToDate, second)
+        assertEquals(
+            listOf("all_day"),
+            api.requestedFeeds
+        )
+    }
+
+    @Test
+    fun refreshIfStale_downloadsExpiredFeed() = runTest {
+        database.feedSyncDao().upsert(
+            FeedSyncEntity(
+                feedName = "all_week",
+                lastSuccessEpochMillis =
+                    now.minus(Duration.ofMinutes(16))
+                        .toEpochMilli()
+            )
+        )
+
+        val result = repository.refreshIfStale(
+            RecentWindow.LAST_WEEK
+        )
+
+        assertEquals(FeedSyncResult.Updated, result)
+        assertEquals(
+            listOf("all_week"),
+            api.requestedFeeds
+        )
+    }
+
+    @Test
+    fun failedConditionalRefresh_doesNotUpdateTimestamp() = runTest {
+        api.failure = IOException("Network unavailable")
+
+        val result = repository.refreshIfStale(
+            RecentWindow.LAST_WEEK
+        )
+
+        assertEquals(
+            FeedSyncResult.Failed(
+                RefreshFailure.CONNECTION
+            ),
+            result
+        )
+
+        assertNull(
+            database.feedSyncDao()
+                .getLastSuccessEpochMillis("all_week")
+        )
+
+        api.failure = null
+
+        val retry = repository.refreshIfStale(
+            RecentWindow.LAST_WEEK
+        )
+
+        assertEquals(FeedSyncResult.Updated, retry)
+        assertEquals(
+            listOf("all_week", "all_week"),
+            api.requestedFeeds
+        )
     }
 
     private fun sampleResponse(

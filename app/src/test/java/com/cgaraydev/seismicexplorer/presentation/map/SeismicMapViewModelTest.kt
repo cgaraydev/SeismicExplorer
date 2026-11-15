@@ -29,6 +29,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Test
+import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SeismicMapViewModelTest {
@@ -148,6 +149,27 @@ class SeismicMapViewModelTest {
         assertEquals(0, repository.refreshRequests)
     }
 
+    @Test
+    fun ensureFeedFresh_updatesSyncState() = runTest {
+        createViewModel()
+
+        viewModel.ensureFeedFresh(
+            RecentWindow.LAST_WEEK
+        )
+
+        assertEquals(
+            listOf(RecentWindow.LAST_WEEK),
+            repository.syncRequests
+        )
+
+        assertEquals(
+            MapSyncState.Ready(
+                window = RecentWindow.LAST_WEEK,
+                downloaded = true
+            ),
+            viewModel.syncState.value
+        )
+    }
 
     private fun createViewModel() {
         viewModel = SeismicMapViewModel(
@@ -178,6 +200,15 @@ class SeismicMapViewModelTest {
         val observedQueries = mutableListOf<EarthquakeQuery>()
 
         var refreshRequests = 0
+
+        val syncRequests = mutableListOf<RecentWindow>()
+
+        override suspend fun refreshIfStale(
+            window: RecentWindow
+        ): FeedSyncResult {
+            syncRequests.add(window)
+            return FeedSyncResult.Updated
+        }
 
         override fun observeEarthquakes(
             query: EarthquakeQuery

@@ -61,6 +61,22 @@ fun SeismicMapRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
+    val selectedFilters by viewModel.filters.collectAsStateWithLifecycle()
+    val syncState by viewModel.syncState.collectAsStateWithLifecycle()
+
+    var syncRetryRequestId by remember {
+        mutableIntStateOf(0)
+    }
+
+    LaunchedEffect(
+        selectedFilters.timeWindow,
+        syncRetryRequestId
+    ) {
+        viewModel.ensureFeedFresh(
+            selectedFilters.timeWindow
+        )
+    }
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -186,6 +202,10 @@ fun SeismicMapRoute(
                     Manifest.permission.ACCESS_COARSE_LOCATION
                 )
             }
+        },
+        syncState = syncState,
+        onSyncRetry = {
+            syncRetryRequestId++
         }
     )
 }
@@ -207,6 +227,8 @@ fun SeismicMapScreen(
     onLocateClick: () -> Unit = {},
     onTimeWindowSelect: (RecentWindow) -> Unit = {},
     onMagnitudeSelect: (MapMagnitudeFilter) -> Unit = {},
+    syncState: MapSyncState = MapSyncState.Idle,
+    onSyncRetry: () -> Unit = {},
     mapContent: @Composable (
         String,
         (String) -> Unit,
@@ -324,6 +346,60 @@ fun SeismicMapScreen(
                             )
                         }
                     }
+                }
+
+                when (val currentSync = syncState) {
+
+                    is MapSyncState.Syncing -> {
+                        if (currentSync.window == state.filters.timeWindow) {
+                            Surface(
+                                tonalElevation = 3.dp,
+                                shadowElevation = 2.dp
+                            ) {
+                                Text(
+                                    text = stringResource(
+                                        R.string.map_syncing
+                                    ),
+                                    modifier = Modifier.padding(12.dp),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                    }
+
+                    is MapSyncState.Failed -> {
+                        if (currentSync.window == state.filters.timeWindow) {
+                            Surface(
+                                tonalElevation = 3.dp,
+                                shadowElevation = 2.dp
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalArrangement =
+                                        Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(
+                                            R.string.map_sync_failed
+                                        ),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+
+                                    TextButton(
+                                        onClick = onSyncRetry
+                                    ) {
+                                        Text(
+                                            stringResource(
+                                                R.string.map_sync_retry
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    else -> Unit
                 }
 
                 if (state.hasError) {

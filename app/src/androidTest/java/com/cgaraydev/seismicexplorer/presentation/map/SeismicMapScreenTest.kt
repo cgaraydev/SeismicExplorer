@@ -279,4 +279,35 @@ class SeismicMapScreenTest {
             )
         }
     }
+
+    @Test
+    fun syncFailure_displaysRetryAction() {
+        var retryRequested = false
+
+        composeRule.setContent {
+            SeismicExplorerTheme {
+                SeismicMapScreen(
+                    onBack = {},
+                    syncState = MapSyncState.Failed(
+                        RecentWindow.LAST_WEEK
+                    ),
+                    onSyncRetry = {
+                        retryRequested = true
+                    },
+                    mapContent = { _, _, _, _, _ ->
+                        Text("Mapa de prueba")
+                    }
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithText("Reintentar actualización")
+            .assertIsDisplayed()
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertTrue(retryRequested)
+        }
+    }
 }

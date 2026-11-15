@@ -30,6 +30,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -351,5 +352,13 @@ class HomeViewModelTest {
             refreshRequests.add(window)
             return refreshHandler(window)
         }
+
+
+        override suspend fun refreshIfStale(
+            window: RecentWindow
+        ): FeedSyncResult {
+            return FeedSyncResult.UpToDate
+        }
+
     }
 }

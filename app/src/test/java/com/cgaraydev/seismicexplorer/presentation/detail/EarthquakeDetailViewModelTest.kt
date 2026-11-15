@@ -27,6 +27,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class EarthquakeDetailViewModelTest {
@@ -166,6 +167,12 @@ class EarthquakeDetailViewModelTest {
             window: RecentWindow
         ): RefreshResult {
             return RefreshResult.Success
+        }
+
+        override suspend fun refreshIfStale(
+            window: RecentWindow
+        ): FeedSyncResult {
+            return FeedSyncResult.UpToDate
         }
     }
 }
