@@ -110,6 +110,62 @@ class MapEarthquakeGeoJsonTest {
         )
     }
 
+
+    @Test
+    fun largeCollection_preservesAllUniqueEventIds() {
+        val expectedIds = (0 until 1_803).map { index ->
+            "synthetic-earthquake-$index"
+        }
+
+        val earthquakes = expectedIds.map { id ->
+            sampleEarthquake().copy(id = id)
+        }
+
+        val result = MapEarthquakeGeoJson.encode(earthquakes)
+
+        val root = Json.parseToJsonElement(result).jsonObject
+        val features = root.getValue("features").jsonArray
+
+        val actualFeatureIds = features.map { feature ->
+            feature.jsonObject
+                .getValue("id")
+                .jsonPrimitive
+                .content
+        }
+
+        val actualEventIds = features.map { feature ->
+            feature.jsonObject
+                .getValue("properties")
+                .jsonObject
+                .getValue("eventId")
+                .jsonPrimitive
+                .content
+        }
+
+        assertEquals(1_803, features.size)
+
+        assertEquals(
+            expectedIds.toSet(),
+            actualFeatureIds.toSet()
+        )
+
+        assertEquals(
+            expectedIds.toSet(),
+            actualEventIds.toSet()
+        )
+
+        assertEquals(
+            1_803,
+            actualFeatureIds.toSet().size
+        )
+
+        assertEquals(
+            1_803,
+            actualEventIds.toSet().size
+        )
+    }
+
+
     private fun sampleEarthquake() = Earthquake(
         id = "us123",
         magnitude = 4.5,

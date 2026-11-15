@@ -22,19 +22,36 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cgaraydev.seismicexplorer.R
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import org.maplibre.android.camera.CameraPosition
+
 
 @Composable
 fun SeismicMapRoute(
     onBack: () -> Unit,
+    onEarthquakeClick: (String) -> Unit,
     viewModel: SeismicMapViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
+    var cameraPosition by rememberSaveable {
+        mutableStateOf(defaultSeismicCameraPosition())
+    }
+
     SeismicMapScreen(
         onBack = onBack,
-        state = state
+        onEarthquakeClick = onEarthquakeClick,
+        state = state,
+        initialCamera = cameraPosition,
+        onCameraChanged = { camera ->
+            cameraPosition = camera
+        }
     )
 }
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,8 +59,19 @@ fun SeismicMapScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     state: SeismicMapUiState = SeismicMapUiState(),
-    mapContent: @Composable (String) -> Unit = { geoJson ->
-        SeismicMapView(geoJson = geoJson)
+    onEarthquakeClick: (String) -> Unit = {},
+    initialCamera: CameraPosition = defaultSeismicCameraPosition(),
+    onCameraChanged: (CameraPosition) -> Unit = {},
+    mapContent: @Composable (
+        String,
+        (String) -> Unit
+    ) -> Unit = { geoJson, selectEarthquake ->
+        SeismicMapView(
+            geoJson = geoJson,
+            initialCamera = initialCamera,
+            onEarthquakeClick = selectEarthquake,
+            onCameraChanged = onCameraChanged
+        )
     }
 ) {
     Scaffold(
@@ -66,7 +94,7 @@ fun SeismicMapScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            mapContent(state.geoJson)
+            mapContent(state.geoJson, onEarthquakeClick)
 
             Column(
                 modifier = Modifier

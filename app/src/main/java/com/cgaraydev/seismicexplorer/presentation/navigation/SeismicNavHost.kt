@@ -52,7 +52,16 @@ fun SeismicNavHost() {
 
             entry<MapDestination> {
                 SeismicMapRoute(
-                    onBack = navigateBack
+                    onBack = navigateBack,
+                    onEarthquakeClick = { earthquakeId ->
+                        if (backStack.lastOrNull() == MapDestination) {
+                            backStack.add(
+                                EarthquakeDetailDestination(
+                                    earthquakeId = earthquakeId
+                                )
+                            )
+                        }
+                    }
                 )
             }
 

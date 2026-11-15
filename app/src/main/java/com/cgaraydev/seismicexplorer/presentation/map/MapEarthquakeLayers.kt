@@ -13,13 +13,20 @@ internal object MapEarthquakeLayers {
 
     const val SOURCE_ID = "seismic-earthquakes"
 
-    private const val CLUSTER_LAYER_ID = "seismic-clusters"
+    const val CLUSTER_LAYER_ID = "seismic-clusters"
     private const val CLUSTER_COUNT_LAYER_ID = "seismic-cluster-count"
 
     private const val UNKNOWN_LAYER_ID = "seismic-unknown"
     private const val LOW_LAYER_ID = "seismic-low"
     private const val MEDIUM_LAYER_ID = "seismic-medium"
     private const val HIGH_LAYER_ID = "seismic-high"
+
+    val EVENT_LAYER_IDS = arrayOf(
+        UNKNOWN_LAYER_ID,
+        LOW_LAYER_ID,
+        MEDIUM_LAYER_ID,
+        HIGH_LAYER_ID
+    )
 
     fun install(style: Style, geoJson: String) {
         style.addSource(

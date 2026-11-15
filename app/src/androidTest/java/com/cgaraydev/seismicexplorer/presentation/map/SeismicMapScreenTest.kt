@@ -9,6 +9,12 @@ import com.cgaraydev.seismicexplorer.ui.theme.SeismicExplorerTheme
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Button
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import org.junit.Assert.assertEquals
 
 class SeismicMapScreenTest {
 
@@ -21,7 +27,7 @@ class SeismicMapScreenTest {
             SeismicExplorerTheme {
                 SeismicMapScreen(
                     onBack = {},
-                    mapContent = {
+                    mapContent = { _, _ ->
                         Text("Mapa de prueba")
                     }
                 )
@@ -47,7 +53,7 @@ class SeismicMapScreenTest {
                     onBack = {
                         backRequested = true
                     },
-                    mapContent = {
+                    mapContent = { _, _ ->
                         Text("Mapa de prueba")
                     }
                 )
@@ -74,7 +80,7 @@ class SeismicMapScreenTest {
                         eventCount = 3,
                         isLoading = false
                     ),
-                    mapContent = {
+                    mapContent = { _, _ ->
                         Text("Mapa de prueba")
                     }
                 )
@@ -85,4 +91,50 @@ class SeismicMapScreenTest {
             .onNodeWithText("Eventos almacenados (7 días): 3")
             .assertIsDisplayed()
     }
+
+
+    @Test
+    fun selectingEarthquake_propagatesEventId() {
+        var selectedEarthquakeId: String? = null
+
+        composeRule.setContent {
+            SeismicExplorerTheme {
+                SeismicMapScreen(
+                    onBack = {},
+                    onEarthquakeClick = { earthquakeId ->
+                        selectedEarthquakeId = earthquakeId
+                    },
+                    state = SeismicMapUiState(
+                        isLoading = false
+                    ),
+                    mapContent = { _, selectEarthquake ->
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Button(
+                                onClick = {
+                                    selectEarthquake("us-test-123")
+                                }
+                            ) {
+                                Text("Seleccionar sismo")
+                            }
+                        }
+                    }
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithText("Seleccionar sismo")
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(
+                "us-test-123",
+                selectedEarthquakeId
+            )
+        }
+    }
+
 }

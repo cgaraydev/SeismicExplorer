@@ -1,7 +1,9 @@
 
 package com.cgaraydev.seismicexplorer.presentation.map
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.RectF
 import android.widget.FrameLayout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -14,18 +16,35 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.cgaraydev.seismicexplorer.data.map.MapStyleProvider
 import org.maplibre.android.camera.CameraPosition
+import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.sources.GeoJsonSource
-import android.util.Log
-import android.annotation.SuppressLint
+import org.maplibre.geojson.Feature
+import org.maplibre.geojson.Point
+
+private const val CLUSTER_ZOOM_INCREMENT = 2.0
+private const val CLUSTER_MAX_TARGET_ZOOM = 12.0
+private const val CLUSTER_ANIMATION_DURATION_MS = 450
+private const val EVENT_TOUCH_RADIUS_DP = 16f
+
+internal fun defaultSeismicCameraPosition(): CameraPosition {
+    return CameraPosition.Builder()
+        .target(LatLng(-15.0, -125.0))
+        .zoom(2.0)
+        .build()
+}
 
 @Composable
 fun SeismicMapView(
     geoJson: String,
     modifier: Modifier = Modifier,
-    styleBuilder: Style.Builder? = null
+    styleBuilder: Style.Builder? = null,
+    initialCamera: CameraPosition = defaultSeismicCameraPosition(),
+    onEarthquakeClick: (String) -> Unit = {},
+    onCameraChanged: (CameraPosition) -> Unit = {}
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -35,6 +54,7 @@ fun SeismicMapView(
                 SeismicMapHostView(
                     context = context,
                     lifecycle = lifecycleOwner.lifecycle,
+                    initialCamera = initialCamera,
                     styleBuilder = styleBuilder
                         ?: Style.Builder().fromUri(
                             MapStyleProvider.OPEN_FREE_MAP.styleUrl
@@ -43,6 +63,8 @@ fun SeismicMapView(
             },
             modifier = modifier.fillMaxSize(),
             update = { host ->
+                host.onEarthquakeClick = onEarthquakeClick
+                host.onCameraChanged = onCameraChanged
                 host.updateGeoJson(geoJson)
             },
             onRelease = { host ->
@@ -56,11 +78,13 @@ fun SeismicMapView(
 private class SeismicMapHostView(
     context: Context,
     private val lifecycle: Lifecycle,
+    private val initialCamera: CameraPosition,
     private val styleBuilder: Style.Builder
 ) : FrameLayout(context) {
 
     private val mapView = MapView(context)
 
+    private var mapLibreMap: MapLibreMap? = null
     private var loadedStyle: Style? = null
     private var latestGeoJson = MapEarthquakeGeoJson.EMPTY
 
@@ -68,28 +92,56 @@ private class SeismicMapHostView(
     private var resumed = false
     private var released = false
 
-    private val lifecycleObserver = object : DefaultLifecycleObserver {
+    var onEarthquakeClick: (String) -> Unit = {}
+    var onCameraChanged: (CameraPosition) -> Unit = {}
 
-        override fun onStart(owner: LifecycleOwner) {
-            startMap()
+    private val mapClickListener =
+        MapLibreMap.OnMapClickListener { position ->
+            val currentMap = mapLibreMap
+
+            if (
+                released ||
+                loadedStyle == null ||
+                currentMap == null
+            ) {
+                false
+            } else {
+                handleMapClick(currentMap, position)
+            }
         }
 
-        override fun onResume(owner: LifecycleOwner) {
-            resumeMap()
+    private val cameraIdleListener =
+        MapLibreMap.OnCameraIdleListener {
+            if (!released) {
+                mapLibreMap?.cameraPosition?.let {
+                    onCameraChanged(it)
+                }
+            }
         }
 
-        override fun onPause(owner: LifecycleOwner) {
-            pauseMap()
-        }
+    private val lifecycleObserver =
+        object : DefaultLifecycleObserver {
 
-        override fun onStop(owner: LifecycleOwner) {
-            stopMap()
-        }
+            override fun onStart(owner: LifecycleOwner) {
+                startMap()
+            }
 
-        override fun onDestroy(owner: LifecycleOwner) {
-            release()
+            override fun onResume(owner: LifecycleOwner) {
+                resumeMap()
+            }
+
+            override fun onPause(owner: LifecycleOwner) {
+                pauseMap()
+            }
+
+            override fun onStop(owner: LifecycleOwner) {
+                stopMap()
+            }
+
+            override fun onDestroy(owner: LifecycleOwner) {
+                release()
+            }
         }
-    }
 
     init {
         addView(
@@ -101,7 +153,6 @@ private class SeismicMapHostView(
         )
 
         mapView.onCreate(null)
-
         lifecycle.addObserver(lifecycleObserver)
 
         if (!released) {
@@ -110,17 +161,18 @@ private class SeismicMapHostView(
     }
 
     private fun initializeMap() {
-        mapView.getMapAsync { map ->
+        mapView.getMapAsync { readyMap ->
             if (released) {
                 return@getMapAsync
             }
 
-            map.cameraPosition = CameraPosition.Builder()
-                .target(LatLng(-15.0, -125.0))
-                .zoom(2.0)
-                .build()
+            mapLibreMap = readyMap
+            readyMap.cameraPosition = initialCamera
 
-            map.setStyle(styleBuilder) { style ->
+            readyMap.addOnMapClickListener(mapClickListener)
+            readyMap.addOnCameraIdleListener(cameraIdleListener)
+
+            readyMap.setStyle(styleBuilder) { style ->
                 if (!released) {
                     MapEarthquakeLayers.install(
                         style = style,
@@ -131,6 +183,110 @@ private class SeismicMapHostView(
                 }
             }
         }
+    }
+
+    private fun handleMapClick(
+        map: MapLibreMap,
+        position: LatLng
+    ): Boolean {
+        val screenPoint = map.projection
+            .toScreenLocation(position)
+
+        // Priorizar clusters cuando un grupo está visible.
+        val cluster = map.queryRenderedFeatures(
+            screenPoint,
+            MapEarthquakeLayers.CLUSTER_LAYER_ID
+        ).firstOrNull()
+
+        if (cluster != null) {
+            expandCluster(map, cluster, position)
+            return true
+        }
+
+        // Ampliar ligeramente la superficie táctil de
+        // los círculos individuales.
+        val radius = EVENT_TOUCH_RADIUS_DP *
+                resources.displayMetrics.density
+
+        val touchBounds = RectF(
+            screenPoint.x - radius,
+            screenPoint.y - radius,
+            screenPoint.x + radius,
+            screenPoint.y + radius
+        )
+
+        val event = map.queryRenderedFeatures(
+            touchBounds,
+            *MapEarthquakeLayers.EVENT_LAYER_IDS
+        )
+            .filter { it.hasProperty("eventId") }
+            .minByOrNull { feature ->
+                distanceSquared(
+                    map = map,
+                    feature = feature,
+                    x = screenPoint.x,
+                    y = screenPoint.y
+                )
+            }
+
+        val eventId = event
+            ?.getStringProperty("eventId")
+            ?.takeIf { it.isNotBlank() }
+
+        if (eventId != null) {
+            // Guardar el encuadre antes de navegar.
+            onCameraChanged(map.cameraPosition)
+            onEarthquakeClick(eventId)
+            return true
+        }
+
+        return false
+    }
+
+    private fun expandCluster(
+        map: MapLibreMap,
+        cluster: Feature,
+        tappedPosition: LatLng
+    ) {
+        val point = cluster.geometry() as? Point
+
+        val center = if (point != null) {
+            LatLng(point.latitude(), point.longitude())
+        } else {
+            tappedPosition
+        }
+
+        val targetZoom = (
+                map.cameraPosition.zoom +
+                        CLUSTER_ZOOM_INCREMENT
+                ).coerceAtMost(CLUSTER_MAX_TARGET_ZOOM)
+
+        map.animateCamera(
+            CameraUpdateFactory.newLatLngZoom(
+                center,
+                targetZoom
+            ),
+            CLUSTER_ANIMATION_DURATION_MS
+        )
+    }
+
+    private fun distanceSquared(
+        map: MapLibreMap,
+        feature: Feature,
+        x: Float,
+        y: Float
+    ): Float {
+        val point = feature.geometry() as? Point
+            ?: return Float.MAX_VALUE
+
+        val projected = map.projection.toScreenLocation(
+            LatLng(point.latitude(), point.longitude())
+        )
+
+        val dx = projected.x - x
+        val dy = projected.y - y
+
+        return dx * dx + dy * dy
     }
 
     fun updateGeoJson(geoJson: String) {
@@ -198,9 +354,18 @@ private class SeismicMapHostView(
 
         lifecycle.removeObserver(lifecycleObserver)
 
+        mapLibreMap?.let { map ->
+            map.removeOnMapClickListener(mapClickListener)
+            map.removeOnCameraIdleListener(cameraIdleListener)
+        }
+
+        mapLibreMap = null
+
         stopMap()
 
         loadedStyle = null
+        onEarthquakeClick = {}
+        onCameraChanged = {}
 
         mapView.onDestroy()
     }
