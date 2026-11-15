@@ -1,236 +1,109 @@
 
 # SeismicExplorer - Desarrollo
 
-Documento interno de referencia para tecnologías, funcionalidades pendientes, observaciones y revisiones técnicas.
+Documento interno de referencia sobre tecnologías, arquitectura, funcionalidades, decisiones técnicas y trabajo pendiente.
 
-## Tecnologías y versiones
+## Tecnologías
 
 ### Plataforma y herramientas
-
-- Android Gradle Plugin: 9.5.1
-- Gradle Wrapper: 9.9.1
-- Kotlin: 2.4.21
-- JDK de Gradle: 25
-- Compatibilidad Java configurada: 17
-- compileSdk: 37
-- targetSdk: 37
-- minSdk: 29
-- Gradle Kotlin DSL
-- GitHub Actions: integración continua
-- Dagger Hilt: 2.60.1
-- KSP: 2.3.12
-- Retrofit: 3.0.0
-- Kotlin Serialization JSON: 1.13.0
-- Retrofit Kotlin Serialization Converter: 3.0.0
-- Room 3: 3.0.3
-- Room Gradle Plugin: 3.0.3
-- AndroidX SQLite Framework: 2.7.1
-- Navigation 3: 1.2.1
-- AndroidX Hilt Lifecycle ViewModel Compose: 1.4.0
-- Lifecycle ViewModel Navigation 3: 2.11.0
+- Android Gradle Plugin 9.5.1, Gradle 9.9.1 y JDK 25.
+- Kotlin 2.4.21, Java 17 y Gradle Kotlin DSL.
+- compileSdk 37, targetSdk 37 y minSdk 29.
+- GitHub Actions para integración continua.
 
 ### Android y presentación
+- Jetpack Compose y Material 3 (BOM 2026.09.00).
+- AndroidX Core 1.19.1 y Lifecycle 2.11.0.
+- Activity Compose 1.13.0.
+- Navigation 3 1.2.1.
+- Kotlin Coroutines 1.11.0 y StateFlow.
+- MapLibre Native Android 13.7.1 y OpenFreeMap.
 
-- AndroidX Core KTX: 1.19.1
-- AndroidX Activity Compose: 1.13.0
-- AndroidX Lifecycle: 2.11.0
-- Jetpack Compose BOM: 2026.09.00
-- Material 3: versión gestionada por Compose BOM
-- Kotlin Coroutines: 1.11.0
-- UDF con ViewModel y StateFlow
+### Datos y dependencias
+- Dagger Hilt 2.60.1 y KSP 2.3.12.
+- Room 3.0.3 y AndroidX SQLite Framework 2.7.1.
+- Retrofit 3.0.0 y Kotlin Serialization JSON 1.13.0.
+- Kotlin Serialization Converter 3.0.0.
+- MockWebServer 4.12.0 para pruebas HTTP.
 
-### Pruebas
-
-- JUnit 4: 4.13.2
-- AndroidX Test JUnit: 1.3.0
-- Espresso: 3.7.0
-- Compose UI Test: versión gestionada por Compose BOM
-- Pruebas unitarias JVM
-- Pruebas instrumentadas Android
-- Android Lint
-- CI mediante GitHub Actions
-- AndroidX Test Core: 1.7.0
-- Kotlin Coroutines Test: 1.11.0
-- Pruebas instrumentadas de consultas y escritura SQLite
-- Pruebas de observación continua de Flow.
-- Pruebas de escrituras concurrentes y selección de la revisión más reciente.
-- Pruebas de IDs duplicados, empates de timestamps y procesamiento por lotes.
-- MockWebServer: 4.12.0 (pruebas HTTP locales)
-- Pruebas JVM de Retrofit y Kotlin Serialization con MockWebServer.
-- Validación de respuestas HTTP 200, 404, 500 y 503.
-- Pruebas de JSON malformado y tipos incompatibles.
-- Pruebas de clasificación de errores y conservación del caché.
-- Pruebas de propagación de CancellationException.
-- Pruebas JVM del HomeViewModel con repositorio falso y reloj controlado.
-- Pruebas de cambios de filtros sin descargas innecesarias.
-- Pruebas de cancelación de sincronizaciones y errores con datos almacenados.
-- Pruebas Compose de estados vacíos, actualización y datos locales visibles.
-- Pruebas de consulta individual por ID en Room.
-- Pruebas JVM del EarthquakeDetailViewModel.
-- Pruebas de serialización de destinos Navigation 3.
-- Pruebas Compose del detalle, retroceso, selección y enlaces oficiales.
-- Pruebas instrumentadas de MainActivity con HiltTestApplication.
-- Sustitución del repositorio de producción mediante @UninstallModules y @BindValue.
-- Clock fijo y repositorio falso para pruebas deterministas.
-- MainActivityTest no depende de solicitudes HTTP reales a USGS.
+### Calidad
+- JUnit 4, AndroidX Test, Espresso y Compose UI Test.
+- Kotlin Coroutines Test y pruebas instrumentadas Android.
+- Android Lint y validaciones automatizadas mediante CI.
 
 ## Arquitectura
 
-- Kotlin y Jetpack Compose.
-- Clean Architecture pragmática.
-- Principios SOLID.
-- Flujo de datos unidireccional (UDF).
+- Clean Architecture pragmática y principios SOLID.
 - Separación entre presentación, dominio y datos.
-- Modelos de dominio independientes de Android y de las fuentes externas.
-- Enfoque offline-first.
-- Inyección de dependencias mediante Hilt y generación de código con KSP.
-- Preferencia por APIs estables y componentes reutilizables.
-- Repositorio offline-first con Room como fuente observable de datos.
-- Sincronización inicial mediante feeds recientes de USGS.
-- Actualización condicionada por la fecha de revisión de cada evento.
-- Separación entre ventanas recientes de sincronización e intervalos absolutos de consulta.
-- Ventanas USGS de 24 horas, 7 días y 30 días; cobertura histórica exacta pendiente de FDSN.
-- Consultas Room observables ejecutadas en transacción para conservar la consistencia de lecturas grandes.
-- Escrituras centralizadas en upsertIfNewer, con protección basada en updatedAt.
-- Ante versiones con el mismo timestamp, se conserva la versión previamente almacenada.
-- Resultado tipado de sincronización mediante RefreshResult.
-- Clasificación de errores de conexión, servicio y respuestas inválidas.
-- Propagación de cancelaciones de coroutines y excepciones inesperadas.
-- Conservación de datos locales ante errores de actualización remota.
-- HomeViewModel conectado a EarthquakeRepository mediante UDF y StateFlow.
-- Observación de Room independiente de la sincronización remota.
-- Cambios de magnitud sin solicitudes HTTP adicionales.
-- Cancelación y protección frente a resultados de sincronización obsoletos.
-- Actualización manual con renovación de los límites temporales.
-- Transformaciones de listas fuera de Main mediante Dispatchers.
-- Navegación con NavDisplay y pila restaurable mediante rememberNavBackStack.
-- Destinos tipados que implementan NavKey y Kotlin Serialization.
-- ViewModels asociados a entradas de navegación mediante ViewModelStoreNavEntryDecorator.
-- Inyección asistida de argumentos de navegación mediante Hilt.
-- Detalle sísmico observable por ID desde Room, sin solicitudes HTTP adicionales.
+- Flujo de datos unidireccional (UDF).
+- ViewModels con StateFlow y observación del ciclo de vida.
+- Inyección de dependencias mediante Hilt.
+- Modelos de dominio independientes de Android y servicios externos.
+- Enfoque offline-first con Room como fuente observable.
+- Sincronización con USGS y conservación del caché local.
+- Actualización de eventos según su fecha de revisión.
+- Protección frente a sincronizaciones obsoletas y cancelaciones.
+- Operaciones de procesamiento intensivo fuera del hilo principal.
+- Navegación tipada con Navigation 3 y estado restaurable.
 
-### Integración cartográfica
+## Funcionalidades implementadas
 
-- MapLibre Native Android con OpenFreeMap como proveedor principal.
-- MapView encapsulado mediante AndroidView.
-- SeismicMapViewModel observa EarthquakeRepository y Room.
-- La pantalla de mapa no inicia solicitudes HTTP a USGS.
-- Conversión de terremotos a GeoJSON fuera del hilo principal.
-- GeoJsonSource actualizable mediante setGeoJson.
-- CircleLayer para representar los eventos geográficos.
-- Visualización inicial de eventos almacenados de los últimos 7 días.
-- Dispatcher de procesamiento cartográfico inyectable para pruebas.
+### Datos sísmicos
+- Integración con feeds USGS de 24 horas, 7 días y 30 días.
+- Persistencia local de terremotos mediante Room.
+- Sincronización inicial y actualización manual.
+- Tratamiento de errores de red y respuestas inválidas.
+- Conservación de datos locales ante fallos de sincronización.
+- Consultas observables y actualización consistente de registros.
+
+### Pantallas
+- Home con listado sísmico, filtros y actualización.
+- Detalle de terremotos mediante consulta local por ID.
+- Navegación entre Home, Mapa y Detalle.
+
+### Mapa
+- Representación de terremotos mediante MapLibre Native.
+- OpenFreeMap como proveedor cartográfico principal.
+- Conversión de eventos a GeoJSON.
+- Clustering nativo y diferenciación visual por magnitud.
+- Selección de terremotos y navegación al detalle.
+- Ampliación de zoom al seleccionar agrupaciones.
+- Conservación de cámara durante navegación y rotación.
+- Actualización de datos sin recrear el mapa.
+
+## Pruebas y validaciones
+
+- Pruebas JVM de dominio, repositorios, ViewModels y navegación.
+- Pruebas HTTP con MockWebServer.
+- Pruebas instrumentadas de Room y consultas observables.
+- Pruebas Compose con dependencias controladas.
+- Pruebas de ciclo de vida de MapLibre.
+- Validación de integridad GeoJSON con grandes colecciones.
+- Pruebas nativas de clustering y actualización de GeoJSON.
+- Validaciones funcionales en dispositivo físico.
 
 ## Funcionalidades pendientes
 
-- Listado y detalle básico de eventos sísmicos implementados.
-- Pendiente ampliación de datos USGS: intensidad, tipo de magnitud, alertas y productos.
-- Pendiente diferenciar URL de página pública y URL del GeoJSON de detalle.
-- Pendiente mapa interactivo y navegación desde mapa al detalle.
-- Revisión visual integral después de integrar Home, Detalle y Mapa.
-- Investigación de APIs sísmicas chilenas, condiciones de uso y deduplicación.
-
-### Próximos incrementos del mapa
-
-- Clustering de eventos y optimización con grandes volúmenes de datos.
-- Diferenciar círculos según magnitud.
-- Selección de un terremoto desde el mapa.
-- Navegación Map → Detalle mediante Navigation 3.
-- Filtros de período y magnitud compartidos o coordinados con Home.
+- Ampliar los datos sísmicos disponibles desde USGS.
+- Diferenciar enlaces públicos y recursos de detalle GeoJSON.
+- Incorporar controles de cámara y filtros cartográficos.
 - Evaluar consultas geográficas eficientes sobre Room.
-- Persistir preferencias pequeñas en DataStore.
-- Implementar políticas de frescura y evitar sincronizaciones redundantes.
-- Evaluar failover entre OpenFreeMap y proveedores autorizados.
-- Preparar cartografía offline.
-- Evaluar MapLibre Compose en una pantalla experimental.
+- Mejorar las políticas de frescura y sincronización.
+- Investigar fuentes sísmicas chilenas y deduplicación de eventos.
+- Evaluar DataStore para preferencias persistentes.
+- Explorar proveedores cartográficos alternativos y soporte offline.
+- Realizar el rediseño visual de Home, Detalle y Mapa.
+- Revisar accesibilidad y compatibilidad con temas claro y oscuro.
+- Actualizar README, capturas y documentación para publicación.
 
-### Revisión técnica posterior al mapa
+## Observaciones técnicas
 
-- Revisar arquitectura de presentación, dominio y datos.
-- Revisar rendimiento de GeoJSON y clustering.
-- Verificar ciclo de vida, memoria y recursos nativos de MapLibre.
-- Revisar sincronización, Room, caché y concurrencia.
-- Evaluar resiliencia de proveedores cartográficos.
-- Ejecutar una revisión con razonamiento Extra High antes del rediseño visual.
-
-## Revisiones técnicas periódicas
-
-Al cerrar una funcionalidad importante o aproximadamente cada tres o cuatro incrementos, realizar una revisión técnica integral utilizando el modelo de razonamiento más potente disponible en ese momento.
-
-Aspectos a revisar:
-
-- Arquitectura y separación de responsabilidades.
-- Aplicación de SOLID y Clean Architecture sin sobreingeniería.
-- Gestión de estado y flujo UDF.
-- Calidad, legibilidad y mantenibilidad del código.
-- Dependencias, versiones y APIs deprecadas o experimentales.
-- Rendimiento, concurrencia y consumo de recursos.
-- Seguridad y tratamiento de datos.
-- Cobertura y calidad de las pruebas.
-- Diseño, accesibilidad y experiencia de usuario.
-
-Discutir los hallazgos antes de implementar cambios. Priorizar problemas reales sobre recomendaciones puramente estilísticas.
-
-## Pendientes de presentación y publicación
-
-- Completar y validar la integración del mapa sísmico.
-- Realizar una revisión visual integral de Home, Detalle y Mapa.
-- Definir tipografía, colores, formas, componentes e iconografía.
-- Revisar los modos claro y oscuro y la accesibilidad.
-- Rehacer README.md después de aprobar el diseño visual.
-- Documentar arquitectura, tecnologías y funcionalidades.
-- Incorporar badges relevantes y capturas reales de la aplicación.
-- Actualizar el roadmap y las funcionalidades pendientes.
-
-## Observaciones para próximos incrementos
-revisar version de mockweserber, me da una posibilidad un update a version 5.x
-OfflineFirstEarthquakeRepository - revisar wearnigns de no uso de exception:
-Parameter "exception" is never used
-Parameter "exception" is never used
-Parameter "exception" is never used
-
-### Estabilidad de pruebas instrumentadas
-
-- Investigar fallo intermitente de ActivityScenario.close()
-  al esperar DESTROYED, con último estado PAUSED.
-- Los fallos se observaron en MainActivityTest y
-  EarthquakeDetailScreenTest durante ejecuciones completas.
-- Las mismas clases pasaron al ejecutarse aisladamente.
-- Mantener captura de Logcat y estado de Activities si reaparece.
-- No atribuir el problema a MapLibre sin evidencia.
-- Añadir una prueba independiente de integración de arranque
-  con dependencias reales, sin introducirla todavía en la
-  suite determinista.
-- Preparar inicialización de MapLibre para futuras pruebas
-  instrumentadas con MapView real.
-
-
-### Bloque 14B.2B: gestión del ciclo de vida del mapa
-
-- MapView creado y liberado mediante AndroidView.
-- Contenedor nativo con propiedad única sobre MapView.
-- Eventos lifecycle mediante DefaultLifecycleObserver.
-- Liberación idempotente para evitar destrucciones duplicadas.
-- Protección frente a callbacks asíncronos posteriores al cierre.
-- Actualización de GeoJSON sin recrear el renderer.
-- Prueba instrumentada nativa con estilo JSON local.
-
-### Pendientes
-
-- Restauración de la cámara cartográfica.
-- Manejo de memoria baja y recursos nativos.
-- Prueba de recreación real de Activity.
-- Pruebas de actualización efectiva de GeoJsonSource.
-- Medición de memoria después de ciclos repetidos.
-- Diagnóstico de ActivityScenario si reaparece el fallo.
-- 
-### Bloque 14B.3A: clustering sísmico
-
-- Agrupaciones nativas mediante GeoJsonOptions.
-- Una única GeoJsonSource para eventos individuales y clusters.
-- CircleLayers diferenciados por rangos de magnitud.
-- SymbolLayer para mostrar el número de eventos agrupados.
-- Estilos y umbrales visuales provisionales.
-- Clustering limitado hasta zoom 11.
-- Pendiente selección de clusters y navegación a eventos.
-- Pendiente medición del rendimiento con grandes conjuntos de datos.
+- Evaluar actualización de MockWebServer a la versión 5.x.
+- Revisar advertencias de parámetros no utilizados en el repositorio.
+- Investigar fallos intermitentes de ActivityScenario.close().
+- Revisar comportamiento de ADB ante conexiones inalámbricas duplicadas.
+- Medir rendimiento y memoria de MapLibre con grandes volúmenes de datos.
+- Ampliar pruebas de navegación, recreación y recursos nativos.
+- Revisar periódicamente arquitectura, dependencias y rendimiento.
+- Realizar una auditoría técnica integral antes del rediseño visual.
+- Priorizar estabilidad, simplicidad y mantenibilidad sobre abstracciones innecesarias.
