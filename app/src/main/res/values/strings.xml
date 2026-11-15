@@ -59,7 +59,10 @@
     <string name="map_title">Mapa sísmico</string>
     <string name="map_reset_camera">Vista inicial</string>
     <string name="map_loading_events">Consultando terremotos almacenados…</string>
-    <string name="map_event_count">Eventos almacenados (7 días): %1$d</string>
+    <string name="map_event_count">Eventos filtrados: %1$d</string>
+    <string name="map_filters">Filtrar terremotos</string>
+    <string name="map_filters_summary">%1$s · %2$s</string>
+    <string name="map_filters_local_notice">Los filtros muestran únicamente los terremotos almacenados en el dispositivo. La información sin conexión puede estar incompleta.</string>
     <string name="map_local_error">No se pudieron consultar los datos sísmicos locales.</string>
     <string name="map_fit_events">Encuadrar eventos</string>
     <string name="map_my_location">Mi ubicación</string>

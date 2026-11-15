@@ -48,7 +48,10 @@ import com.cgaraydev.seismicexplorer.presentation.map.location.MapLocationStatus
 import kotlinx.coroutines.launch
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
-
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 
 @Composable
 fun SeismicMapRoute(
@@ -163,6 +166,8 @@ fun SeismicMapRoute(
         onBack = onBack,
         onEarthquakeClick = onEarthquakeClick,
         state = state,
+        onTimeWindowSelect = viewModel::selectTimeWindow,
+        onMagnitudeSelect = viewModel::selectMagnitude,
         initialCamera = cameraPosition,
         onCameraChanged = { camera ->
             cameraPosition = camera
@@ -200,7 +205,8 @@ fun SeismicMapScreen(
     isLocating: Boolean = false,
     locationStatus: MapLocationStatus? = null,
     onLocateClick: () -> Unit = {},
-
+    onTimeWindowSelect: (RecentWindow) -> Unit = {},
+    onMagnitudeSelect: (MapMagnitudeFilter) -> Unit = {},
     mapContent: @Composable (
         String,
         (String) -> Unit,
@@ -228,6 +234,7 @@ fun SeismicMapScreen(
 ) {
     var resetCameraRequestId by remember { mutableIntStateOf(0) }
     var fitEventsRequestId by remember { mutableIntStateOf(0) }
+    var showFilters by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -239,6 +246,22 @@ fun SeismicMapScreen(
                 navigationIcon = {
                     TextButton(onClick = onBack) {
                         Text(stringResource(R.string.detail_back))
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            showFilters = true
+                        }
+                    ) {
+                        Icon(
+                            painter = painterResource(
+                                R.drawable.ic_map_filters
+                            ),
+                            contentDescription = stringResource(
+                                R.string.map_filters
+                            )
+                        )
                     }
                 }
             )
@@ -284,13 +307,22 @@ fun SeismicMapScreen(
                         tonalElevation = 3.dp,
                         shadowElevation = 2.dp
                     ) {
-                        Text(
-                            text = stringResource(
-                                R.string.map_event_count,
-                                state.eventCount
-                            ),
-                            modifier = Modifier.padding(12.dp)
-                        )
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    R.string.map_event_count,
+                                    state.eventCount
+                                )
+                            )
+                            Text(
+                                text = mapFiltersSummary(state.filters),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
 
@@ -405,5 +437,16 @@ fun SeismicMapScreen(
 
 
         }
+    }
+
+    if (showFilters) {
+        SeismicMapFiltersSheet(
+            filters = state.filters,
+            onTimeWindowSelect = onTimeWindowSelect,
+            onMagnitudeSelect = onMagnitudeSelect,
+            onDismiss = {
+                showFilters = false
+            }
+        )
     }
 }

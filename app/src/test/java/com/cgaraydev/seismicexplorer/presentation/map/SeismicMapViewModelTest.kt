@@ -104,6 +104,51 @@ class SeismicMapViewModelTest {
         assertEquals(0, repository.refreshRequests)
     }
 
+
+    @Test
+    fun changingMapFilters_updatesRoomQueryWithoutNetworkRefresh() = runTest {
+        createViewModel()
+
+        backgroundScope.launch(
+            UnconfinedTestDispatcher(testScheduler)
+        ) {
+            viewModel.uiState.collect()
+        }
+
+        advanceUntilIdle()
+
+        viewModel.selectTimeWindow(
+            RecentWindow.LAST_30_DAYS
+        )
+        advanceUntilIdle()
+
+        viewModel.selectMagnitude(
+            MapMagnitudeFilter.MAGNITUDE_4_5
+        )
+        advanceUntilIdle()
+
+        val query = repository.observedQueries.last()
+
+        assertEquals(now, query.endTime)
+        assertEquals(
+            now.minusSeconds(30L * 24 * 60 * 60),
+            query.startTime
+        )
+        assertEquals(4.5, query.minimumMagnitude)
+
+        assertEquals(
+            RecentWindow.LAST_30_DAYS,
+            viewModel.uiState.value.filters.timeWindow
+        )
+        assertEquals(
+            MapMagnitudeFilter.MAGNITUDE_4_5,
+            viewModel.uiState.value.filters.magnitude
+        )
+
+        assertEquals(0, repository.refreshRequests)
+    }
+
+
     private fun createViewModel() {
         viewModel = SeismicMapViewModel(
             repository = repository,

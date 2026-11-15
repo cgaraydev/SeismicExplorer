@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import org.junit.Assert.assertEquals
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.assertIsNotEnabled
+import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 
 
 class SeismicMapScreenTest {
@@ -91,7 +92,7 @@ class SeismicMapScreenTest {
         }
 
         composeRule
-            .onNodeWithText("Eventos almacenados (7 días): 3")
+            .onNodeWithText("Eventos filtrados: 3")
             .assertIsDisplayed()
     }
 
@@ -230,5 +231,52 @@ class SeismicMapScreenTest {
             .assertIsNotEnabled()
     }
 
+    @Test
+    fun mapFiltersSheet_dispatchesSelectionCallbacks() {
+        var selectedWindow: RecentWindow? = null
+        var selectedMagnitude: MapMagnitudeFilter? = null
 
+        composeRule.setContent {
+            SeismicExplorerTheme {
+                SeismicMapScreen(
+                    onBack = {},
+                    onTimeWindowSelect = {
+                        selectedWindow = it
+                    },
+                    onMagnitudeSelect = {
+                        selectedMagnitude = it
+                    },
+                    mapContent = { _, _, _, _, _ ->
+                        Text("Mapa de prueba")
+                    }
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithContentDescription(
+                "Filtrar terremotos"
+            )
+            .performClick()
+
+        composeRule
+            .onNodeWithText("30 días")
+            .performClick()
+
+        composeRule
+            .onNodeWithText("M 4.5+")
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(
+                RecentWindow.LAST_30_DAYS,
+                selectedWindow
+            )
+
+            assertEquals(
+                MapMagnitudeFilter.MAGNITUDE_4_5,
+                selectedMagnitude
+            )
+        }
+    }
 }

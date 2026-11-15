@@ -11,54 +11,97 @@ import java.time.Clock
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SeismicMapViewModel @Inject constructor(
-    repository: EarthquakeRepository,
-    clock: Clock,
+    private val repository: EarthquakeRepository,
+    private val clock: Clock,
     @MapComputationDispatcher
     computationDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
-    private val query = RecentWindow.LAST_WEEK.toQuery(
-        endTime = clock.instant()
+    private val selectedFilters = MutableStateFlow(
+        MapFilterSelection()
     )
 
+    fun selectTimeWindow(window: RecentWindow) {
+        selectedFilters.update { current ->
+            current.copy(timeWindow = window)
+        }
+    }
+
+    fun selectMagnitude(magnitude: MapMagnitudeFilter) {
+        selectedFilters.update { current ->
+            current.copy(magnitude = magnitude)
+        }
+    }
+
     val uiState: StateFlow<SeismicMapUiState> =
-        repository.observeEarthquakes(query)
-            .map { earthquakes ->
-                SeismicMapUiState(
-                    geoJson = MapEarthquakeGeoJson.encode(earthquakes),
-                    eventCount = earthquakes.size,
-                    eventBounds = MapEventBounds.fromEarthquakes(earthquakes),
-                    isLoading = false
+        selectedFilters
+            .flatMapLatest { filters ->
+
+                val query = filters.timeWindow.toQuery(
+                    endTime = clock.instant(),
+                    minimumMagnitude =
+                        filters.magnitude.minimumMagnitude
                 )
+
+                repository.observeEarthquakes(query)
+                    .map { earthquakes ->
+                        SeismicMapUiState(
+                            geoJson = MapEarthquakeGeoJson.encode(
+                                earthquakes
+                            ),
+                            eventCount = earthquakes.size,
+                            eventBounds =
+                                MapEventBounds.fromEarthquakes(
+                                    earthquakes
+                                ),
+                            filters = filters,
+                            isLoading = false
+                        )
+                    }
+                    .onStart {
+                        emit(
+                            SeismicMapUiState(
+                                filters = filters,
+                                isLoading = true
+                            )
+                        )
+                    }
+                    .catch { exception ->
+                        if (exception is CancellationException) {
+                            throw exception
+                        }
+
+                        Log.e(
+                            "SeismicMapViewModel",
+                            "Failed to load filtered map events",
+                            exception
+                        )
+
+                        emit(
+                            SeismicMapUiState(
+                                filters = filters,
+                                isLoading = false,
+                                hasError = true
+                            )
+                        )
+                    }
             }
             .flowOn(computationDispatcher)
-            .catch { exception ->
-                if (exception is CancellationException) {
-                    throw exception
-                }
-
-                Log.e(
-                    "SeismicMapViewModel",
-                    "Failed to load cached map events",
-                    exception
-                )
-
-                emit(
-                    SeismicMapUiState(
-                        isLoading = false,
-                        hasError = true
-                    )
-                )
-            }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),

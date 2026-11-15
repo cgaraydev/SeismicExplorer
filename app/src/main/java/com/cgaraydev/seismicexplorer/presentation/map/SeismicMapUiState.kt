@@ -5,5 +5,6 @@ data class SeismicMapUiState(
     val eventCount: Int = 0,
     val isLoading: Boolean = true,
     val hasError: Boolean = false,
-    val eventBounds: MapEventBounds? = null
+    val eventBounds: MapEventBounds? = null,
+    val filters: MapFilterSelection = MapFilterSelection()
 )
