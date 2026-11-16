@@ -1,55 +1,63 @@
 package com.cgaraydev.seismicexplorer.presentation.map
 
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
-import kotlinx.serialization.json.putJsonObject
-import kotlinx.serialization.json.add
-import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
+/**
+ * Serializa directamente a GeoJSON sin materializar un arbol de JsonObject,
+ * JsonArray y JsonPrimitive por cada terremoto.
+ *
+ * StringBuilder es local a cada llamada: no comparte estado entre consultas
+ * concurrentes y conserva el orden que entrega Room.
+ */
 object MapEarthquakeGeoJson {
 
     const val EMPTY =
         """{"type":"FeatureCollection","features":[]}"""
 
     fun encode(earthquakes: List<Earthquake>): String {
-        if (earthquakes.isEmpty()) {
-            return EMPTY
-        }
+        if (earthquakes.isEmpty()) return EMPTY
 
-        return buildJsonObject {
-            put("type", "FeatureCollection")
+        // Capacidad aproximada: reduce realojamientos para feeds extensos
+        // sin reservar una cantidad desproporcionada de memoria.
+        val capacity = (64L + earthquakes.size.toLong() * 160L)
+            .coerceAtMost(4_000_000L)
+            .toInt()
 
-            putJsonArray("features") {
-                earthquakes.forEach { earthquake ->
-                    addJsonObject {
-                        put("type", "Feature")
-                        put("id", earthquake.id)
+        return buildString(capacity) {
+            append("{\"type\":\"FeatureCollection\",\"features\":[")
 
-                        putJsonObject("geometry") {
-                            put("type", "Point")
+            earthquakes.forEachIndexed { index, earthquake ->
+                if (index > 0) append(',')
 
-                            putJsonArray("coordinates") {
-                                add(earthquake.coordinates.longitude)
-                                add(earthquake.coordinates.latitude)
-                            }
-                        }
+                // El serializador de Kotlinx aplica el escape JSON correcto
+                // a comillas, backslashes, controles y caracteres Unicode.
+                val encodedId = Json.encodeToString(earthquake.id)
 
-                        putJsonObject("properties") {
-                            put("eventId", earthquake.id)
+                append("{\"type\":\"Feature\",\"id\":")
+                append(encodedId)
+                append(",\"geometry\":{\"type\":\"Point\",\"coordinates\":[")
+                append(earthquake.coordinates.longitude)
+                append(',')
+                append(earthquake.coordinates.latitude)
+                append("]},\"properties\":{\"eventId\":")
+                append(encodedId)
 
-                            earthquake.magnitude?.let { magnitude ->
-                                put("magnitude", magnitude)
-                            }
-
-                            earthquake.place?.let { place ->
-                                put("place", place)
-                            }
-                        }
-                    }
+                earthquake.magnitude?.let { magnitude ->
+                    append(",\"magnitude\":")
+                    append(magnitude)
                 }
+
+                earthquake.place?.let { place ->
+                    append(",\"place\":")
+                    append(Json.encodeToString(place))
+                }
+
+                append("}}")
             }
-        }.toString()
+
+            append("]}")
+        }
     }
 }
