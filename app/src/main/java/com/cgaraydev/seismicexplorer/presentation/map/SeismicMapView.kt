@@ -194,7 +194,7 @@ private class SeismicMapHostView(
     var onEarthquakeClick: (String) -> Unit = {}
     var onCameraChanged: (CameraPosition) -> Unit = {}
     private var lastResetCameraRequestId = initialResetCameraRequestId
-    private var resetCameraPending = false
+    private val pendingCameraCommands = MapCameraCommandCoordinator()
 
     private var lastFitEventsRequestId = initialFitEventsRequestId
     private var pendingFitBounds: MapEventBounds? = null
@@ -281,13 +281,9 @@ private class SeismicMapHostView(
 
             mapLibreMap = readyMap
             readyMap.cameraPosition = initialCamera
+            applyPendingResetCamera()
             applyPendingFitIfReady()
             applyPendingUserCenter()
-
-            if (resetCameraPending) {
-                resetCameraPending = false
-                animateResetCamera(readyMap)
-            }
 
             readyMap.addOnMapClickListener(mapClickListener)
             readyMap.addOnCameraIdleListener(cameraIdleListener)
@@ -464,8 +460,16 @@ private class SeismicMapHostView(
         resumed = true
     }
 
+    // Guarda una instantánea incluso si la cámara estaba en movimiento
+    // y todavía no se había recibido OnCameraIdleListener.
+    private fun saveCurrentCamera() {
+        if (released) return
+        mapLibreMap?.cameraPosition?.let(onCameraChanged)
+    }
+
     private fun pauseMap() {
         if (!resumed) return
+        saveCurrentCamera()
         mapView.onPause()
         resumed = false
     }
@@ -479,6 +483,7 @@ private class SeismicMapHostView(
 
     fun release() {
         if (released) return
+        saveCurrentCamera()
         released = true
 
         lifecycle.removeObserver(lifecycleObserver)
@@ -494,6 +499,7 @@ private class SeismicMapHostView(
         isStyleLoading = false
         pendingFitBounds = null
         pendingUserCenter = null
+        pendingCameraCommands.clear()
 
         stopMap()
 
@@ -507,15 +513,15 @@ private class SeismicMapHostView(
         if (released || requestId == lastResetCameraRequestId) return
 
         lastResetCameraRequestId = requestId
-
-        val map = mapLibreMap
-
-        if (map == null) {
-            resetCameraPending = true
-            return
-        }
-
         pendingFitBounds = null
+        pendingUserCenter = null
+        pendingCameraCommands.request(MapCameraCommandKind.RESET)
+        applyPendingResetCamera()
+    }
+
+    private fun applyPendingResetCamera() {
+        val map = mapLibreMap ?: return
+        if (!pendingCameraCommands.consume(MapCameraCommandKind.RESET)) return
         animateResetCamera(map)
     }
 
@@ -537,19 +543,24 @@ private class SeismicMapHostView(
         lastFitEventsRequestId = requestId
         if (bounds == null) return
 
-        resetCameraPending = false
+        pendingUserCenter = null
         pendingFitBounds = bounds
+        pendingCameraCommands.request(MapCameraCommandKind.FIT_EVENTS)
         applyPendingFitIfReady()
     }
 
     private fun applyPendingFitIfReady() {
         val map = mapLibreMap ?: return
+        if (!pendingCameraCommands.isPending(MapCameraCommandKind.FIT_EVENTS)) return
 
         mapView.doOnLayout { view ->
             if (released || mapLibreMap !== map) return@doOnLayout
 
             val bounds = pendingFitBounds ?: return@doOnLayout
             if (view.width <= 0 || view.height <= 0) {
+                return@doOnLayout
+            }
+            if (!pendingCameraCommands.consume(MapCameraCommandKind.FIT_EVENTS)) {
                 return@doOnLayout
             }
 
@@ -600,13 +611,12 @@ private class SeismicMapHostView(
             return
         }
 
-        lastUserCenterRequestId = requestId
-
         if (position == null) return
 
+        lastUserCenterRequestId = requestId
         pendingFitBounds = null
-        resetCameraPending = false
         pendingUserCenter = position
+        pendingCameraCommands.request(MapCameraCommandKind.CENTER_USER)
 
         applyPendingUserCenter()
     }
@@ -616,6 +626,8 @@ private class SeismicMapHostView(
 
         val map = mapLibreMap ?: return
         val position = pendingUserCenter ?: return
+        if (!pendingCameraCommands.consume(MapCameraCommandKind.CENTER_USER)) return
+        pendingUserCenter = null
 
         map.animateCamera(
             CameraUpdateFactory.newLatLngZoom(
