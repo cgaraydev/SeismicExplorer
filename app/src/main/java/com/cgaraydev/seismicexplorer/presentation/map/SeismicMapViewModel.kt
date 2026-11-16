@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
 import kotlinx.coroutines.flow.asStateFlow
+import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -52,25 +53,37 @@ class SeismicMapViewModel @Inject constructor(
         _syncState.value = MapSyncState.Syncing(window)
 
         try {
+            val initialCacheStatus = readFeedCacheStatus(window)
+
+            _syncState.value = MapSyncState.Syncing(
+                window = window,
+                cacheStatus = initialCacheStatus
+            )
+
             val result = repository.refreshIfStale(window)
+
+            val finalCacheStatus = readFeedCacheStatus(window)
 
             _syncState.value = when (result) {
                 FeedSyncResult.UpToDate ->
                     MapSyncState.Ready(
                         window = window,
-                        downloaded = false
+                        downloaded = false,
+                        cacheStatus = finalCacheStatus
                     )
 
                 FeedSyncResult.Updated ->
                     MapSyncState.Ready(
                         window = window,
-                        downloaded = true
+                        downloaded = true,
+                        cacheStatus = finalCacheStatus
                     )
 
                 is FeedSyncResult.Failed ->
                     MapSyncState.Failed(
                         window = window,
-                        reason = result.reason
+                        reason = result.reason,
+                        cacheStatus = finalCacheStatus
                     )
             }
         } catch (exception: CancellationException) {
@@ -83,7 +96,8 @@ class SeismicMapViewModel @Inject constructor(
             )
 
             _syncState.value = MapSyncState.Failed(
-                window = window
+                window = window,
+                cacheStatus = readFeedCacheStatus(window)
             )
         }
     }
@@ -97,6 +111,24 @@ class SeismicMapViewModel @Inject constructor(
     fun selectMagnitude(magnitude: MapMagnitudeFilter) {
         selectedFilters.update { current ->
             current.copy(magnitude = magnitude)
+        }
+    }
+
+    private suspend fun readFeedCacheStatus(
+        window: RecentWindow
+    ): FeedCacheStatus {
+        return try {
+            repository.getFeedCacheStatus(window)
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Log.w(
+                "SeismicMapViewModel",
+                "Could not read feed cache status",
+                exception
+            )
+
+            FeedCacheStatus.Unknown
         }
     }
 

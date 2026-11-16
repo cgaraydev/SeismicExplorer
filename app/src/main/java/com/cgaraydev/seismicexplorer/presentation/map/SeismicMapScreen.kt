@@ -52,6 +52,8 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
+import androidx.compose.foundation.layout.widthIn
+import com.cgaraydev.seismicexplorer.presentation.common.FeedCacheStatusText
 
 @Composable
 fun SeismicMapRoute(
@@ -302,94 +304,99 @@ fun SeismicMapScreen(
                 fitEventsRequestId
             )
 
+
             Column(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (state.isLoading) {
-                    Surface(
-                        tonalElevation = 3.dp,
-                        shadowElevation = 2.dp
+                Surface(
+                    modifier = Modifier.widthIn(max = 300.dp),
+                    tonalElevation = 3.dp,
+                    shadowElevation = 2.dp
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Text(
-                            text = stringResource(
-                                R.string.map_loading_events
-                            ),
-                            modifier = Modifier.padding(12.dp)
-                        )
-                    }
-
-                    LinearProgressIndicator(
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                } else {
-                    Surface(
-                        tonalElevation = 3.dp,
-                        shadowElevation = 2.dp
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
+                        if (state.isLoading) {
+                            Text(
+                                text = stringResource(
+                                    R.string.map_loading_events
+                                )
+                            )
+                        } else {
                             Text(
                                 text = stringResource(
                                     R.string.map_event_count,
                                     state.eventCount
                                 )
                             )
+
                             Text(
                                 text = mapFiltersSummary(state.filters),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color =
+                                    MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                    }
-                }
 
-                when (val currentSync = syncState) {
+                        when (val currentSync = syncState) {
+                            MapSyncState.Idle -> Unit
 
-                    is MapSyncState.Syncing -> {
-                        if (currentSync.window == state.filters.timeWindow) {
-                            Surface(
-                                tonalElevation = 3.dp,
-                                shadowElevation = 2.dp
-                            ) {
-                                Text(
-                                    text = stringResource(
-                                        R.string.map_syncing
-                                    ),
-                                    modifier = Modifier.padding(12.dp),
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                        }
-                    }
-
-                    is MapSyncState.Failed -> {
-                        if (currentSync.window == state.filters.timeWindow) {
-                            Surface(
-                                tonalElevation = 3.dp,
-                                shadowElevation = 2.dp
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(12.dp),
-                                    verticalArrangement =
-                                        Arrangement.spacedBy(4.dp)
+                            is MapSyncState.Syncing -> {
+                                if (
+                                    currentSync.window ==
+                                    state.filters.timeWindow
                                 ) {
+                                    FeedCacheStatusText(
+                                        currentSync.cacheStatus
+                                    )
+
+                                    Text(
+                                        text = stringResource(
+                                            R.string.map_syncing
+                                        ),
+                                        style =
+                                            MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+
+                            is MapSyncState.Ready -> {
+                                if (
+                                    currentSync.window ==
+                                    state.filters.timeWindow
+                                ) {
+                                    FeedCacheStatusText(
+                                        currentSync.cacheStatus
+                                    )
+                                }
+                            }
+
+                            is MapSyncState.Failed -> {
+                                if (
+                                    currentSync.window ==
+                                    state.filters.timeWindow
+                                ) {
+                                    FeedCacheStatusText(
+                                        currentSync.cacheStatus
+                                    )
+
                                     Text(
                                         text = stringResource(
                                             R.string.map_sync_failed
                                         ),
-                                        style = MaterialTheme.typography.bodySmall
+                                        style =
+                                            MaterialTheme.typography.bodySmall
                                     )
 
                                     TextButton(
                                         onClick = onSyncRetry
                                     ) {
                                         Text(
-                                            stringResource(
+                                            text = stringResource(
                                                 R.string.map_sync_retry
                                             )
                                         )
@@ -398,12 +405,19 @@ fun SeismicMapScreen(
                             }
                         }
                     }
+                }
 
-                    else -> Unit
+                if (state.isLoading) {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .widthIn(max = 300.dp)
+                            .fillMaxWidth()
+                    )
                 }
 
                 if (state.hasError) {
                     Surface(
+                        modifier = Modifier.widthIn(max = 300.dp),
                         tonalElevation = 3.dp,
                         shadowElevation = 2.dp
                     ) {
@@ -416,6 +430,7 @@ fun SeismicMapScreen(
                     }
                 }
             }
+
 
 
             Column(

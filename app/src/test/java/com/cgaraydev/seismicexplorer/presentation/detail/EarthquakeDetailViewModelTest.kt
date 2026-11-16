@@ -3,6 +3,7 @@ package com.cgaraydev.seismicexplorer.presentation.detail
 import androidx.lifecycle.viewModelScope
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
 import com.cgaraydev.seismicexplorer.domain.model.EarthquakeQuery
+import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 import com.cgaraydev.seismicexplorer.domain.model.GeoCoordinates
 import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 import com.cgaraydev.seismicexplorer.domain.model.RefreshResult
@@ -149,6 +150,12 @@ class EarthquakeDetailViewModelTest {
         val earthquake = MutableStateFlow<Earthquake?>(null)
 
         var observedId: String? = null
+
+        override suspend fun getFeedCacheStatus(
+            window: RecentWindow
+        ): FeedCacheStatus {
+            return FeedCacheStatus.Unknown
+        }
 
         override fun observeEarthquakes(
             query: EarthquakeQuery

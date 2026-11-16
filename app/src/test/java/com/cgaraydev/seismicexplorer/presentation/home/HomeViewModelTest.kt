@@ -31,6 +31,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -289,6 +290,38 @@ class HomeViewModelTest {
         )
     }
 
+    @Test
+    fun failedSync_preservesStaleCacheStatus() = runTest {
+        val staleStatus = FeedCacheStatus.Synced(
+            lastSuccessEpochMillis =
+                now.minusSeconds(60 * 60).toEpochMilli(),
+            isFresh = false
+        )
+
+        repository.cacheStatus = staleStatus
+
+        repository.syncHandler = {
+            FeedSyncResult.Failed(
+                RefreshFailure.CONNECTION
+            )
+        }
+
+        createViewModel()
+        advanceUntilIdle()
+
+        assertEquals(
+            staleStatus,
+            viewModel.uiState.value.feedCacheStatus
+        )
+
+        assertEquals(
+            HomeRefreshState.Failed(
+                RefreshFailure.CONNECTION
+            ),
+            viewModel.uiState.value.refreshState
+        )
+    }
+
     private fun createViewModel() {
         viewModel = HomeViewModel(
             repository = repository,
@@ -343,6 +376,15 @@ class HomeViewModelTest {
 
         var refreshHandler: suspend (RecentWindow) -> RefreshResult = {
             RefreshResult.Success
+        }
+
+        var cacheStatus: FeedCacheStatus =
+            FeedCacheStatus.Unknown
+
+        override suspend fun getFeedCacheStatus(
+            window: RecentWindow
+        ): FeedCacheStatus {
+            return cacheStatus
         }
 
         override fun observeEarthquakes(

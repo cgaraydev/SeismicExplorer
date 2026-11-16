@@ -17,6 +17,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import androidx.compose.ui.test.hasTestTag
+import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
+import androidx.compose.ui.test.hasText
 
 class HomeScreenTest {
 
@@ -226,6 +228,40 @@ class HomeScreenTest {
         composeRule.runOnIdle {
             assertTrue(mapRequested)
         }
+    }
+
+    @Test
+    fun staleFeed_displaysLastSyncStatus() {
+        composeRule.setContent {
+            SeismicExplorerTheme {
+                HomeScreen(
+                    state = HomeUiState(
+                        isReadingLocal = false,
+                        refreshState = HomeRefreshState.UpToDate,
+                        feedCacheStatus = FeedCacheStatus.Synced(
+                            lastSuccessEpochMillis =
+                                Instant.parse(
+                                    "2026-11-14T12:00:00Z"
+                                ).toEpochMilli(),
+                            isFresh = false
+                        )
+                    ),
+                    onAction = {}
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithTag("home_list")
+            .performScrollToNode(
+                hasText("Datos desactualizados", substring = true)
+            )
+
+        composeRule
+            .onNode(
+                hasText("Datos desactualizados", substring = true)
+            )
+            .assertIsDisplayed()
     }
 
     private fun sampleEarthquake() = Earthquake(

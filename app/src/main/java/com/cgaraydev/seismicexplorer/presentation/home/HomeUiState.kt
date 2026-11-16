@@ -2,6 +2,7 @@ package com.cgaraydev.seismicexplorer.presentation.home
 
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
 import com.cgaraydev.seismicexplorer.domain.model.RefreshFailure
+import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 
 enum class TimeWindow {
     LAST_DAY,
@@ -18,8 +19,10 @@ enum class MagnitudeThreshold {
 sealed interface HomeRefreshState {
     data object Idle : HomeRefreshState
     data object Refreshing : HomeRefreshState
+
     // USGS se descargó correctamente.
     data object Completed : HomeRefreshState
+
     // No fue necesario descargar: el feed sigue vigente.
     data object UpToDate : HomeRefreshState
     data class Failed(
@@ -33,5 +36,6 @@ data class HomeUiState(
     val earthquakes: List<Earthquake> = emptyList(),
     val isReadingLocal: Boolean = true,
     val localReadFailed: Boolean = false,
-    val refreshState: HomeRefreshState = HomeRefreshState.Idle
+    val refreshState: HomeRefreshState = HomeRefreshState.Idle,
+    val feedCacheStatus: FeedCacheStatus = FeedCacheStatus.Unknown
 )

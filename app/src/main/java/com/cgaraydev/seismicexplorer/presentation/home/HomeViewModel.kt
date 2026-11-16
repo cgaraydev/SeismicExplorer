@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -176,14 +177,32 @@ class HomeViewModel @Inject constructor(
 
         _uiState.update { current ->
             current.copy(
-                refreshState = HomeRefreshState.Refreshing
+                refreshState = HomeRefreshState.Refreshing,
+                feedCacheStatus = FeedCacheStatus.Unknown
             )
         }
 
         refreshJob = viewModelScope.launch {
-            val nextState = try {
+
+            // Leer primero la última sincronización.
+            // Permite mostrar datos antiguos mientras
+            // está en curso la descarga.
+            val initialCacheStatus =
+                readFeedCacheStatus(window)
+
+            if (version == refreshVersion) {
+                _uiState.update { current ->
+                    current.copy(
+                        feedCacheStatus = initialCacheStatus
+                    )
+                }
+            }
+
+            val nextRefreshState = try {
                 if (force) {
-                    when (val result = repository.refreshRecent(window)) {
+                    when (
+                        val result = repository.refreshRecent(window)
+                    ) {
                         RefreshResult.Success ->
                             HomeRefreshState.Completed
 
@@ -191,7 +210,9 @@ class HomeViewModel @Inject constructor(
                             HomeRefreshState.Failed(result.reason)
                     }
                 } else {
-                    when (val result = repository.refreshIfStale(window)) {
+                    when (
+                        val result = repository.refreshIfStale(window)
+                    ) {
                         FeedSyncResult.UpToDate ->
                             HomeRefreshState.UpToDate
 
@@ -210,16 +231,40 @@ class HomeViewModel @Inject constructor(
                     "Unexpected earthquake refresh failure",
                     exception
                 )
-
                 HomeRefreshState.Failed(reason = null)
             }
 
-            // Descarta resultados de una selección anterior.
+            // Consultar nuevamente el timestamp.
+            // Si la actualización falló, se conserva
+            // la última descarga confirmada.
+            val finalCacheStatus =
+                readFeedCacheStatus(window)
+
             if (version == refreshVersion) {
                 _uiState.update { current ->
-                    current.copy(refreshState = nextState)
+                    current.copy(
+                        refreshState = nextRefreshState,
+                        feedCacheStatus = finalCacheStatus
+                    )
                 }
             }
+        }
+    }
+
+    private suspend fun readFeedCacheStatus(
+        window: RecentWindow
+    ): FeedCacheStatus {
+        return try {
+            repository.getFeedCacheStatus(window)
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Log.w(
+                TAG,
+                "Could not read cached feed sync status",
+                exception
+            )
+            FeedCacheStatus.Unknown
         }
     }
 

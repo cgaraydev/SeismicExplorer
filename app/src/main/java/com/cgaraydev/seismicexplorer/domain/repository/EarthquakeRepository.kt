@@ -6,6 +6,7 @@ import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 import com.cgaraydev.seismicexplorer.domain.model.RefreshResult
 import kotlinx.coroutines.flow.Flow
 import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
+import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 
 interface EarthquakeRepository {
 
@@ -24,4 +25,9 @@ interface EarthquakeRepository {
     suspend fun refreshIfStale(
         window: RecentWindow
     ): FeedSyncResult
+
+    suspend fun getFeedCacheStatus(
+        window: RecentWindow
+    ): FeedCacheStatus
+
 }

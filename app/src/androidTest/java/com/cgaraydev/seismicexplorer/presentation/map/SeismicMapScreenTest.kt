@@ -17,8 +17,11 @@ import androidx.compose.ui.Modifier
 import org.junit.Assert.assertEquals
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.assertIsNotEnabled
+import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
-
+import androidx.compose.ui.test.hasText
+import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus.Synced
+import java.time.Instant
 
 class SeismicMapScreenTest {
 
@@ -310,4 +313,48 @@ class SeismicMapScreenTest {
             assertTrue(retryRequested)
         }
     }
+
+
+    @Test
+    fun failedMapSync_displaysStaleTimestampAndRetry() {
+        composeRule.setContent {
+            SeismicExplorerTheme {
+                SeismicMapScreen(
+                    onBack = {},
+                    state = SeismicMapUiState(
+                        eventCount = 4,
+                        isLoading = false
+                    ),
+                    syncState = MapSyncState.Failed(
+                        window = RecentWindow.LAST_WEEK,
+                        cacheStatus = Synced(
+                            lastSuccessEpochMillis =
+                                Instant.parse(
+                                    "2026-11-14T12:00:00Z"
+                                ).toEpochMilli(),
+                            isFresh = false
+                        )
+                    ),
+                    mapContent = { _, _, _, _, _ ->
+                        Text("Mapa de prueba")
+                    }
+                )
+            }
+        }
+
+        composeRule
+            .onNode(
+                hasText("Datos desactualizados", substring = true)
+            )
+            .assertIsDisplayed()
+
+        composeRule
+            .onNodeWithText("Eventos filtrados: 4")
+            .assertIsDisplayed()
+
+        composeRule
+            .onNodeWithText("Reintentar actualización")
+            .assertIsDisplayed()
+    }
+
 }

@@ -38,6 +38,9 @@ import com.cgaraydev.seismicexplorer.ui.theme.SeismicExplorerTheme
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
+import com.cgaraydev.seismicexplorer.presentation.common.FeedCacheStatusText
+
 
 @Composable
 fun HomeRoute(
@@ -205,6 +208,14 @@ fun HomeScreen(
                 }
             }
 
+            if (state.feedCacheStatus != FeedCacheStatus.Unknown) {
+                item {
+                    FeedCacheStatusText(
+                        status = state.feedCacheStatus
+                    )
+                }
+            }
+
             if (state.refreshState == HomeRefreshState.Refreshing) {
                 item {
                     Column(
@@ -277,11 +288,7 @@ fun HomeScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = if (refreshFailure != null) {
-                                    stringResource(R.string.home_no_cache_title)
-                                } else {
-                                    stringResource(R.string.home_empty_title)
-                                },
+                                text = stringResource(R.string.home_empty_title),
                                 style = MaterialTheme.typography.titleMedium
                             )
 

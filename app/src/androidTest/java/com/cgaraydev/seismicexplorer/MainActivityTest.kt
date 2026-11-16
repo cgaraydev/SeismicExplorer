@@ -8,6 +8,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import com.cgaraydev.seismicexplorer.di.RepositoryModule
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
 import com.cgaraydev.seismicexplorer.domain.model.EarthquakeQuery
+import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 import com.cgaraydev.seismicexplorer.domain.model.RefreshResult
 import com.cgaraydev.seismicexplorer.domain.repository.EarthquakeRepository
@@ -102,6 +103,12 @@ class MainActivityTest {
 
         val syncRequests =
             ConcurrentLinkedQueue<RecentWindow>()
+
+        override suspend fun getFeedCacheStatus(
+            window: RecentWindow
+        ): FeedCacheStatus {
+            return FeedCacheStatus.Unknown
+        }
 
         override fun observeEarthquakes(
             query: EarthquakeQuery

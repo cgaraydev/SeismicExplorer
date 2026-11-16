@@ -41,6 +41,7 @@ import java.time.Duration
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
+import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 
 @RunWith(AndroidJUnit4::class)
 class OfflineFirstEarthquakeRepositoryTest {
@@ -469,6 +470,67 @@ class OfflineFirstEarthquakeRepositoryTest {
         )
     }
 
+    @Test
+    fun feedCacheStatus_reflectsSyncHistoryAndFreshness() = runTest {
+        val window = RecentWindow.LAST_WEEK
+
+        assertEquals(
+            FeedCacheStatus.Unverified,
+            repository.getFeedCacheStatus(window)
+        )
+
+        val oldTimestamp = now
+            .minus(Duration.ofMinutes(20))
+            .toEpochMilli()
+
+        database.feedSyncDao().upsert(
+            FeedSyncEntity(
+                feedName = "all_week",
+                lastSuccessEpochMillis = oldTimestamp
+            )
+        )
+
+        assertEquals(
+            FeedCacheStatus.Synced(
+                lastSuccessEpochMillis = oldTimestamp,
+                isFresh = false
+            ),
+            repository.getFeedCacheStatus(window)
+        )
+
+        api.failure = IOException("Network unavailable")
+
+        assertEquals(
+            FeedSyncResult.Failed(
+                RefreshFailure.CONNECTION
+            ),
+            repository.refreshIfStale(window)
+        )
+
+        // Un fallo no debe cambiar la fecha registrada.
+        assertEquals(
+            FeedCacheStatus.Synced(
+                lastSuccessEpochMillis = oldTimestamp,
+                isFresh = false
+            ),
+            repository.getFeedCacheStatus(window)
+        )
+
+        api.failure = null
+
+        assertEquals(
+            FeedSyncResult.Updated,
+            repository.refreshIfStale(window)
+        )
+
+        assertEquals(
+            FeedCacheStatus.Synced(
+                lastSuccessEpochMillis = now.toEpochMilli(),
+                isFresh = true
+            ),
+            repository.getFeedCacheStatus(window)
+        )
+    }
 
     private fun sampleResponse(
         id: String,

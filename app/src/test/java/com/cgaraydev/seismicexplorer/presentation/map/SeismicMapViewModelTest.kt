@@ -3,6 +3,7 @@ package com.cgaraydev.seismicexplorer.presentation.map
 import androidx.lifecycle.viewModelScope
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
 import com.cgaraydev.seismicexplorer.domain.model.EarthquakeQuery
+import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 import com.cgaraydev.seismicexplorer.domain.model.GeoCoordinates
 import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 import com.cgaraydev.seismicexplorer.domain.model.RefreshResult
@@ -171,6 +172,32 @@ class SeismicMapViewModelTest {
         )
     }
 
+    @Test
+    fun ensureFeedFresh_reportsLastKnownCacheStatus() = runTest {
+        createViewModel()
+
+        val staleStatus = FeedCacheStatus.Synced(
+            lastSuccessEpochMillis =
+                now.minusSeconds(60 * 60).toEpochMilli(),
+            isFresh = false
+        )
+
+        repository.cacheStatus = staleStatus
+
+        viewModel.ensureFeedFresh(
+            RecentWindow.LAST_WEEK
+        )
+
+        assertEquals(
+            MapSyncState.Ready(
+                window = RecentWindow.LAST_WEEK,
+                downloaded = true,
+                cacheStatus = staleStatus
+            ),
+            viewModel.syncState.value
+        )
+    }
+
     private fun createViewModel() {
         viewModel = SeismicMapViewModel(
             repository = repository,
@@ -202,6 +229,15 @@ class SeismicMapViewModelTest {
         var refreshRequests = 0
 
         val syncRequests = mutableListOf<RecentWindow>()
+
+        var cacheStatus: FeedCacheStatus =
+            FeedCacheStatus.Unknown
+
+        override suspend fun getFeedCacheStatus(
+            window: RecentWindow
+        ): FeedCacheStatus {
+            return cacheStatus
+        }
 
         override suspend fun refreshIfStale(
             window: RecentWindow

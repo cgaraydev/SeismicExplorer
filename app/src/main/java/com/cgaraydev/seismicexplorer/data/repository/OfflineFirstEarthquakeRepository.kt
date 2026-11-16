@@ -30,6 +30,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import retrofit2.HttpException
+import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 
 @Singleton
 class OfflineFirstEarthquakeRepository @Inject constructor(
@@ -104,6 +105,28 @@ class OfflineFirstEarthquakeRepository @Inject constructor(
                 )
             }
         }
+    }
+
+    override suspend fun getFeedCacheStatus(
+        window: RecentWindow
+    ): FeedCacheStatus {
+
+        val feed = UsgsFeed.forWindow(window)
+
+        val lastSuccess = feedSyncDao
+            .getLastSuccessEpochMillis(feed.feedName)
+            ?: return FeedCacheStatus.Unverified
+
+        val isFresh = !FeedFreshnessPolicy.shouldRefresh(
+            window = window,
+            lastSuccessEpochMillis = lastSuccess,
+            nowEpochMillis = clock.millis()
+        )
+
+        return FeedCacheStatus.Synced(
+            lastSuccessEpochMillis = lastSuccess,
+            isFresh = isFresh
+        )
     }
 
     private suspend fun downloadAndStore(
