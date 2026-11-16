@@ -24,6 +24,7 @@ import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
@@ -54,7 +55,7 @@ class OfflineFirstEarthquakeRepository @Inject constructor(
             endTime = query.endTime.toEpochMilli(),
             minimumMagnitude = query.minimumMagnitude,
             depthFilter = query.depthFilter.name
-        ).map { entities ->
+        ).distinctUntilChanged().map { entities ->
             entities.map { it.toDomain() }
         }.flowOn(Dispatchers.Default)
     }
@@ -63,6 +64,7 @@ class OfflineFirstEarthquakeRepository @Inject constructor(
         id: String
     ): Flow<Earthquake?> {
         return dao.observeEarthquake(id)
+            .distinctUntilChanged()
             .map { entity ->
                 entity?.toDomain()
             }
