@@ -1,6 +1,7 @@
 package com.cgaraydev.seismicexplorer.presentation.map
 
 import android.util.Log
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cgaraydev.seismicexplorer.di.MapComputationDispatcher
@@ -37,11 +38,41 @@ class SeismicMapViewModel @Inject constructor(
     private val repository: EarthquakeRepository,
     private val clock: Clock,
     @MapComputationDispatcher
-    computationDispatcher: CoroutineDispatcher
+    computationDispatcher: CoroutineDispatcher,
+    // Hilt proporciona el handle asociado al estado de esta pantalla.
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
+    // Compatibilidad con los tests anteriores que construyen el
+    // ViewModel directamente. Este constructor no participa en Hilt.
+    internal constructor(
+        repository: EarthquakeRepository,
+        clock: Clock,
+        computationDispatcher: CoroutineDispatcher
+    ) : this(
+        repository,
+        clock,
+        computationDispatcher,
+        SavedStateHandle()
+    )
+
+    // Solo persistimos las opciones del usuario, no GeoJSON, caché,
+    // cámara ni estados transitorios de sincronización.
     private val selectedFilters = MutableStateFlow(
-        MapFilterSelection()
+        MapFilterSelection(
+            timeWindow = restoredEnum(
+                SAVED_TIME_WINDOW,
+                RecentWindow.LAST_WEEK
+            ),
+            magnitude = restoredEnum(
+                SAVED_MAGNITUDE,
+                MapMagnitudeFilter.ALL
+            ),
+            depthFilter = restoredEnum(
+                SAVED_DEPTH_FILTER,
+                EarthquakeDepthFilter.ALL
+            )
+        )
     )
 
     val filters: StateFlow<MapFilterSelection> =
@@ -204,19 +235,36 @@ class SeismicMapViewModel @Inject constructor(
         }
     }
 
+    // Los valores se guardan como String para que Android los pueda
+    // conservar en el estado de la pantalla durante la recreación.
+    // Si una versión futura cambia los nombres, los valores antiguos
+    // desconocidos vuelven a la opción predeterminada sin fallar.
+    private inline fun <reified T : Enum<T>> restoredEnum(
+        key: String,
+        default: T
+    ): T {
+        val savedName = savedStateHandle.get<Any>(key) as? String
+        return enumValues<T>().firstOrNull {
+            it.name == savedName
+        } ?: default
+    }
+
     fun selectTimeWindow(window: RecentWindow) {
+        savedStateHandle[SAVED_TIME_WINDOW] = window.name
         selectedFilters.update { current ->
             current.copy(timeWindow = window)
         }
     }
 
     fun selectMagnitude(magnitude: MapMagnitudeFilter) {
+        savedStateHandle[SAVED_MAGNITUDE] = magnitude.name
         selectedFilters.update { current ->
             current.copy(magnitude = magnitude)
         }
     }
 
     fun selectDepthFilter(depthFilter: EarthquakeDepthFilter) {
+        savedStateHandle[SAVED_DEPTH_FILTER] = depthFilter.name
         selectedFilters.update { current ->
             current.copy(depthFilter = depthFilter)
         }
@@ -305,7 +353,10 @@ class SeismicMapViewModel @Inject constructor(
                 initialValue = SeismicMapUiState()
             )
 
-    private companion object {
-        const val TAG = "SeismicMapViewModel"
+    companion object {
+        internal const val SAVED_TIME_WINDOW = "seismic.map.filter.window"
+        internal const val SAVED_MAGNITUDE = "seismic.map.filter.magnitude"
+        internal const val SAVED_DEPTH_FILTER = "seismic.map.filter.depth"
+        private const val TAG = "SeismicMapViewModel"
     }
 }
