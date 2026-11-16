@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -46,8 +47,8 @@ class SeismicMapViewModel @Inject constructor(
     val filters: StateFlow<MapFilterSelection> =
         selectedFilters.asStateFlow()
 
-    // El tiempo de consulta es independiente
-    // de los filtros de magnitud y profundidad.
+    // Mantiene estable el intervalo temporal
+    // cuando se modifican magnitud o profundidad.
     private val queryEndTime = MutableStateFlow(
         clock.instant()
     )
@@ -59,8 +60,8 @@ class SeismicMapViewModel @Inject constructor(
     val syncState: StateFlow<MapSyncState> =
         _syncState.asStateFlow()
 
-    // Evita sincronizaciones simultáneas iniciadas
-    // desde esta pantalla.
+    // Serializa las solicitudes de sincronización.
+    // Las nuevas esperan en lugar de descartarse.
     private val syncMutex = Mutex()
 
     suspend fun ensureFeedFresh(window: RecentWindow) {
@@ -81,16 +82,24 @@ class SeismicMapViewModel @Inject constructor(
         window: RecentWindow,
         force: Boolean
     ) {
-        // Una solicitud adicional no debe iniciar
-        // otra descarga mientras una sigue activa.
-        if (!syncMutex.tryLock()) return
+        syncMutex.withLock {
 
-        var completed = false
+            // Si el usuario seleccionó otro período
+            // mientras esta solicitud esperaba,
+            // ya no necesitamos ejecutarla.
+            if (
+                selectedFilters.value.timeWindow != window
+            ) {
+                return@withLock
+            }
 
-        try {
-            _syncState.value = MapSyncState.Syncing(window)
+            var completed = false
 
             try {
+                _syncState.value = MapSyncState.Syncing(
+                    window
+                )
+
                 val initialCacheStatus =
                     readFeedCacheStatus(window)
 
@@ -100,8 +109,9 @@ class SeismicMapViewModel @Inject constructor(
                 )
 
                 val result = if (force) {
-                    when (val forcedResult =
-                        repository.refreshRecent(window)
+                    when (
+                        val forcedResult =
+                            repository.refreshRecent(window)
                     ) {
                         RefreshResult.Success ->
                             FeedSyncResult.Updated
@@ -118,27 +128,34 @@ class SeismicMapViewModel @Inject constructor(
                 val finalCacheStatus =
                     readFeedCacheStatus(window)
 
-                _syncState.value = when (result) {
-                    FeedSyncResult.UpToDate ->
-                        MapSyncState.Ready(
-                            window = window,
-                            downloaded = false,
-                            cacheStatus = finalCacheStatus
-                        )
+                // Si el usuario cambió de período
+                // durante la descarga, no publicamos
+                // el resultado de la selección anterior.
+                if (
+                    selectedFilters.value.timeWindow == window
+                ) {
+                    _syncState.value = when (result) {
+                        FeedSyncResult.UpToDate ->
+                            MapSyncState.Ready(
+                                window = window,
+                                downloaded = false,
+                                cacheStatus = finalCacheStatus
+                            )
 
-                    FeedSyncResult.Updated ->
-                        MapSyncState.Ready(
-                            window = window,
-                            downloaded = true,
-                            cacheStatus = finalCacheStatus
-                        )
+                        FeedSyncResult.Updated ->
+                            MapSyncState.Ready(
+                                window = window,
+                                downloaded = true,
+                                cacheStatus = finalCacheStatus
+                            )
 
-                    is FeedSyncResult.Failed ->
-                        MapSyncState.Failed(
-                            window = window,
-                            reason = result.reason,
-                            cacheStatus = finalCacheStatus
-                        )
+                        is FeedSyncResult.Failed ->
+                            MapSyncState.Failed(
+                                window = window,
+                                reason = result.reason,
+                                cacheStatus = finalCacheStatus
+                            )
+                    }
                 }
 
                 completed = true
@@ -151,36 +168,42 @@ class SeismicMapViewModel @Inject constructor(
                     exception
                 )
 
-                _syncState.value = MapSyncState.Failed(
-                    window = window,
-                    cacheStatus = readFeedCacheStatus(window)
-                )
+                val cacheStatus =
+                    readFeedCacheStatus(window)
 
-                completed = true
-            }
-        } finally {
-            if (completed) {
-                // El intervalo avanza también si la
-                // descarga ha fallado o estaba al día.
                 if (
                     selectedFilters.value.timeWindow == window
                 ) {
-                    queryEndTime.value = clock.instant()
+                    _syncState.value = MapSyncState.Failed(
+                        window = window,
+                        cacheStatus = cacheStatus
+                    )
                 }
-            } else {
-                // Una sincronización cancelada no debe
-                // dejar el estado bloqueado en Syncing.
-                val currentState = _syncState.value
 
+                completed = true
+            } finally {
                 if (
-                    currentState is MapSyncState.Syncing &&
-                    currentState.window == window
+                    completed &&
+                    selectedFilters.value.timeWindow == window
                 ) {
-                    _syncState.value = MapSyncState.Idle
+                    // Renueva el intervalo incluso si
+                    // el feed estaba al día o falló.
+                    queryEndTime.value = clock.instant()
+                } else {
+                    // No dejamos un Syncing antiguo
+                    // después de cancelar o cambiar
+                    // de período.
+                    val currentState = _syncState.value
+
+                    if (
+                        currentState is MapSyncState.Syncing &&
+                        currentState.window == window
+                    ) {
+                        _syncState.value =
+                            MapSyncState.Idle
+                    }
                 }
             }
-
-            syncMutex.unlock()
         }
     }
 

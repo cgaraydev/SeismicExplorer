@@ -142,22 +142,18 @@ class SeismicMapRefreshViewModelTest {
         }
 
     @Test
-    fun overlappingRequests_doNotRunSimultaneously() =
+    fun overlappingRequests_areSerializedNotDiscarded() =
         runTest {
-            // Mantiene suspendida la primera descarga.
             val gate = CompletableDeferred<Unit>()
 
             repository.conditionalGate = gate
 
-            // Usamos el scope de runTest, no backgroundScope.
             val firstRequest = launch {
                 viewModel.ensureFeedFresh(
                     RecentWindow.LAST_WEEK
                 )
             }
 
-            // Ejecuta la primera corutina hasta
-            // que quede suspendida en gate.await().
             runCurrent()
 
             assertEquals(
@@ -167,38 +163,37 @@ class SeismicMapRefreshViewModelTest {
 
             assertTrue(firstRequest.isActive)
 
-            assertTrue(
-                viewModel.syncState.value
-                        is MapSyncState.Syncing
-            )
+            val secondRequest = launch {
+                viewModel.refreshFeed(
+                    RecentWindow.LAST_WEEK
+                )
+            }
 
-            // Intentamos otra descarga mientras
-            // la primera todavía tiene el Mutex.
-            viewModel.refreshFeed(
-                RecentWindow.LAST_WEEK
-            )
+            runCurrent()
 
-            // No debe comenzar una descarga forzada.
+            // La segunda espera: no hay concurrencia.
             assertTrue(
                 repository.forcedRequests.isEmpty()
             )
 
-            assertEquals(
-                1,
-                repository.conditionalRequests.size
-            )
+            assertTrue(secondRequest.isActive)
 
-            // Permitimos terminar la primera descarga.
+            // Terminamos la primera solicitud.
             gate.complete(Unit)
 
-            // join() garantiza que terminó el finally
-            // y que el estado ya está actualizado.
             firstRequest.join()
+            secondRequest.join()
+
+            // Ahora la solicitud manual sí se ejecutó.
+            assertEquals(
+                listOf(RecentWindow.LAST_WEEK),
+                repository.forcedRequests
+            )
 
             assertEquals(
                 MapSyncState.Ready(
                     window = RecentWindow.LAST_WEEK,
-                    downloaded = false
+                    downloaded = true
                 ),
                 viewModel.syncState.value
             )
@@ -217,13 +212,7 @@ class SeismicMapRefreshViewModelTest {
                 )
             }
 
-            // Ejecuta hasta suspender en el repositorio.
             runCurrent()
-
-            assertEquals(
-                1,
-                repository.conditionalRequests.size
-            )
 
             assertTrue(firstRequest.isActive)
 
@@ -232,9 +221,6 @@ class SeismicMapRefreshViewModelTest {
                         is MapSyncState.Syncing
             )
 
-            // Cancela y espera a que termine.
-            // Así verificamos el estado después
-            // de ejecutarse el bloque finally.
             firstRequest.cancelAndJoin()
 
             assertEquals(
@@ -242,8 +228,6 @@ class SeismicMapRefreshViewModelTest {
                 viewModel.syncState.value
             )
 
-            // El siguiente intento no debe quedar
-            // bloqueado por la cancelación anterior.
             repository.conditionalGate = null
 
             viewModel.refreshFeed(
@@ -251,8 +235,8 @@ class SeismicMapRefreshViewModelTest {
             )
 
             assertEquals(
-                1,
-                repository.forcedRequests.size
+                listOf(RecentWindow.LAST_WEEK),
+                repository.forcedRequests
             )
 
             assertEquals(
@@ -260,6 +244,173 @@ class SeismicMapRefreshViewModelTest {
                     window = RecentWindow.LAST_WEEK,
                     downloaded = true
                 ),
+                viewModel.syncState.value
+            )
+        }
+
+    @Test
+    fun changingPeriod_waitsAndSynchronizesNewWindow() =
+        runTest {
+            val gate = CompletableDeferred<Unit>()
+
+            repository.conditionalGate = gate
+
+            // El período inicial es LAST_WEEK.
+            val firstRequest = launch {
+                viewModel.ensureFeedFresh(
+                    RecentWindow.LAST_WEEK
+                )
+            }
+
+            runCurrent()
+
+            viewModel.selectTimeWindow(
+                RecentWindow.LAST_30_DAYS
+            )
+
+            val newWindowRequest = launch {
+                viewModel.ensureFeedFresh(
+                    RecentWindow.LAST_30_DAYS
+                )
+            }
+
+            runCurrent()
+
+            // El nuevo período todavía está esperando.
+            assertEquals(
+                listOf(RecentWindow.LAST_WEEK),
+                repository.conditionalRequests
+            )
+
+            gate.complete(Unit)
+
+            firstRequest.join()
+            newWindowRequest.join()
+
+            // La solicitud nueva no se perdió.
+            assertEquals(
+                listOf(
+                    RecentWindow.LAST_WEEK,
+                    RecentWindow.LAST_30_DAYS
+                ),
+                repository.conditionalRequests
+            )
+
+            assertEquals(
+                MapSyncState.Ready(
+                    window = RecentWindow.LAST_30_DAYS,
+                    downloaded = false
+                ),
+                viewModel.syncState.value
+            )
+        }
+
+    @Test
+    fun supersededWaitingWindow_isSkipped() =
+        runTest {
+            val gate = CompletableDeferred<Unit>()
+
+            repository.conditionalGate = gate
+
+            val firstRequest = launch {
+                viewModel.ensureFeedFresh(
+                    RecentWindow.LAST_WEEK
+                )
+            }
+
+            runCurrent()
+
+            // Primera selección pendiente.
+            viewModel.selectTimeWindow(
+                RecentWindow.LAST_30_DAYS
+            )
+
+            val obsoleteRequest = launch {
+                viewModel.ensureFeedFresh(
+                    RecentWindow.LAST_30_DAYS
+                )
+            }
+
+            runCurrent()
+
+            // El usuario vuelve a cambiar de período.
+            viewModel.selectTimeWindow(
+                RecentWindow.LAST_DAY
+            )
+
+            val latestRequest = launch {
+                viewModel.ensureFeedFresh(
+                    RecentWindow.LAST_DAY
+                )
+            }
+
+            runCurrent()
+
+            gate.complete(Unit)
+
+            firstRequest.join()
+            obsoleteRequest.join()
+            latestRequest.join()
+
+            // LAST_30_DAYS ya no es relevante.
+            assertEquals(
+                listOf(
+                    RecentWindow.LAST_WEEK,
+                    RecentWindow.LAST_DAY
+                ),
+                repository.conditionalRequests
+            )
+
+            assertEquals(
+                MapSyncState.Ready(
+                    window = RecentWindow.LAST_DAY,
+                    downloaded = false
+                ),
+                viewModel.syncState.value
+            )
+        }
+
+    @Test
+    fun cancelledWaitingRequest_doesNotDownload() =
+        runTest {
+            val gate = CompletableDeferred<Unit>()
+
+            repository.conditionalGate = gate
+
+            val firstRequest = launch {
+                viewModel.ensureFeedFresh(
+                    RecentWindow.LAST_WEEK
+                )
+            }
+
+            runCurrent()
+
+            viewModel.selectTimeWindow(
+                RecentWindow.LAST_30_DAYS
+            )
+
+            val waitingRequest = launch {
+                viewModel.ensureFeedFresh(
+                    RecentWindow.LAST_30_DAYS
+                )
+            }
+
+            runCurrent()
+
+            // Simula que la pantalla deja de necesitar
+            // esta solicitud antes de adquirir el Mutex.
+            waitingRequest.cancelAndJoin()
+
+            gate.complete(Unit)
+            firstRequest.join()
+
+            assertEquals(
+                listOf(RecentWindow.LAST_WEEK),
+                repository.conditionalRequests
+            )
+
+            assertEquals(
+                MapSyncState.Idle,
                 viewModel.syncState.value
             )
         }
@@ -300,8 +451,8 @@ class SeismicMapRefreshViewModelTest {
         ): FeedSyncResult {
             conditionalRequests.add(window)
 
-            // Simula una descarga de duración
-            // controlada por la prueba.
+            // Permite suspender la sincronización
+            // en las pruebas de concurrencia.
             conditionalGate?.await()
 
             return FeedSyncResult.UpToDate
