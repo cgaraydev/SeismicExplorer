@@ -287,6 +287,10 @@ class SeismicMapViewModel @Inject constructor(
         }
     }
 
+    // Sobrevive a la pausa de StateFlow y evita vaciar MapLibre al
+    // iniciar una nueva consulta de filtros o al reanudar la pantalla.
+    private val mapLoadingContinuity = MapLoadingContinuity()
+
     val uiState: StateFlow<SeismicMapUiState> =
         combine(
             selectedFilters,
@@ -346,6 +350,7 @@ class SeismicMapViewModel @Inject constructor(
                         )
                     }
             }
+            .map(mapLoadingContinuity::accept)
             .flowOn(computationDispatcher)
             .stateIn(
                 scope = viewModelScope,
