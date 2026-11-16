@@ -57,13 +57,13 @@ class MainActivityTest {
             .assertIsDisplayed()
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            fakeRepository.refreshRequests.contains(
+            fakeRepository.syncRequests.contains(
                 RecentWindow.LAST_DAY
             )
         }
 
         assertTrue(
-            fakeRepository.refreshRequests.contains(
+            fakeRepository.syncRequests.contains(
                 RecentWindow.LAST_DAY
             )
         )
@@ -80,13 +80,13 @@ class MainActivityTest {
             .assertIsSelected()
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            fakeRepository.refreshRequests.contains(
+            fakeRepository.syncRequests.contains(
                 RecentWindow.LAST_WEEK
             )
         }
 
         assertTrue(
-            fakeRepository.refreshRequests.contains(
+            fakeRepository.syncRequests.contains(
                 RecentWindow.LAST_WEEK
             )
         )
@@ -98,6 +98,9 @@ class MainActivityTest {
             MutableStateFlow<List<Earthquake>>(emptyList())
 
         val refreshRequests =
+            ConcurrentLinkedQueue<RecentWindow>()
+
+        val syncRequests =
             ConcurrentLinkedQueue<RecentWindow>()
 
         override fun observeEarthquakes(
@@ -122,6 +125,7 @@ class MainActivityTest {
         override suspend fun refreshIfStale(
             window: RecentWindow
         ): FeedSyncResult {
+            syncRequests.add(window)
             return FeedSyncResult.UpToDate
         }
     }

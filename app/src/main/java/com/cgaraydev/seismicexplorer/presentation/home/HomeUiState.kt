@@ -18,8 +18,10 @@ enum class MagnitudeThreshold {
 sealed interface HomeRefreshState {
     data object Idle : HomeRefreshState
     data object Refreshing : HomeRefreshState
+    // USGS se descargó correctamente.
     data object Completed : HomeRefreshState
-
+    // No fue necesario descargar: el feed sigue vigente.
+    data object UpToDate : HomeRefreshState
     data class Failed(
         val reason: RefreshFailure?
     ) : HomeRefreshState

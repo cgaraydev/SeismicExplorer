@@ -38,6 +38,9 @@ import org.junit.Assert.assertNull
 import com.cgaraydev.seismicexplorer.data.local.entity.FeedSyncEntity
 import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
 import java.time.Duration
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 
 @RunWith(AndroidJUnit4::class)
 class OfflineFirstEarthquakeRepositoryTest {
@@ -403,6 +406,70 @@ class OfflineFirstEarthquakeRepositoryTest {
         )
     }
 
+
+    @Test
+    fun concurrentConditionalRefresh_downloadsSameFeedOnlyOnce() = runTest {
+        val requestStarted = CompletableDeferred<Unit>()
+        val releaseResponse = CompletableDeferred<Unit>()
+
+        api.beforeResponse = {
+            // Señal de que getFeed() fue invocado.
+            requestStarted.complete(Unit)
+
+            // Mantener la primera solicitud pendiente
+            // para comprobar el bloqueo del repositorio.
+            releaseResponse.await()
+        }
+
+        val first = async(
+            start = CoroutineStart.UNDISPATCHED
+        ) {
+            repository.refreshIfStale(
+                RecentWindow.LAST_WEEK
+            )
+        }
+
+        val second = async(
+            start = CoroutineStart.UNDISPATCHED
+        ) {
+            repository.refreshIfStale(
+                RecentWindow.LAST_WEEK
+            )
+        }
+
+        // Esperar a que la primera solicitud llegue
+        // realmente al API simulado.
+        requestStarted.await()
+
+        // La segunda solicitud no debe iniciar
+        // una descarga adicional mientras espera el Mutex.
+        assertEquals(
+            listOf("all_week"),
+            api.requestedFeeds
+        )
+
+        // Permitir que termine la primera descarga.
+        releaseResponse.complete(Unit)
+
+        assertEquals(
+            FeedSyncResult.Updated,
+            first.await()
+        )
+
+        // La segunda debe detectar el feed actualizado.
+        assertEquals(
+            FeedSyncResult.UpToDate,
+            second.await()
+        )
+
+        // En total solo debe existir una descarga.
+        assertEquals(
+            listOf("all_week"),
+            api.requestedFeeds
+        )
+    }
+
+
     private fun sampleResponse(
         id: String,
         magnitude: Double,
@@ -439,11 +506,13 @@ class OfflineFirstEarthquakeRepositoryTest {
 
         val requestedFeeds = mutableListOf<String>()
 
+        var beforeResponse: suspend () -> Unit = {}
+
         override suspend fun getFeed(
             feedName: String
         ): UsgsEarthquakeCollectionDto {
             requestedFeeds.add(feedName)
-
+            beforeResponse()
             failure?.let { throw it }
 
             return response

@@ -3,10 +3,14 @@ package com.cgaraydev.seismicexplorer.presentation.home
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
 import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 import com.cgaraydev.seismicexplorer.domain.model.RefreshResult
 import com.cgaraydev.seismicexplorer.domain.repository.EarthquakeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.Clock
+import java.time.Instant
+import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,9 +19,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.Clock
-import java.time.Instant
-import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -27,7 +28,8 @@ class HomeViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(HomeUiState())
 
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    val uiState: StateFlow<HomeUiState> =
+        _uiState.asStateFlow()
 
     private var queryEndTime: Instant = clock.instant()
 
@@ -39,11 +41,12 @@ class HomeViewModel @Inject constructor(
 
     init {
         observeCurrentSelection(clearEvents = true)
-        refreshCurrentWindow()
+        refreshCurrentWindow(force = false)
     }
 
     fun onAction(action: HomeAction) {
         when (action) {
+
             is HomeAction.SelectTimeWindow -> {
                 selectTimeWindow(action.value)
             }
@@ -54,8 +57,14 @@ class HomeViewModel @Inject constructor(
 
             HomeAction.Refresh -> {
                 queryEndTime = clock.instant()
-                observeCurrentSelection(clearEvents = false)
-                refreshCurrentWindow()
+
+                observeCurrentSelection(
+                    clearEvents = false
+                )
+
+                // El usuario solicitó expresamente
+                // una actualización desde USGS.
+                refreshCurrentWindow(force = true)
             }
         }
     }
@@ -70,30 +79,43 @@ class HomeViewModel @Inject constructor(
         queryEndTime = clock.instant()
 
         observeCurrentSelection(clearEvents = true)
-        refreshCurrentWindow()
+
+        // Solo descargar si el feed está desactualizado.
+        refreshCurrentWindow(force = false)
     }
 
-    private fun selectMagnitude(threshold: MagnitudeThreshold) {
-        if (_uiState.value.minimumMagnitude == threshold) return
+    private fun selectMagnitude(
+        threshold: MagnitudeThreshold
+    ) {
+        if (_uiState.value.minimumMagnitude == threshold) {
+            return
+        }
 
         _uiState.update { current ->
             current.copy(minimumMagnitude = threshold)
         }
 
+        // La magnitud no requiere una descarga nueva.
         observeCurrentSelection(clearEvents = true)
     }
 
-    private fun observeCurrentSelection(clearEvents: Boolean) {
+    private fun observeCurrentSelection(
+        clearEvents: Boolean
+    ) {
         observationVersion++
         val version = observationVersion
 
         observationJob?.cancel()
 
         val selectedState = _uiState.value
-        val query = selectedState.timeWindow.toRecentWindow().toQuery(
-            endTime = queryEndTime,
-            minimumMagnitude = selectedState.minimumMagnitude.toValue()
-        )
+
+        val query = selectedState.timeWindow
+            .toRecentWindow()
+            .toQuery(
+                endTime = queryEndTime,
+                minimumMagnitude =
+                    selectedState.minimumMagnitude.toValue()
+            )
 
         _uiState.update { current ->
             current.copy(
@@ -115,7 +137,7 @@ class HomeViewModel @Inject constructor(
                     }
 
                     Log.e(
-                        "HomeViewModel",
+                        TAG,
                         "Failed to read cached earthquakes",
                         exception
                     )
@@ -143,13 +165,14 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun refreshCurrentWindow() {
+    private fun refreshCurrentWindow(force: Boolean) {
         refreshVersion++
         val version = refreshVersion
 
         refreshJob?.cancel()
 
-        val window = _uiState.value.timeWindow.toRecentWindow()
+        val window = _uiState.value.timeWindow
+            .toRecentWindow()
 
         _uiState.update { current ->
             current.copy(
@@ -158,21 +181,32 @@ class HomeViewModel @Inject constructor(
         }
 
         refreshJob = viewModelScope.launch {
-            val refreshState = try {
-                when (val result = repository.refreshRecent(window)) {
-                    RefreshResult.Success -> {
-                        HomeRefreshState.Completed
-                    }
+            val nextState = try {
+                if (force) {
+                    when (val result = repository.refreshRecent(window)) {
+                        RefreshResult.Success ->
+                            HomeRefreshState.Completed
 
-                    is RefreshResult.Failure -> {
-                        HomeRefreshState.Failed(result.reason)
+                        is RefreshResult.Failure ->
+                            HomeRefreshState.Failed(result.reason)
+                    }
+                } else {
+                    when (val result = repository.refreshIfStale(window)) {
+                        FeedSyncResult.UpToDate ->
+                            HomeRefreshState.UpToDate
+
+                        FeedSyncResult.Updated ->
+                            HomeRefreshState.Completed
+
+                        is FeedSyncResult.Failed ->
+                            HomeRefreshState.Failed(result.reason)
                     }
                 }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
                 Log.e(
-                    "HomeViewModel",
+                    TAG,
                     "Unexpected earthquake refresh failure",
                     exception
                 )
@@ -180,9 +214,10 @@ class HomeViewModel @Inject constructor(
                 HomeRefreshState.Failed(reason = null)
             }
 
+            // Descarta resultados de una selección anterior.
             if (version == refreshVersion) {
                 _uiState.update { current ->
-                    current.copy(refreshState = refreshState)
+                    current.copy(refreshState = nextState)
                 }
             }
         }
@@ -190,17 +225,28 @@ class HomeViewModel @Inject constructor(
 
     private fun TimeWindow.toRecentWindow(): RecentWindow {
         return when (this) {
-            TimeWindow.LAST_DAY -> RecentWindow.LAST_DAY
-            TimeWindow.LAST_WEEK -> RecentWindow.LAST_WEEK
-            TimeWindow.LAST_MONTH -> RecentWindow.LAST_30_DAYS
+            TimeWindow.LAST_DAY ->
+                RecentWindow.LAST_DAY
+
+            TimeWindow.LAST_WEEK ->
+                RecentWindow.LAST_WEEK
+
+            TimeWindow.LAST_MONTH ->
+                RecentWindow.LAST_30_DAYS
         }
     }
 
     private fun MagnitudeThreshold.toValue(): Double? {
         return when (this) {
             MagnitudeThreshold.ALL -> null
+
             MagnitudeThreshold.MAGNITUDE_2_5 -> 2.5
+
             MagnitudeThreshold.MAGNITUDE_4_5 -> 4.5
         }
+    }
+
+    private companion object {
+        const val TAG = "HomeViewModel"
     }
 }

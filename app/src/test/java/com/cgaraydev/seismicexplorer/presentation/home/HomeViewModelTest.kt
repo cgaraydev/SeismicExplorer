@@ -3,6 +3,7 @@ package com.cgaraydev.seismicexplorer.presentation.home
 import androidx.lifecycle.viewModelScope
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
 import com.cgaraydev.seismicexplorer.domain.model.EarthquakeQuery
+import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
 import com.cgaraydev.seismicexplorer.domain.model.GeoCoordinates
 import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 import com.cgaraydev.seismicexplorer.domain.model.RefreshFailure
@@ -30,7 +31,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -45,7 +45,6 @@ class HomeViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-
         repository = FakeEarthquakeRepository()
         clock = MutableClock(now)
     }
@@ -55,12 +54,11 @@ class HomeViewModelTest {
         if (::viewModel.isInitialized) {
             viewModel.viewModelScope.cancel()
         }
-
         Dispatchers.resetMain()
     }
 
     @Test
-    fun initialState_observesLocalCacheAndRefreshesDailyFeed() = runTest {
+    fun initialState_checksDailyFeedWithoutForcingRefresh() = runTest {
         createViewModel()
         advanceUntilIdle()
 
@@ -74,17 +72,18 @@ class HomeViewModelTest {
         )
         assertEquals(
             listOf(RecentWindow.LAST_DAY),
-            repository.refreshRequests
+            repository.syncRequests
         )
+        assertTrue(repository.refreshRequests.isEmpty())
         assertFalse(viewModel.uiState.value.isReadingLocal)
         assertEquals(
-            HomeRefreshState.Completed,
+            HomeRefreshState.UpToDate,
             viewModel.uiState.value.refreshState
         )
     }
 
     @Test
-    fun changingMagnitude_filtersRoomWithoutRefreshingNetwork() = runTest {
+    fun changingMagnitude_filtersRoomWithoutNewSync() = runTest {
         repository.events.value = listOf(
             earthquake("small", 1.2),
             earthquake("strong", 4.8)
@@ -92,8 +91,6 @@ class HomeViewModelTest {
 
         createViewModel()
         advanceUntilIdle()
-
-        assertEquals(2, viewModel.uiState.value.earthquakes.size)
 
         viewModel.onAction(
             HomeAction.SelectMagnitude(
@@ -108,8 +105,9 @@ class HomeViewModelTest {
         )
         assertEquals(
             listOf(RecentWindow.LAST_DAY),
-            repository.refreshRequests
+            repository.syncRequests
         )
+        assertTrue(repository.refreshRequests.isEmpty())
         assertEquals(
             2.5,
             repository.observedQueries.last().minimumMagnitude!!,
@@ -118,7 +116,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun changingPeriod_refreshesSelectedFeedAndKeepsMagnitude() = runTest {
+    fun changingPeriod_checksSelectedFeedAndKeepsMagnitude() = runTest {
         createViewModel()
         advanceUntilIdle()
 
@@ -134,20 +132,22 @@ class HomeViewModelTest {
         )
         advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-
-        assertEquals(TimeWindow.LAST_WEEK, state.timeWindow)
+        assertEquals(
+            TimeWindow.LAST_WEEK,
+            viewModel.uiState.value.timeWindow
+        )
         assertEquals(
             MagnitudeThreshold.MAGNITUDE_4_5,
-            state.minimumMagnitude
+            viewModel.uiState.value.minimumMagnitude
         )
         assertEquals(
             listOf(
                 RecentWindow.LAST_DAY,
                 RecentWindow.LAST_WEEK
             ),
-            repository.refreshRequests
+            repository.syncRequests
         )
+        assertTrue(repository.refreshRequests.isEmpty())
         assertEquals(
             now.minusSeconds(7L * 24 * 60 * 60),
             repository.observedQueries.last().startTime
@@ -155,7 +155,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun roomEmission_updatesUiWithoutNewNetworkRequest() = runTest {
+    fun roomEmission_updatesUiWithoutNewSync() = runTest {
         createViewModel()
         advanceUntilIdle()
 
@@ -168,17 +168,18 @@ class HomeViewModelTest {
             listOf("new-event"),
             viewModel.uiState.value.earthquakes.map { it.id }
         )
-        assertEquals(1, repository.refreshRequests.size)
+        assertEquals(1, repository.syncRequests.size)
+        assertTrue(repository.refreshRequests.isEmpty())
     }
 
     @Test
-    fun refreshFailure_preservesCachedEvents() = runTest {
+    fun syncFailure_preservesCachedEvents() = runTest {
         repository.events.value = listOf(
             earthquake("cached", 4.0)
         )
 
-        repository.refreshHandler = {
-            RefreshResult.Failure(RefreshFailure.CONNECTION)
+        repository.syncHandler = {
+            FeedSyncResult.Failed(RefreshFailure.CONNECTION)
         }
 
         createViewModel()
@@ -198,7 +199,23 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun manualRefresh_renewsQueryAndRequestsCurrentFeed() = runTest {
+    fun successfulAutomaticSync_reportsCompleted() = runTest {
+        repository.syncHandler = {
+            FeedSyncResult.Updated
+        }
+
+        createViewModel()
+        advanceUntilIdle()
+
+        assertEquals(
+            HomeRefreshState.Completed,
+            viewModel.uiState.value.refreshState
+        )
+        assertTrue(repository.refreshRequests.isEmpty())
+    }
+
+    @Test
+    fun manualRefresh_forcesDownloadAndRenewsQuery() = runTest {
         createViewModel()
         advanceUntilIdle()
 
@@ -208,24 +225,31 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         assertEquals(
-            listOf(
-                RecentWindow.LAST_DAY,
-                RecentWindow.LAST_DAY
-            ),
+            listOf(RecentWindow.LAST_DAY),
+            repository.syncRequests
+        )
+        assertEquals(
+            listOf(RecentWindow.LAST_DAY),
             repository.refreshRequests
         )
         assertEquals(
             now.plusSeconds(120),
             repository.observedQueries.last().endTime
         )
+        assertEquals(
+            HomeRefreshState.Completed,
+            viewModel.uiState.value.refreshState
+        )
     }
 
     @Test
-    fun changingPeriod_cancelsOldRefreshAndPreventsStaleError() = runTest {
-        val pendingDailyResult = CompletableDeferred<RefreshResult>()
+    fun changingPeriod_cancelsOldSyncAndPreventsStaleError() = runTest {
+        val pendingDailyResult =
+            CompletableDeferred<FeedSyncResult>()
+
         var dailyCancelled = false
 
-        repository.refreshHandler = { window ->
+        repository.syncHandler = { window ->
             if (window == RecentWindow.LAST_DAY) {
                 try {
                     pendingDailyResult.await()
@@ -233,7 +257,7 @@ class HomeViewModelTest {
                     dailyCancelled = true
                 }
             } else {
-                RefreshResult.Failure(RefreshFailure.SERVICE)
+                FeedSyncResult.Failed(RefreshFailure.SERVICE)
             }
         }
 
@@ -256,7 +280,7 @@ class HomeViewModelTest {
             viewModel.uiState.value.refreshState
         )
 
-        pendingDailyResult.complete(RefreshResult.Success)
+        pendingDailyResult.complete(FeedSyncResult.Updated)
         advanceUntilIdle()
 
         assertEquals(
@@ -306,10 +330,16 @@ class HomeViewModelTest {
 
     private class FakeEarthquakeRepository : EarthquakeRepository {
 
-        val events = MutableStateFlow<List<Earthquake>>(emptyList())
+        val events =
+            MutableStateFlow<List<Earthquake>>(emptyList())
 
+        val syncRequests = mutableListOf<RecentWindow>()
         val refreshRequests = mutableListOf<RecentWindow>()
         val observedQueries = mutableListOf<EarthquakeQuery>()
+
+        var syncHandler: suspend (RecentWindow) -> FeedSyncResult = {
+            FeedSyncResult.UpToDate
+        }
 
         var refreshHandler: suspend (RecentWindow) -> RefreshResult = {
             RefreshResult.Success
@@ -330,7 +360,8 @@ class HomeViewModelTest {
                         query.minimumMagnitude == null ||
                                 (
                                         earthquake.magnitude != null &&
-                                                earthquake.magnitude >= query.minimumMagnitude
+                                                earthquake.magnitude >=
+                                                query.minimumMagnitude
                                         )
 
                     isWithinPeriod && matchesMagnitude
@@ -353,12 +384,11 @@ class HomeViewModelTest {
             return refreshHandler(window)
         }
 
-
         override suspend fun refreshIfStale(
             window: RecentWindow
         ): FeedSyncResult {
-            return FeedSyncResult.UpToDate
+            syncRequests.add(window)
+            return syncHandler(window)
         }
-
     }
 }
