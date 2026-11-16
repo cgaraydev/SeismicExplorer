@@ -8,6 +8,7 @@ import com.cgaraydev.seismicexplorer.domain.model.EarthquakeDepthFilter
 import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
 import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
+import com.cgaraydev.seismicexplorer.domain.model.RefreshResult
 import com.cgaraydev.seismicexplorer.domain.repository.EarthquakeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Clock
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -44,8 +46,8 @@ class SeismicMapViewModel @Inject constructor(
     val filters: StateFlow<MapFilterSelection> =
         selectedFilters.asStateFlow()
 
-    // El intervalo temporal es independiente de
-    // los filtros de magnitud y profundidad.
+    // El tiempo de consulta es independiente
+    // de los filtros de magnitud y profundidad.
     private val queryEndTime = MutableStateFlow(
         clock.instant()
     )
@@ -57,71 +59,128 @@ class SeismicMapViewModel @Inject constructor(
     val syncState: StateFlow<MapSyncState> =
         _syncState.asStateFlow()
 
+    // Evita sincronizaciones simultáneas iniciadas
+    // desde esta pantalla.
+    private val syncMutex = Mutex()
+
     suspend fun ensureFeedFresh(window: RecentWindow) {
-        _syncState.value = MapSyncState.Syncing(window)
+        synchronizeFeed(
+            window = window,
+            force = false
+        )
+    }
+
+    suspend fun refreshFeed(window: RecentWindow) {
+        synchronizeFeed(
+            window = window,
+            force = true
+        )
+    }
+
+    private suspend fun synchronizeFeed(
+        window: RecentWindow,
+        force: Boolean
+    ) {
+        // Una solicitud adicional no debe iniciar
+        // otra descarga mientras una sigue activa.
+        if (!syncMutex.tryLock()) return
+
+        var completed = false
 
         try {
-            val initialCacheStatus =
-                readFeedCacheStatus(window)
+            _syncState.value = MapSyncState.Syncing(window)
 
-            _syncState.value = MapSyncState.Syncing(
-                window = window,
-                cacheStatus = initialCacheStatus
-            )
+            try {
+                val initialCacheStatus =
+                    readFeedCacheStatus(window)
 
-            val result = repository.refreshIfStale(window)
+                _syncState.value = MapSyncState.Syncing(
+                    window = window,
+                    cacheStatus = initialCacheStatus
+                )
 
-            val finalCacheStatus =
-                readFeedCacheStatus(window)
+                val result = if (force) {
+                    when (val forcedResult =
+                        repository.refreshRecent(window)
+                    ) {
+                        RefreshResult.Success ->
+                            FeedSyncResult.Updated
 
-            _syncState.value = when (result) {
-                FeedSyncResult.UpToDate ->
-                    MapSyncState.Ready(
-                        window = window,
-                        downloaded = false,
-                        cacheStatus = finalCacheStatus
-                    )
+                        is RefreshResult.Failure ->
+                            FeedSyncResult.Failed(
+                                forcedResult.reason
+                            )
+                    }
+                } else {
+                    repository.refreshIfStale(window)
+                }
 
-                FeedSyncResult.Updated ->
-                    MapSyncState.Ready(
-                        window = window,
-                        downloaded = true,
-                        cacheStatus = finalCacheStatus
-                    )
+                val finalCacheStatus =
+                    readFeedCacheStatus(window)
 
-                is FeedSyncResult.Failed ->
-                    MapSyncState.Failed(
-                        window = window,
-                        reason = result.reason,
-                        cacheStatus = finalCacheStatus
-                    )
+                _syncState.value = when (result) {
+                    FeedSyncResult.UpToDate ->
+                        MapSyncState.Ready(
+                            window = window,
+                            downloaded = false,
+                            cacheStatus = finalCacheStatus
+                        )
+
+                    FeedSyncResult.Updated ->
+                        MapSyncState.Ready(
+                            window = window,
+                            downloaded = true,
+                            cacheStatus = finalCacheStatus
+                        )
+
+                    is FeedSyncResult.Failed ->
+                        MapSyncState.Failed(
+                            window = window,
+                            reason = result.reason,
+                            cacheStatus = finalCacheStatus
+                        )
+                }
+
+                completed = true
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                Log.e(
+                    TAG,
+                    "Unexpected feed synchronization failure",
+                    exception
+                )
+
+                _syncState.value = MapSyncState.Failed(
+                    window = window,
+                    cacheStatus = readFeedCacheStatus(window)
+                )
+
+                completed = true
             }
-        } catch (exception: CancellationException) {
-            throw exception
-        } catch (exception: Exception) {
-            Log.e(
-                TAG,
-                "Unexpected feed synchronization failure",
-                exception
-            )
+        } finally {
+            if (completed) {
+                // El intervalo avanza también si la
+                // descarga ha fallado o estaba al día.
+                if (
+                    selectedFilters.value.timeWindow == window
+                ) {
+                    queryEndTime.value = clock.instant()
+                }
+            } else {
+                // Una sincronización cancelada no debe
+                // dejar el estado bloqueado en Syncing.
+                val currentState = _syncState.value
 
-            _syncState.value = MapSyncState.Failed(
-                window = window,
-                cacheStatus = readFeedCacheStatus(window)
-            )
-        }
+                if (
+                    currentState is MapSyncState.Syncing &&
+                    currentState.window == window
+                ) {
+                    _syncState.value = MapSyncState.Idle
+                }
+            }
 
-        // Al terminar un intento de sincronización,
-        // renovamos explícitamente el período local.
-        //
-        // También se renueva si falla la descarga:
-        // los últimos 7 días siguen avanzando aunque
-        // estemos consultando datos sin conexión.
-        //
-        // Una sincronización de un período anterior
-        // no debe alterar la selección actual.
-        if (selectedFilters.value.timeWindow == window) {
-            queryEndTime.value = clock.instant()
+            syncMutex.unlock()
         }
     }
 
@@ -171,7 +230,6 @@ class SeismicMapViewModel @Inject constructor(
             filters to endTime
         }
             .flatMapLatest { (filters, endTime) ->
-
                 val query = filters.timeWindow.toQuery(
                     endTime = endTime,
                     minimumMagnitude =

@@ -11,12 +11,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -40,21 +43,18 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cgaraydev.seismicexplorer.R
+import com.cgaraydev.seismicexplorer.domain.model.EarthquakeDepthFilter
+import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
+import com.cgaraydev.seismicexplorer.presentation.common.FeedCacheStatusText
 import com.cgaraydev.seismicexplorer.presentation.map.location.CurrentLocationResult
 import com.cgaraydev.seismicexplorer.presentation.map.location.DeviceLocationProvider
 import com.cgaraydev.seismicexplorer.presentation.map.location.MapLocationStatus
 import kotlinx.coroutines.launch
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
-import androidx.compose.foundation.layout.widthIn
-import com.cgaraydev.seismicexplorer.presentation.common.FeedCacheStatusText
-import com.cgaraydev.seismicexplorer.domain.model.EarthquakeDepthFilter
 
 @Composable
 fun SeismicMapRoute(
@@ -63,25 +63,30 @@ fun SeismicMapRoute(
     viewModel: SeismicMapViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-
     val selectedFilters by viewModel.filters.collectAsStateWithLifecycle()
     val syncState by viewModel.syncState.collectAsStateWithLifecycle()
 
-    var syncRetryRequestId by remember {
-        mutableIntStateOf(0)
-    }
-
-    LaunchedEffect(
-        selectedFilters.timeWindow,
-        syncRetryRequestId
-    ) {
-        viewModel.ensureFeedFresh(
-            selectedFilters.timeWindow
-        )
-    }
-
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    // Una sola ruta de sincronización automática:
+    // - apertura del mapa
+    // - cambio de período
+    // - reanudación de la pantalla
+    //
+    // No se ejecuta por recomposiciones normales
+    // ni por cambiar magnitud o profundidad.
+    LifecycleResumeEffect(selectedFilters.timeWindow) {
+        val window = selectedFilters.timeWindow
+
+        val syncJob = scope.launch {
+            viewModel.ensureFeedFresh(window)
+        }
+
+        onPauseOrDispose {
+            syncJob.cancel()
+        }
+    }
 
     val locationProvider = remember(context.applicationContext) {
         DeviceLocationProvider(context.applicationContext)
@@ -91,8 +96,8 @@ fun SeismicMapRoute(
         mutableStateOf(defaultSeismicCameraPosition())
     }
 
-    // Impide recentrados automáticos al rotar o regresar
-    // desde Detalle, conservando el estado de navegación.
+    // Evita recentrados automáticos al regresar
+    // desde Detalle o al recrear la pantalla.
     var autoLocationAttempted by rememberSaveable {
         mutableStateOf(false)
     }
@@ -127,7 +132,9 @@ fun SeismicMapRoute(
         locationStatus = null
 
         try {
-            when (val result = locationProvider.getCurrentLocation()) {
+            when (
+                val result = locationProvider.getCurrentLocation()
+            ) {
                 is CurrentLocationResult.Available -> {
                     userPosition = LatLng(
                         result.location.latitude,
@@ -187,6 +194,7 @@ fun SeismicMapRoute(
         state = state,
         onTimeWindowSelect = viewModel::selectTimeWindow,
         onMagnitudeSelect = viewModel::selectMagnitude,
+        onDepthFilterSelect = viewModel::selectDepthFilter,
         initialCamera = cameraPosition,
         onCameraChanged = { camera ->
             cameraPosition = camera
@@ -208,12 +216,21 @@ fun SeismicMapRoute(
         },
         syncState = syncState,
         onSyncRetry = {
-            syncRetryRequestId++
+            scope.launch {
+                viewModel.refreshFeed(
+                    selectedFilters.timeWindow
+                )
+            }
         },
-        onDepthFilterSelect = viewModel::selectDepthFilter,
+        onRefreshClick = {
+            scope.launch {
+                viewModel.refreshFeed(
+                    selectedFilters.timeWindow
+                )
+            }
+        }
     )
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -234,6 +251,7 @@ fun SeismicMapScreen(
     syncState: MapSyncState = MapSyncState.Idle,
     onSyncRetry: () -> Unit = {},
     onDepthFilterSelect: (EarthquakeDepthFilter) -> Unit = {},
+    onRefreshClick: () -> Unit = {},
     mapContent: @Composable (
         String,
         (String) -> Unit,
@@ -259,9 +277,17 @@ fun SeismicMapScreen(
         )
     }
 ) {
-    var resetCameraRequestId by remember { mutableIntStateOf(0) }
-    var fitEventsRequestId by remember { mutableIntStateOf(0) }
-    var showFilters by rememberSaveable { mutableStateOf(false) }
+    var resetCameraRequestId by remember {
+        mutableIntStateOf(0)
+    }
+
+    var fitEventsRequestId by remember {
+        mutableIntStateOf(0)
+    }
+
+    var showFilters by rememberSaveable {
+        mutableStateOf(false)
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -320,7 +346,8 @@ fun SeismicMapScreen(
                 ) {
                     Column(
                         modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement =
+                            Arrangement.spacedBy(4.dp)
                     ) {
                         if (state.isLoading) {
                             Text(
@@ -338,14 +365,26 @@ fun SeismicMapScreen(
 
                             Text(
                                 text = mapFiltersSummary(state.filters),
-                                style = MaterialTheme.typography.bodySmall,
+                                style =
+                                    MaterialTheme.typography.bodySmall,
                                 color =
                                     MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
                         when (val currentSync = syncState) {
-                            MapSyncState.Idle -> Unit
+                            MapSyncState.Idle -> {
+                                TextButton(
+                                    onClick = onRefreshClick,
+                                    enabled = !state.isLoading
+                                ) {
+                                    Text(
+                                        stringResource(
+                                            R.string.home_refresh
+                                        )
+                                    )
+                                }
+                            }
 
                             is MapSyncState.Syncing -> {
                                 if (
@@ -374,6 +413,16 @@ fun SeismicMapScreen(
                                     FeedCacheStatusText(
                                         currentSync.cacheStatus
                                     )
+
+                                    TextButton(
+                                        onClick = onRefreshClick
+                                    ) {
+                                        Text(
+                                            stringResource(
+                                                R.string.home_refresh
+                                            )
+                                        )
+                                    }
                                 }
                             }
 
@@ -438,9 +487,9 @@ fun SeismicMapScreen(
                     .align(Alignment.BottomEnd)
                     .padding(16.dp),
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement =
+                    Arrangement.spacedBy(8.dp)
             ) {
-
                 val fitEventsDescription =
                     stringResource(R.string.map_fit_events)
 
@@ -461,7 +510,8 @@ fun SeismicMapScreen(
                     modifier = Modifier
                         .size(48.dp)
                         .semantics {
-                            contentDescription = fitEventsDescription
+                            contentDescription =
+                                fitEventsDescription
                         }
                 ) {
                     Icon(
@@ -479,7 +529,8 @@ fun SeismicMapScreen(
                     modifier = Modifier
                         .size(48.dp)
                         .semantics {
-                            contentDescription = locationDescription
+                            contentDescription =
+                                locationDescription
                         }
                 ) {
                     if (isLocating) {
