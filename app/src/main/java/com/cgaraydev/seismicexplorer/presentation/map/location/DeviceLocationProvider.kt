@@ -1,6 +1,7 @@
 package com.cgaraydev.seismicexplorer.presentation.map.location
 
 import android.Manifest
+import android.app.PendingIntent
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
@@ -16,15 +17,17 @@ import androidx.core.location.LocationManagerCompat
 import androidx.core.location.LocationListenerCompat
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationSettingsRequest
 import com.google.android.gms.location.Granularity
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
-import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
@@ -37,6 +40,8 @@ sealed interface CurrentLocationResult {
     data class Available(val location: Location) : CurrentLocationResult
     data object PermissionRequired : CurrentLocationResult
     data object LocationDisabled : CurrentLocationResult
+    data class SettingsResolutionRequired(val resolution: PendingIntent) : CurrentLocationResult
+    data object SettingsUnavailable : CurrentLocationResult
     data object Unavailable : CurrentLocationResult
 }
 
@@ -79,6 +84,28 @@ class DeviceLocationProvider(private val context: Context) {
             val playServicesAvailable = GoogleApiAvailability.getInstance()
                 .isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
 
+            if (playServicesAvailable) {
+                when (val settings = checkLocationSettings()) {
+                    LocationSettingsInspection.Ready,
+                    LocationSettingsInspection.Unknown -> Unit
+
+                    is LocationSettingsInspection.ResolutionRequired -> {
+                        return CurrentLocationResult.SettingsResolutionRequired(settings.resolution)
+                    }
+
+                    LocationSettingsInspection.Unavailable -> {
+                        return CurrentLocationResult.SettingsUnavailable
+                    }
+                }
+            }
+
+            // La activación de ubicación puede habilitar proveedores durante
+            // el chequeo de SettingsClient. No usamos una lista antigua.
+            val currentNativeProviders = eligibleNativeProviders(manager, hasFine)
+            if (currentNativeProviders != nativeProviders) {
+                Log.d(TAG, "Native providers changed: $currentNativeProviders")
+            }
+
             val candidates = buildList<suspend () -> Location?> {
                 if (playServicesAvailable) {
                     // getCurrentLocation puede devolver null después de
@@ -91,7 +118,7 @@ class DeviceLocationProvider(private val context: Context) {
                     Log.w(TAG, "Google Play services unavailable; using native providers")
                 }
 
-                nativeProviders.forEach { provider ->
+                currentNativeProviders.forEach { provider ->
                     add { tryNativeLocation(manager, provider) }
                     add { tryNativeUpdates(manager, provider) }
                 }
@@ -111,10 +138,16 @@ class DeviceLocationProvider(private val context: Context) {
                 CurrentLocationResult.Available(result)
             } else {
                 Log.w(TAG, "No acceptable location within bounded request")
-                if (LocationManagerCompat.isLocationEnabled(manager)) {
-                    CurrentLocationResult.Unavailable
-                } else {
+                if (!LocationManagerCompat.isLocationEnabled(manager)) {
                     CurrentLocationResult.LocationDisabled
+                } else if (playServicesAvailable && isNetworkAccuracyDisabled()) {
+                    // Con permiso aproximado no usamos GPS directamente. Si
+                    // Google Location Accuracy está desactivada, no existe
+                    // garantía de posición mediante red.
+                    CurrentLocationResult.SettingsUnavailable
+                } else {
+                    // Puede no existir todavía un fix tras reactivar el servicio.
+                    CurrentLocationResult.Unavailable
                 }
             }
         } catch (exception: CancellationException) {
@@ -126,6 +159,86 @@ class DeviceLocationProvider(private val context: Context) {
             Log.w(TAG, "Unexpected location failure", exception)
             CurrentLocationResult.Unavailable
         }
+    }
+
+    /**
+     * Comprueba requisitos de la solicitud BALANCED real. El resultado Unknown
+     * no bloquea la adquisición: SettingsClient puede fallar transitoriamente
+     * aunque los proveedores nativos sigan funcionando.
+     */
+    private suspend fun checkLocationSettings(): LocationSettingsInspection {
+        val request = LocationRequest.Builder(
+            Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+            UPDATE_INTERVAL_MS
+        )
+            .setGranularity(Granularity.GRANULARITY_PERMISSION_LEVEL)
+            .build()
+
+        val settingsRequest = LocationSettingsRequest.Builder()
+            .addLocationRequest(request)
+            .build()
+
+        return try {
+            val response = withTimeoutOrNull(SETTINGS_TIMEOUT_MS) {
+                LocationServices.getSettingsClient(context)
+                    .checkLocationSettings(settingsRequest)
+                    .await()
+            }
+            if (response == null) {
+                Log.w(TAG, "Location settings check timed out; trying providers")
+                LocationSettingsInspection.Unknown
+            } else {
+                Log.d(
+                    TAG,
+                    "Location settings satisfied; " +
+                        "networkUsable=${response.locationSettingsStates?.isNetworkLocationUsable}"
+                )
+                LocationSettingsInspection.Ready
+            }
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: ResolvableApiException) {
+            Log.w(TAG, "Location settings require user resolution")
+            LocationSettingsInspection.ResolutionRequired(exception.resolution)
+        } catch (exception: ApiException) {
+            when (LocationSettingsFailurePolicy.classify(exception.statusCode)) {
+                LocationSettingsFailure.UNAVAILABLE -> {
+                    Log.w(TAG, "Location settings cannot be resolved automatically")
+                    LocationSettingsInspection.Unavailable
+                }
+                LocationSettingsFailure.RESOLUTION_REQUIRED,
+                LocationSettingsFailure.UNKNOWN -> {
+                    Log.w(TAG, "Location settings check inconclusive: ${exception.statusCode}")
+                    LocationSettingsInspection.Unknown
+                }
+            }
+        } catch (exception: Exception) {
+            Log.w(TAG, "Location settings check failed; trying providers", exception)
+            LocationSettingsInspection.Unknown
+        }
+    }
+
+    /** Solo consulta GLA tras no recibir coordenadas; nunca bloquea un fix válido. */
+    private suspend fun isNetworkAccuracyDisabled(): Boolean = try {
+        val enabled = withTimeoutOrNull(ACCURACY_CHECK_TIMEOUT_MS) {
+            LocationServices.getSettingsClient(context)
+                .isGoogleLocationAccuracyEnabled()
+                .await()
+        }
+        Log.d(TAG, "Google Location Accuracy enabled: $enabled")
+        enabled == false
+    } catch (exception: CancellationException) {
+        throw exception
+    } catch (exception: Exception) {
+        Log.w(TAG, "Google Location Accuracy check unavailable", exception)
+        false
+    }
+
+    private sealed interface LocationSettingsInspection {
+        data object Ready : LocationSettingsInspection
+        data class ResolutionRequired(val resolution: PendingIntent) : LocationSettingsInspection
+        data object Unavailable : LocationSettingsInspection
+        data object Unknown : LocationSettingsInspection
     }
 
     /** Reutiliza la caché de Play Services o solicita una estimación nueva. */
@@ -406,5 +519,7 @@ class DeviceLocationProvider(private val context: Context) {
         const val GOOGLE_REQUEST_DURATION_MS = 12_000L
         const val PROVIDER_TIMEOUT_MS = 14_000L
         const val OVERALL_TIMEOUT_MS = 16_000L
+        const val SETTINGS_TIMEOUT_MS = 2_500L
+        const val ACCURACY_CHECK_TIMEOUT_MS = 1_000L
     }
 }

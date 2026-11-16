@@ -1,9 +1,14 @@
 package com.cgaraydev.seismicexplorer.presentation.map
 
 import android.Manifest
+import android.app.Activity
+import android.app.PendingIntent
+import android.content.Intent
+import android.provider.Settings
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.IntentSenderRequest
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,6 +57,7 @@ import com.cgaraydev.seismicexplorer.presentation.common.FeedCacheStatusText
 import com.cgaraydev.seismicexplorer.presentation.map.location.CurrentLocationResult
 import com.cgaraydev.seismicexplorer.presentation.map.location.DeviceLocationProvider
 import com.cgaraydev.seismicexplorer.presentation.map.location.MapLocationStatus
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
@@ -113,6 +119,14 @@ fun SeismicMapRoute(
         mutableStateOf<MapLocationStatus?>(null)
     }
 
+    var pendingLocationResolution by remember {
+        mutableStateOf<PendingIntent?>(null)
+    }
+
+    var locationJob by remember {
+        mutableStateOf<Job?>(null)
+    }
+
     fun hasLocationPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
             context,
@@ -125,6 +139,7 @@ fun SeismicMapRoute(
 
         isLocating = true
         locationStatus = null
+        pendingLocationResolution = null
 
         try {
             when (
@@ -148,6 +163,15 @@ fun SeismicMapRoute(
                         MapLocationStatus.LOCATION_DISABLED
                 }
 
+                is CurrentLocationResult.SettingsResolutionRequired -> {
+                    pendingLocationResolution = result.resolution
+                    locationStatus = MapLocationStatus.SETTINGS_REQUIRED
+                }
+
+                CurrentLocationResult.SettingsUnavailable -> {
+                    locationStatus = MapLocationStatus.SETTINGS_UNAVAILABLE
+                }
+
                 CurrentLocationResult.Unavailable -> {
                     locationStatus =
                         MapLocationStatus.UNAVAILABLE
@@ -158,14 +182,27 @@ fun SeismicMapRoute(
         }
     }
 
+    fun startLocationAttempt() {
+        if (isLocating) return
+        locationJob = scope.launch { locateDevice() }
+    }
+
+    val settingsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            startLocationAttempt()
+        } else {
+            locationStatus = MapLocationStatus.SETTINGS_REQUIRED
+        }
+    }
+
     val permissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission()
         ) { granted ->
             if (granted) {
-                scope.launch {
-                    locateDevice()
-                }
+                startLocationAttempt()
             } else {
                 locationStatus =
                     MapLocationStatus.PERMISSION_DENIED
@@ -177,8 +214,14 @@ fun SeismicMapRoute(
             autoLocationAttempted = true
 
             if (hasLocationPermission()) {
-                locateDevice()
+                startLocationAttempt()
             }
+        }
+    }
+
+    LifecycleResumeEffect(Unit) {
+        onPauseOrDispose {
+            locationJob?.cancel()
         }
     }
 
@@ -199,13 +242,32 @@ fun SeismicMapRoute(
         locationStatus = locationStatus,
         onLocateClick = {
             if (hasLocationPermission()) {
-                scope.launch {
-                    locateDevice()
-                }
+                startLocationAttempt()
             } else {
                 permissionLauncher.launch(
                     Manifest.permission.ACCESS_COARSE_LOCATION
                 )
+            }
+        },
+        onLocationSettingsClick = {
+            val pending = pendingLocationResolution
+            if (pending != null) {
+                try {
+                    settingsLauncher.launch(
+                        IntentSenderRequest.Builder(pending).build()
+                    )
+                } catch (_: Exception) {
+                    pendingLocationResolution = null
+                    locationStatus = MapLocationStatus.SETTINGS_UNAVAILABLE
+                }
+            } else {
+                try {
+                    context.startActivity(
+                        Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                    )
+                } catch (_: Exception) {
+                    locationStatus = MapLocationStatus.SETTINGS_UNAVAILABLE
+                }
             }
         },
         syncState = syncState,
@@ -242,6 +304,7 @@ fun SeismicMapScreen(
     isLocating: Boolean = false,
     locationStatus: MapLocationStatus? = null,
     onLocateClick: () -> Unit = {},
+    onLocationSettingsClick: () -> Unit = {},
     onTimeWindowSelect: (RecentWindow) -> Unit = {},
     onMagnitudeSelect: (MapMagnitudeFilter) -> Unit = {},
     syncState: MapSyncState = MapSyncState.Idle,
@@ -566,18 +629,42 @@ fun SeismicMapScreen(
                         MapLocationStatus.LOCATION_DISABLED ->
                             R.string.map_location_disabled
 
+                        MapLocationStatus.SETTINGS_REQUIRED ->
+                            R.string.map_location_settings_required
+
+                        MapLocationStatus.SETTINGS_UNAVAILABLE ->
+                            R.string.map_location_settings_unavailable
+
                         MapLocationStatus.UNAVAILABLE ->
-                            R.string.map_location_unavailable
+                            R.string.map_location_temporarily_unavailable
                     }
 
                     Surface(
                         tonalElevation = 3.dp,
                         shadowElevation = 2.dp
                     ) {
-                        Text(
-                            text = stringResource(messageRes),
-                            modifier = Modifier.padding(12.dp)
-                        )
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(text = stringResource(messageRes))
+                            if (
+                                status == MapLocationStatus.SETTINGS_REQUIRED ||
+                                status == MapLocationStatus.SETTINGS_UNAVAILABLE
+                            ) {
+                                TextButton(onClick = onLocationSettingsClick) {
+                                    Text(
+                                        stringResource(
+                                            if (status == MapLocationStatus.SETTINGS_REQUIRED) {
+                                                R.string.map_location_configure
+                                            } else {
+                                                R.string.map_location_open_settings
+                                            }
+                                        )
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
