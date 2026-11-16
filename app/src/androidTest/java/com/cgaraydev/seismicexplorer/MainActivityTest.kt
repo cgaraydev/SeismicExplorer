@@ -9,6 +9,7 @@ import com.cgaraydev.seismicexplorer.di.RepositoryModule
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
 import com.cgaraydev.seismicexplorer.domain.model.EarthquakeQuery
 import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
+import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
 import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 import com.cgaraydev.seismicexplorer.domain.model.RefreshResult
 import com.cgaraydev.seismicexplorer.domain.repository.EarthquakeRepository
@@ -26,7 +27,6 @@ import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
 
 @HiltAndroidTest
 @UninstallModules(RepositoryModule::class)
@@ -49,7 +49,8 @@ class MainActivityTest {
     val hiltRule = HiltAndroidRule(this)
 
     @get:Rule(order = 1)
-    val composeRule = createAndroidComposeRule<MainActivity>()
+    val composeRule =
+        createAndroidComposeRule<MainActivity>()
 
     @Test
     fun launch_displaysHomeScreen() {
@@ -93,10 +94,13 @@ class MainActivityTest {
         )
     }
 
-    private class FakeEarthquakeRepository : EarthquakeRepository {
+    private class FakeEarthquakeRepository :
+        EarthquakeRepository {
 
         private val events =
-            MutableStateFlow<List<Earthquake>>(emptyList())
+            MutableStateFlow<List<Earthquake>>(
+                emptyList()
+            )
 
         val refreshRequests =
             ConcurrentLinkedQueue<RecentWindow>()

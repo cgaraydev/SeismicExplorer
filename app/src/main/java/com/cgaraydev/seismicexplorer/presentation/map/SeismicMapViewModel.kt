@@ -4,6 +4,9 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cgaraydev.seismicexplorer.di.MapComputationDispatcher
+import com.cgaraydev.seismicexplorer.domain.model.EarthquakeDepthFilter
+import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
+import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
 import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 import com.cgaraydev.seismicexplorer.domain.repository.EarthquakeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,17 +18,15 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
-import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
-import kotlinx.coroutines.flow.asStateFlow
-import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
-import com.cgaraydev.seismicexplorer.domain.model.EarthquakeDepthFilter
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -43,6 +44,12 @@ class SeismicMapViewModel @Inject constructor(
     val filters: StateFlow<MapFilterSelection> =
         selectedFilters.asStateFlow()
 
+    // El intervalo temporal es independiente de
+    // los filtros de magnitud y profundidad.
+    private val queryEndTime = MutableStateFlow(
+        clock.instant()
+    )
+
     private val _syncState = MutableStateFlow<MapSyncState>(
         MapSyncState.Idle
     )
@@ -54,7 +61,8 @@ class SeismicMapViewModel @Inject constructor(
         _syncState.value = MapSyncState.Syncing(window)
 
         try {
-            val initialCacheStatus = readFeedCacheStatus(window)
+            val initialCacheStatus =
+                readFeedCacheStatus(window)
 
             _syncState.value = MapSyncState.Syncing(
                 window = window,
@@ -63,7 +71,8 @@ class SeismicMapViewModel @Inject constructor(
 
             val result = repository.refreshIfStale(window)
 
-            val finalCacheStatus = readFeedCacheStatus(window)
+            val finalCacheStatus =
+                readFeedCacheStatus(window)
 
             _syncState.value = when (result) {
                 FeedSyncResult.UpToDate ->
@@ -91,7 +100,7 @@ class SeismicMapViewModel @Inject constructor(
             throw exception
         } catch (exception: Exception) {
             Log.e(
-                "SeismicMapViewModel",
+                TAG,
                 "Unexpected feed synchronization failure",
                 exception
             )
@@ -100,6 +109,19 @@ class SeismicMapViewModel @Inject constructor(
                 window = window,
                 cacheStatus = readFeedCacheStatus(window)
             )
+        }
+
+        // Al terminar un intento de sincronización,
+        // renovamos explícitamente el período local.
+        //
+        // También se renueva si falla la descarga:
+        // los últimos 7 días siguen avanzando aunque
+        // estemos consultando datos sin conexión.
+        //
+        // Una sincronización de un período anterior
+        // no debe alterar la selección actual.
+        if (selectedFilters.value.timeWindow == window) {
+            queryEndTime.value = clock.instant()
         }
     }
 
@@ -115,7 +137,9 @@ class SeismicMapViewModel @Inject constructor(
         }
     }
 
-    fun selectDepthFilter(depthFilter: EarthquakeDepthFilter) {
+    fun selectDepthFilter(
+        depthFilter: EarthquakeDepthFilter
+    ) {
         selectedFilters.update { current ->
             current.copy(depthFilter = depthFilter)
         }
@@ -130,7 +154,7 @@ class SeismicMapViewModel @Inject constructor(
             throw exception
         } catch (exception: Exception) {
             Log.w(
-                "SeismicMapViewModel",
+                TAG,
                 "Could not read feed cache status",
                 exception
             )
@@ -140,11 +164,16 @@ class SeismicMapViewModel @Inject constructor(
     }
 
     val uiState: StateFlow<SeismicMapUiState> =
-        selectedFilters
-            .flatMapLatest { filters ->
+        combine(
+            selectedFilters,
+            queryEndTime
+        ) { filters, endTime ->
+            filters to endTime
+        }
+            .flatMapLatest { (filters, endTime) ->
 
                 val query = filters.timeWindow.toQuery(
-                    endTime = clock.instant(),
+                    endTime = endTime,
                     minimumMagnitude =
                         filters.magnitude.minimumMagnitude,
                     depthFilter = filters.depthFilter
@@ -179,7 +208,7 @@ class SeismicMapViewModel @Inject constructor(
                         }
 
                         Log.e(
-                            "SeismicMapViewModel",
+                            TAG,
                             "Failed to load filtered map events",
                             exception
                         )
@@ -199,4 +228,8 @@ class SeismicMapViewModel @Inject constructor(
                 started = SharingStarted.WhileSubscribed(5_000),
                 initialValue = SeismicMapUiState()
             )
+
+    private companion object {
+        const val TAG = "SeismicMapViewModel"
+    }
 }
