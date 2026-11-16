@@ -39,9 +39,25 @@ class HomeViewModel @Inject constructor(
 
     private var observationVersion = 0L
     private var refreshVersion = 0L
+    private var initialResumeHandled = false
 
     init {
         observeCurrentSelection(clearEvents = true)
+        refreshCurrentWindow(force = false)
+    }
+
+    /** Renueva la ventana al regresar desde mapa, detalle o segundo plano. */
+    fun onResumed() {
+        // init ya ha realizado la carga inicial. No duplicar esa solicitud.
+        if (!initialResumeHandled) {
+            initialResumeHandled = true
+            return
+        }
+
+        queryEndTime = clock.instant()
+        // Mantener los terremotos visibles mientras llega la nueva consulta.
+        observeCurrentSelection(clearEvents = false)
+        // Room pudo actualizarse desde el mapa; comprobar TTL sin forzar red.
         refreshCurrentWindow(force = false)
     }
 

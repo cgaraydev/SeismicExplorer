@@ -322,6 +322,48 @@ class HomeViewModelTest {
         )
     }
 
+    @Test
+    fun firstResume_doesNotDuplicateInitialRefreshOrObservation() = runTest {
+        createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onResumed()
+        advanceUntilIdle()
+
+        assertEquals(listOf(RecentWindow.LAST_DAY), repository.syncRequests)
+        assertEquals(1, repository.observedQueries.size)
+        assertTrue(repository.refreshRequests.isEmpty())
+    }
+
+    @Test
+    fun returningFromMap_includesNewEarthquakesBeyondOldQueryEnd() = runTest {
+        createViewModel()
+        advanceUntilIdle()
+        viewModel.onResumed() // Primera apertura: init ya consulto Room.
+
+        repository.events.value = listOf(
+            earthquake("new-after-map-sync", 4.2).copy(
+                occurredAt = now.plusSeconds(60)
+            )
+        )
+        advanceUntilIdle()
+
+        // El evento no encaja en la ventana original de Home.
+        assertTrue(viewModel.uiState.value.earthquakes.isEmpty())
+
+        clock.currentInstant = now.plusSeconds(120)
+        viewModel.onResumed()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("new-after-map-sync"),
+            viewModel.uiState.value.earthquakes.map { it.id }
+        )
+        assertEquals(now.plusSeconds(120), repository.observedQueries.last().endTime)
+        assertEquals(2, repository.syncRequests.size)
+        assertTrue(repository.refreshRequests.isEmpty())
+    }
+
     private fun createViewModel() {
         viewModel = HomeViewModel(
             repository = repository,
