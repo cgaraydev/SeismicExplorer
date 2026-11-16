@@ -110,4 +110,5 @@ Documento interno de referencia sobre tecnologías, arquitectura, funcionalidade
 
 
 pendiente:
-cambiar iconos del mapa de encuadre y mi ubicacion
+seccion de sabias que o preguntas frecuentes respecto a los sismos y terremotos, hacer una investigacion exhaustiva para q la app tenga un tono cientifico en cuanto a los datos q mostramos
+en el detalle de eventos, junto a q tipo de escala se utiliza, podemos ponder un mini icono con un signo de pregunta q nos abra un composable o una screen nueva en q se ensene sobre las escalas de medicion

@@ -64,6 +64,7 @@
     <string name="map_filters_summary">%1$s · %2$s · %3$s</string>
     <string name="map_filters_local_notice">Los filtros muestran únicamente los terremotos almacenados en el dispositivo. La información sin conexión puede estar incompleta.</string>
     <string name="map_local_error">No se pudieron consultar los datos sísmicos locales.</string>
+    <string name="map_local_retry">Reintentar lectura local</string>
     <string name="map_fit_events">Encuadrar eventos</string>
     <string name="map_my_location">Mi ubicación</string>
     <string name="map_locating">Buscando ubicación…</string>
@@ -80,11 +81,9 @@
     <string name="map_depth_deep">Más de 300 km</string>
     <string name="map_depth_unknown_notice">Los eventos con profundidad desconocida o negativa solo se incluyen al seleccionar todas las profundidades.</string>
 
-
     <string name="feed_status_fresh">Datos recientes · %1$s</string>
     <string name="feed_status_stale">Datos desactualizados · última descarga: %1$s</string>
     <string name="feed_status_unverified">Sin sincronización verificada de este período</string>
-
 
     <!-- SAFETY AND DISCLAIMERS -->
     <string name="home_disclaimer">Esta aplicación es informativa y no sustituye sistemas oficiales de alerta ni recomendaciones de emergencia.</string>

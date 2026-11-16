@@ -69,13 +69,8 @@ fun SeismicMapRoute(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Una sola ruta de sincronización automática:
-    // - apertura del mapa
-    // - cambio de período
-    // - reanudación de la pantalla
-    //
-    // No se ejecuta por recomposiciones normales
-    // ni por cambiar magnitud o profundidad.
+    // Se comprueba la frescura del feed al abrir el mapa,
+    // cambiar de período o reanudar la pantalla.
     LifecycleResumeEffect(selectedFilters.timeWindow) {
         val window = selectedFilters.timeWindow
 
@@ -140,7 +135,6 @@ fun SeismicMapRoute(
                         result.location.latitude,
                         result.location.longitude
                     )
-
                     centerUserRequestId++
                 }
 
@@ -228,7 +222,9 @@ fun SeismicMapRoute(
                     selectedFilters.timeWindow
                 )
             }
-        }
+        },
+        // Reintenta solo la consulta local, sin tocar USGS.
+        onLocalRetry = viewModel::retryLocalObservation
     )
 }
 
@@ -252,6 +248,7 @@ fun SeismicMapScreen(
     onSyncRetry: () -> Unit = {},
     onDepthFilterSelect: (EarthquakeDepthFilter) -> Unit = {},
     onRefreshClick: () -> Unit = {},
+    onLocalRetry: () -> Unit = {},
     mapContent: @Composable (
         String,
         (String) -> Unit,
@@ -472,12 +469,24 @@ fun SeismicMapScreen(
                         tonalElevation = 3.dp,
                         shadowElevation = 2.dp
                     ) {
-                        Text(
-                            text = stringResource(
-                                R.string.map_local_error
-                            ),
-                            modifier = Modifier.padding(12.dp)
-                        )
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement =
+                                Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    R.string.map_local_error
+                                )
+                            )
+                            TextButton(onClick = onLocalRetry) {
+                                Text(
+                                    text = stringResource(
+                                        R.string.map_local_retry
+                                    )
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -506,7 +515,7 @@ fun SeismicMapScreen(
                         fitEventsRequestId++
                     },
                     enabled = state.eventBounds != null &&
-                            !state.isLoading,
+                        !state.isLoading,
                     modifier = Modifier
                         .size(48.dp)
                         .semantics {

@@ -53,6 +53,14 @@ class SeismicMapViewModel @Inject constructor(
         clock.instant()
     )
 
+    // Solicitar otra lectura local no cambia filtros,
+    // período ni estado de sincronización con USGS.
+    private val localRetryGeneration = MutableStateFlow(0L)
+
+    fun retryLocalObservation() {
+        localRetryGeneration.update { it + 1L }
+    }
+
     private val _syncState = MutableStateFlow<MapSyncState>(
         MapSyncState.Idle
     )
@@ -83,22 +91,17 @@ class SeismicMapViewModel @Inject constructor(
         force: Boolean
     ) {
         syncMutex.withLock {
-
             // Si el usuario seleccionó otro período
             // mientras esta solicitud esperaba,
             // ya no necesitamos ejecutarla.
-            if (
-                selectedFilters.value.timeWindow != window
-            ) {
+            if (selectedFilters.value.timeWindow != window) {
                 return@withLock
             }
 
             var completed = false
 
             try {
-                _syncState.value = MapSyncState.Syncing(
-                    window
-                )
+                _syncState.value = MapSyncState.Syncing(window)
 
                 val initialCacheStatus =
                     readFeedCacheStatus(window)
@@ -131,9 +134,7 @@ class SeismicMapViewModel @Inject constructor(
                 // Si el usuario cambió de período
                 // durante la descarga, no publicamos
                 // el resultado de la selección anterior.
-                if (
-                    selectedFilters.value.timeWindow == window
-                ) {
+                if (selectedFilters.value.timeWindow == window) {
                     _syncState.value = when (result) {
                         FeedSyncResult.UpToDate ->
                             MapSyncState.Ready(
@@ -168,12 +169,9 @@ class SeismicMapViewModel @Inject constructor(
                     exception
                 )
 
-                val cacheStatus =
-                    readFeedCacheStatus(window)
+                val cacheStatus = readFeedCacheStatus(window)
 
-                if (
-                    selectedFilters.value.timeWindow == window
-                ) {
+                if (selectedFilters.value.timeWindow == window) {
                     _syncState.value = MapSyncState.Failed(
                         window = window,
                         cacheStatus = cacheStatus
@@ -199,8 +197,7 @@ class SeismicMapViewModel @Inject constructor(
                         currentState is MapSyncState.Syncing &&
                         currentState.window == window
                     ) {
-                        _syncState.value =
-                            MapSyncState.Idle
+                        _syncState.value = MapSyncState.Idle
                     }
                 }
             }
@@ -219,9 +216,7 @@ class SeismicMapViewModel @Inject constructor(
         }
     }
 
-    fun selectDepthFilter(
-        depthFilter: EarthquakeDepthFilter
-    ) {
+    fun selectDepthFilter(depthFilter: EarthquakeDepthFilter) {
         selectedFilters.update { current ->
             current.copy(depthFilter = depthFilter)
         }
@@ -240,7 +235,6 @@ class SeismicMapViewModel @Inject constructor(
                 "Could not read feed cache status",
                 exception
             )
-
             FeedCacheStatus.Unknown
         }
     }
@@ -248,8 +242,9 @@ class SeismicMapViewModel @Inject constructor(
     val uiState: StateFlow<SeismicMapUiState> =
         combine(
             selectedFilters,
-            queryEndTime
-        ) { filters, endTime ->
+            queryEndTime,
+            localRetryGeneration
+        ) { filters, endTime, _ ->
             filters to endTime
         }
             .flatMapLatest { (filters, endTime) ->
