@@ -1,5 +1,6 @@
 package com.cgaraydev.seismicexplorer.presentation.map
 
+import com.cgaraydev.seismicexplorer.domain.model.EarthquakeDepthFilter
 import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 
 enum class MapMagnitudeFilter(
@@ -12,5 +13,7 @@ enum class MapMagnitudeFilter(
 
 data class MapFilterSelection(
     val timeWindow: RecentWindow = RecentWindow.LAST_WEEK,
-    val magnitude: MapMagnitudeFilter = MapMagnitudeFilter.ALL
+    val magnitude: MapMagnitudeFilter = MapMagnitudeFilter.ALL,
+    val depthFilter: EarthquakeDepthFilter =
+        EarthquakeDepthFilter.ALL
 )

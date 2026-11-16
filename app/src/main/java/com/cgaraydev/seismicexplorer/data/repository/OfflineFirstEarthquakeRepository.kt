@@ -51,7 +51,8 @@ class OfflineFirstEarthquakeRepository @Inject constructor(
         return dao.observeEarthquakes(
             startTime = query.startTime.toEpochMilli(),
             endTime = query.endTime.toEpochMilli(),
-            minimumMagnitude = query.minimumMagnitude
+            minimumMagnitude = query.minimumMagnitude,
+            depthFilter = query.depthFilter.name
         ).map { entities ->
             entities.map { it.toDomain() }
         }.flowOn(Dispatchers.Default)

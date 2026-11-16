@@ -16,6 +16,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.cgaraydev.seismicexplorer.R
 import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.cgaraydev.seismicexplorer.domain.model.EarthquakeDepthFilter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,6 +26,7 @@ internal fun SeismicMapFiltersSheet(
     filters: MapFilterSelection,
     onTimeWindowSelect: (RecentWindow) -> Unit,
     onMagnitudeSelect: (MapMagnitudeFilter) -> Unit,
+    onDepthFilterSelect: (EarthquakeDepthFilter) -> Unit,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
@@ -31,6 +35,7 @@ internal fun SeismicMapFiltersSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -107,6 +112,49 @@ internal fun SeismicMapFiltersSheet(
             }
 
             Text(
+                text = stringResource(R.string.map_depth_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                EarthquakeDepthFilter.entries.forEach { depthFilter ->
+                    val labelRes = when (depthFilter) {
+                        EarthquakeDepthFilter.ALL ->
+                            R.string.map_depth_all
+
+                        EarthquakeDepthFilter.SHALLOW ->
+                            R.string.map_depth_shallow
+
+                        EarthquakeDepthFilter.INTERMEDIATE ->
+                            R.string.map_depth_intermediate
+
+                        EarthquakeDepthFilter.DEEP ->
+                            R.string.map_depth_deep
+                    }
+
+                    FilterChip(
+                        selected = filters.depthFilter == depthFilter,
+                        onClick = {
+                            onDepthFilterSelect(depthFilter)
+                        },
+                        label = {
+                            Text(stringResource(labelRes))
+                        }
+                    )
+                }
+            }
+
+            Text(
+                text = stringResource(
+                    R.string.map_depth_unknown_notice
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Text(
                 text = stringResource(
                     R.string.map_filters_local_notice
                 ),
@@ -135,9 +183,24 @@ internal fun mapFiltersSummary(
             R.string.home_magnitude_4_5
     }
 
+    val depthLabel = when (filters.depthFilter) {
+        EarthquakeDepthFilter.ALL ->
+            R.string.map_depth_all
+
+        EarthquakeDepthFilter.SHALLOW ->
+            R.string.map_depth_shallow
+
+        EarthquakeDepthFilter.INTERMEDIATE ->
+            R.string.map_depth_intermediate
+
+        EarthquakeDepthFilter.DEEP ->
+            R.string.map_depth_deep
+    }
+
     return stringResource(
         R.string.map_filters_summary,
         stringResource(periodLabel),
-        stringResource(magnitudeLabel)
+        stringResource(magnitudeLabel),
+        stringResource(depthLabel)
     )
 }

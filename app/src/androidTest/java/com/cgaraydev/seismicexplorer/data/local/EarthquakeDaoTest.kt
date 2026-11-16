@@ -390,6 +390,102 @@ class EarthquakeDaoTest {
         )
     }
 
+    @Test
+    fun depthFilter_respectsBoundariesAndUnknownDepth() = runTest {
+        dao.upsertIfNewer(
+            listOf(
+                sampleEntity("negative", recentTime, 3.0)
+                    .copy(depthKilometers = -1.0),
+
+                sampleEntity("zero", recentTime, 3.0)
+                    .copy(depthKilometers = 0.0),
+
+                sampleEntity("seventy", recentTime, 3.0)
+                    .copy(depthKilometers = 70.0),
+
+                sampleEntity("afterSeventy", recentTime, 3.0)
+                    .copy(depthKilometers = 70.001),
+
+                sampleEntity("threeHundred", recentTime, 3.0)
+                    .copy(depthKilometers = 300.0),
+
+                sampleEntity("afterThreeHundred", recentTime, 3.0)
+                    .copy(depthKilometers = 300.001),
+
+                sampleEntity("unknown", recentTime, 3.0)
+                    .copy(depthKilometers = null)
+            )
+        )
+
+        suspend fun ids(depthFilter: String): Set<String> {
+            return dao.observeEarthquakes(
+                startTime = startOfDay,
+                endTime = endOfDay,
+                minimumMagnitude = null,
+                depthFilter = depthFilter
+            ).first().map { it.id }.toSet()
+        }
+
+        assertEquals(
+            setOf("zero", "seventy"),
+            ids("SHALLOW")
+        )
+
+        assertEquals(
+            setOf("afterSeventy", "threeHundred"),
+            ids("INTERMEDIATE")
+        )
+
+        assertEquals(
+            setOf("afterThreeHundred"),
+            ids("DEEP")
+        )
+
+        assertEquals(
+            setOf(
+                "negative",
+                "zero",
+                "seventy",
+                "afterSeventy",
+                "threeHundred",
+                "afterThreeHundred",
+                "unknown"
+            ),
+            ids("ALL")
+        )
+    }
+
+    @Test
+    fun depthFilter_combinesWithMagnitudeAndPeriod() = runTest {
+        dao.upsertIfNewer(
+            listOf(
+                sampleEntity("matching", recentTime, 4.8)
+                    .copy(depthKilometers = 150.0),
+
+                sampleEntity("weak", recentTime, 2.0)
+                    .copy(depthKilometers = 150.0),
+
+                sampleEntity("shallow", recentTime, 5.0)
+                    .copy(depthKilometers = 20.0),
+
+                sampleEntity("outsidePeriod", olderTime, 5.0)
+                    .copy(depthKilometers = 150.0)
+            )
+        )
+
+        val result = dao.observeEarthquakes(
+            startTime = startOfDay,
+            endTime = endOfDay,
+            minimumMagnitude = 4.5,
+            depthFilter = "INTERMEDIATE"
+        ).first()
+
+        assertEquals(
+            listOf("matching"),
+            result.map { it.id }
+        )
+    }
+
     private fun observeAll() = dao.observeEarthquakes(
         startTime = startOfDay,
         endTime = endOfDay,

@@ -12,12 +12,15 @@ enum class RecentWindow(
 
     fun toQuery(
         endTime: Instant,
-        minimumMagnitude: Double? = null
+        minimumMagnitude: Double? = null,
+        depthFilter: EarthquakeDepthFilter =
+            EarthquakeDepthFilter.ALL
     ): EarthquakeQuery {
         return EarthquakeQuery(
             startTime = endTime.minus(duration),
             endTime = endTime,
-            minimumMagnitude = minimumMagnitude
+            minimumMagnitude = minimumMagnitude,
+            depthFilter = depthFilter
         )
     }
 }

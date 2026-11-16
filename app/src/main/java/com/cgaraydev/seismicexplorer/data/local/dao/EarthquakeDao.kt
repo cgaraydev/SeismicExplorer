@@ -10,24 +10,47 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 abstract class EarthquakeDao {
 
+
     @Transaction
     @Query(
         """
-        SELECT * FROM earthquakes
-        WHERE occurredAtEpochMillis >= :startTime
-          AND occurredAtEpochMillis < :endTime
-          AND (
-              :minimumMagnitude IS NULL
-              OR magnitude >= :minimumMagnitude
+    SELECT * FROM earthquakes
+    WHERE occurredAtEpochMillis >= :startTime
+      AND occurredAtEpochMillis < :endTime
+      AND (
+          :minimumMagnitude IS NULL
+          OR magnitude >= :minimumMagnitude
+      )
+      AND (
+          :depthFilter = 'ALL'
+
+          OR (
+              :depthFilter = 'SHALLOW'
+              AND depthKilometers >= 0.0
+              AND depthKilometers <= 70.0
           )
-        ORDER BY occurredAtEpochMillis DESC, id ASC
-        """
+
+          OR (
+              :depthFilter = 'INTERMEDIATE'
+              AND depthKilometers > 70.0
+              AND depthKilometers <= 300.0
+          )
+
+          OR (
+              :depthFilter = 'DEEP'
+              AND depthKilometers > 300.0
+          )
+      )
+    ORDER BY occurredAtEpochMillis DESC, id ASC
+    """
     )
     abstract fun observeEarthquakes(
         startTime: Long,
         endTime: Long,
-        minimumMagnitude: Double?
+        minimumMagnitude: Double?,
+        depthFilter: String = "ALL"
     ): Flow<List<EarthquakeEntity>>
+
 
     @Query(
         """

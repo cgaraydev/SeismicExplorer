@@ -61,7 +61,7 @@
     <string name="map_loading_events">Consultando terremotos almacenados…</string>
     <string name="map_event_count">Eventos filtrados: %1$d</string>
     <string name="map_filters">Filtrar terremotos</string>
-    <string name="map_filters_summary">%1$s · %2$s</string>
+    <string name="map_filters_summary">%1$s · %2$s · %3$s</string>
     <string name="map_filters_local_notice">Los filtros muestran únicamente los terremotos almacenados en el dispositivo. La información sin conexión puede estar incompleta.</string>
     <string name="map_local_error">No se pudieron consultar los datos sísmicos locales.</string>
     <string name="map_fit_events">Encuadrar eventos</string>
@@ -73,6 +73,12 @@
     <string name="map_syncing">Actualizando datos sísmicos desde USGS…</string>
     <string name="map_sync_failed">No se pudo actualizar desde USGS.</string>
     <string name="map_sync_retry">Reintentar actualización</string>
+    <string name="map_depth_title">Profundidad</string>
+    <string name="map_depth_all">Todas las profundidades</string>
+    <string name="map_depth_shallow">0–70 km</string>
+    <string name="map_depth_intermediate">70–300 km</string>
+    <string name="map_depth_deep">Más de 300 km</string>
+    <string name="map_depth_unknown_notice">Los eventos con profundidad desconocida o negativa solo se incluyen al seleccionar todas las profundidades.</string>
 
 
     <string name="feed_status_fresh">Datos recientes · %1$s</string>

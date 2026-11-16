@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.update
 import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
 import kotlinx.coroutines.flow.asStateFlow
 import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
+import com.cgaraydev.seismicexplorer.domain.model.EarthquakeDepthFilter
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -114,6 +115,12 @@ class SeismicMapViewModel @Inject constructor(
         }
     }
 
+    fun selectDepthFilter(depthFilter: EarthquakeDepthFilter) {
+        selectedFilters.update { current ->
+            current.copy(depthFilter = depthFilter)
+        }
+    }
+
     private suspend fun readFeedCacheStatus(
         window: RecentWindow
     ): FeedCacheStatus {
@@ -139,7 +146,8 @@ class SeismicMapViewModel @Inject constructor(
                 val query = filters.timeWindow.toQuery(
                     endTime = clock.instant(),
                     minimumMagnitude =
-                        filters.magnitude.minimumMagnitude
+                        filters.magnitude.minimumMagnitude,
+                    depthFilter = filters.depthFilter
                 )
 
                 repository.observeEarthquakes(query)

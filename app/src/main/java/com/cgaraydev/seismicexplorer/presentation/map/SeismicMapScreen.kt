@@ -54,6 +54,7 @@ import androidx.compose.material3.MaterialTheme
 import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 import androidx.compose.foundation.layout.widthIn
 import com.cgaraydev.seismicexplorer.presentation.common.FeedCacheStatusText
+import com.cgaraydev.seismicexplorer.domain.model.EarthquakeDepthFilter
 
 @Composable
 fun SeismicMapRoute(
@@ -208,7 +209,8 @@ fun SeismicMapRoute(
         syncState = syncState,
         onSyncRetry = {
             syncRetryRequestId++
-        }
+        },
+        onDepthFilterSelect = viewModel::selectDepthFilter,
     )
 }
 
@@ -231,6 +233,7 @@ fun SeismicMapScreen(
     onMagnitudeSelect: (MapMagnitudeFilter) -> Unit = {},
     syncState: MapSyncState = MapSyncState.Idle,
     onSyncRetry: () -> Unit = {},
+    onDepthFilterSelect: (EarthquakeDepthFilter) -> Unit = {},
     mapContent: @Composable (
         String,
         (String) -> Unit,
@@ -303,7 +306,6 @@ fun SeismicMapScreen(
                 state.eventBounds,
                 fitEventsRequestId
             )
-
 
             Column(
                 modifier = Modifier
@@ -431,8 +433,6 @@ fun SeismicMapScreen(
                 }
             }
 
-
-
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
@@ -498,8 +498,6 @@ fun SeismicMapScreen(
                     }
                 }
 
-
-
                 locationStatus?.let { status ->
                     val messageRes = when (status) {
                         MapLocationStatus.PERMISSION_DENIED ->
@@ -522,11 +520,7 @@ fun SeismicMapScreen(
                         )
                     }
                 }
-
-
             }
-
-
         }
     }
 
@@ -535,6 +529,7 @@ fun SeismicMapScreen(
             filters = state.filters,
             onTimeWindowSelect = onTimeWindowSelect,
             onMagnitudeSelect = onMagnitudeSelect,
+            onDepthFilterSelect = onDepthFilterSelect,
             onDismiss = {
                 showFilters = false
             }

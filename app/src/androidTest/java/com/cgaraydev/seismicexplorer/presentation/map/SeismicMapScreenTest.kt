@@ -1,26 +1,27 @@
 package com.cgaraydev.seismicexplorer.presentation.map
 
-import androidx.compose.material3.Text
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.junit4.v2.createComposeRule
-import com.cgaraydev.seismicexplorer.ui.theme.SeismicExplorerTheme
-import org.junit.Assert.assertTrue
-import org.junit.Rule
-import org.junit.Test
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Button
+import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.junit.Assert.assertEquals
-import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
-import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
-import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import com.cgaraydev.seismicexplorer.domain.model.EarthquakeDepthFilter
 import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus.Synced
+import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
+import com.cgaraydev.seismicexplorer.ui.theme.SeismicExplorerTheme
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Rule
+import org.junit.Test
 import java.time.Instant
 
 class SeismicMapScreenTest {
@@ -238,6 +239,7 @@ class SeismicMapScreenTest {
     fun mapFiltersSheet_dispatchesSelectionCallbacks() {
         var selectedWindow: RecentWindow? = null
         var selectedMagnitude: MapMagnitudeFilter? = null
+        var selectedDepth: EarthquakeDepthFilter? = null
 
         composeRule.setContent {
             SeismicExplorerTheme {
@@ -248,6 +250,9 @@ class SeismicMapScreenTest {
                     },
                     onMagnitudeSelect = {
                         selectedMagnitude = it
+                    },
+                    onDepthFilterSelect = {
+                        selectedDepth = it
                     },
                     mapContent = { _, _, _, _, _ ->
                         Text("Mapa de prueba")
@@ -270,6 +275,11 @@ class SeismicMapScreenTest {
             .onNodeWithText("M 4.5+")
             .performClick()
 
+        composeRule
+            .onNodeWithText("Más de 300 km")
+            .performScrollTo()
+            .performClick()
+
         composeRule.runOnIdle {
             assertEquals(
                 RecentWindow.LAST_30_DAYS,
@@ -279,6 +289,11 @@ class SeismicMapScreenTest {
             assertEquals(
                 MapMagnitudeFilter.MAGNITUDE_4_5,
                 selectedMagnitude
+            )
+
+            assertEquals(
+                EarthquakeDepthFilter.DEEP,
+                selectedDepth
             )
         }
     }
@@ -357,4 +372,30 @@ class SeismicMapScreenTest {
             .assertIsDisplayed()
     }
 
+    @Test
+    fun selectedDepthFilter_isShownInMapSummary() {
+        composeRule.setContent {
+            SeismicExplorerTheme {
+                SeismicMapScreen(
+                    onBack = {},
+                    state = SeismicMapUiState(
+                        isLoading = false,
+                        filters = MapFilterSelection(
+                            depthFilter = EarthquakeDepthFilter.DEEP
+                        )
+                    ),
+                    mapContent = { _, _, _, _, _ ->
+                        Text("Mapa de prueba")
+                    }
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithText(
+                "Más de 300 km",
+                substring = true
+            )
+            .assertIsDisplayed()
+    }
 }

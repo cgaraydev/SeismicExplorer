@@ -31,6 +31,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Test
 import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
+import com.cgaraydev.seismicexplorer.domain.model.EarthquakeDepthFilter
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SeismicMapViewModelTest {
@@ -195,6 +196,45 @@ class SeismicMapViewModelTest {
                 cacheStatus = staleStatus
             ),
             viewModel.syncState.value
+        )
+    }
+
+    @Test
+    fun changingDepthFilter_updatesRoomQueryWithoutNetworkRefresh() = runTest {
+        createViewModel()
+
+        backgroundScope.launch(
+            UnconfinedTestDispatcher(testScheduler)
+        ) {
+            viewModel.uiState.collect()
+        }
+
+        advanceUntilIdle()
+
+        viewModel.selectDepthFilter(
+            EarthquakeDepthFilter.DEEP
+        )
+
+        advanceUntilIdle()
+
+        assertEquals(
+            EarthquakeDepthFilter.DEEP,
+            repository.observedQueries.last().depthFilter
+        )
+
+        assertEquals(
+            EarthquakeDepthFilter.DEEP,
+            viewModel.uiState.value.filters.depthFilter
+        )
+
+        assertEquals(
+            0,
+            repository.refreshRequests
+        )
+
+        assertEquals(
+            emptyList<RecentWindow>(),
+            repository.syncRequests
         )
     }
 
