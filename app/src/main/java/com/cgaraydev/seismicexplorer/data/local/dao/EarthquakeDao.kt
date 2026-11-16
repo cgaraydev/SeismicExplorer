@@ -8,6 +8,15 @@ import com.cgaraydev.seismicexplorer.data.local.entity.EarthquakeEntity
 import com.cgaraydev.seismicexplorer.data.local.entity.FeedSyncEntity
 import kotlinx.coroutines.flow.Flow
 
+internal class SuspiciousFeedSnapshotException(
+    cachedCount: Int,
+    missingCount: Int,
+    incomingCount: Int
+) : IllegalStateException(
+    "Suspicious USGS snapshot: cached=$cachedCount, " +
+        "missing=$missingCount, incoming=$incomingCount"
+)
+
 @Dao
 abstract class EarthquakeDao {
 
@@ -111,19 +120,38 @@ abstract class EarthquakeDao {
         reconciliationScope: FeedReconciliationScope?,
         retentionCutoffMillis: Long
     ) {
-        upsertIfNewer(earthquakes)
-
-        if (reconciliationScope != null) {
+        // Evaluate candidates BEFORE modifying the database. A truncated feed
+        // can report consistent metadata but still omit most events.
+        val idsToRemove = if (reconciliationScope != null) {
             val presentIds = earthquakes.mapTo(HashSet()) { it.id }
             val candidates = findReconciliationCandidates(
                 startMillis = reconciliationScope.startEpochMillis,
                 endMillis = reconciliationScope.endEpochMillis,
                 generatedMillis = reconciliationScope.endEpochMillis
             )
-            candidates.filterNot { it in presentIds }
-                .chunked(400)
-                .forEach { ids -> deleteByIds(ids) }
+            val missingIds = candidates.filterNot { it in presentIds }
+
+            // Fail closed for an empty snapshot over nonempty cached data,
+            // or a large disappearance (at least 5 events and at least 75%).
+            // Small, ordinary withdrawals remain allowed.
+            val largeWithdrawal = missingIds.size >= 5 &&
+                missingIds.size.toLong() * 4L >= candidates.size.toLong() * 3L
+            if (missingIds.isNotEmpty() &&
+                (earthquakes.isEmpty() || largeWithdrawal)
+            ) {
+                throw SuspiciousFeedSnapshotException(
+                    cachedCount = candidates.size,
+                    missingCount = missingIds.size,
+                    incomingCount = earthquakes.size
+                )
+            }
+            missingIds
+        } else {
+            emptyList()
         }
+
+        upsertIfNewer(earthquakes)
+        idsToRemove.chunked(400).forEach { ids -> deleteByIds(ids) }
 
         // El producto solo permite consultas de hasta 30 días.
         // Un día extra evita podar eventos en el borde temporal.

@@ -1,6 +1,7 @@
 package com.cgaraydev.seismicexplorer.data.repository
 
 import com.cgaraydev.seismicexplorer.data.local.dao.EarthquakeDao
+import com.cgaraydev.seismicexplorer.data.local.dao.SuspiciousFeedSnapshotException
 import com.cgaraydev.seismicexplorer.data.local.dao.FeedSyncDao
 import com.cgaraydev.seismicexplorer.data.local.entity.FeedSyncEntity
 import com.cgaraydev.seismicexplorer.data.local.mapper.toDomain
@@ -16,6 +17,7 @@ import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 import com.cgaraydev.seismicexplorer.domain.model.RefreshFailure
 import com.cgaraydev.seismicexplorer.domain.model.RefreshResult
 import com.cgaraydev.seismicexplorer.domain.repository.EarthquakeRepository
+import android.util.Log
 import java.io.IOException
 import java.time.Duration
 import java.time.Clock
@@ -175,16 +177,25 @@ class OfflineFirstEarthquakeRepository @Inject constructor(
 
         // Upsert, reconciliación, retención y marca de sincronización
         // se consolidan como una única transacción.
-        dao.persistFeedSnapshot(
-            earthquakes = entities,
-            feedSync = FeedSyncEntity(
-                feedName = feed.feedName,
-                lastSuccessEpochMillis = receivedAt
-            ),
-            reconciliationScope =
-                (snapshotDecision as? UsgsSnapshotDecision.Trusted)?.scope,
-            retentionCutoffMillis = receivedAt - Duration.ofDays(31).toMillis()
-        )
+        try {
+            dao.persistFeedSnapshot(
+                earthquakes = entities,
+                feedSync = FeedSyncEntity(
+                    feedName = feed.feedName,
+                    lastSuccessEpochMillis = receivedAt
+                ),
+                reconciliationScope =
+                    (snapshotDecision as? UsgsSnapshotDecision.Trusted)?.scope,
+                retentionCutoffMillis = receivedAt - Duration.ofDays(31).toMillis()
+            )
+        } catch (exception: SuspiciousFeedSnapshotException) {
+            Log.w(
+                "USGSReconciliation",
+                "Rejected suspicious feed without changing cached events",
+                exception
+            )
+            return RefreshResult.Failure(RefreshFailure.INVALID_RESPONSE)
+        }
         return RefreshResult.Success
     }
 }

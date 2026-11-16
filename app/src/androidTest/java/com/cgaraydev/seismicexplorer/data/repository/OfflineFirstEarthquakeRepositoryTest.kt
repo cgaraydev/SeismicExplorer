@@ -587,6 +587,83 @@ class OfflineFirstEarthquakeRepositoryTest {
         assertNull(database.feedSyncDao().getLastSuccessEpochMillis("all_day"))
     }
 
+    @Test
+    fun emptyTrustedSnapshot_withCachedEvents_isRejectedWithoutDeletingData() = runTest {
+        val occurred = now.minus(2, ChronoUnit.HOURS).toEpochMilli()
+        dao.upsertIfNewer(
+            listOf(storedEvent("cached1", occurred), storedEvent("cached2", occurred))
+        )
+        val previousSuccess = now.minus(10, ChronoUnit.MINUTES).toEpochMilli()
+        database.feedSyncDao().upsert(
+            FeedSyncEntity("all_day", previousSuccess)
+        )
+        api.response = UsgsEarthquakeCollectionDto(
+            features = emptyList(),
+            metadata = UsgsEarthquakeMetadataDto(
+                generated = now.toEpochMilli(), count = 0, status = 200
+            )
+        )
+
+        assertEquals(
+            RefreshResult.Failure(RefreshFailure.INVALID_RESPONSE),
+            repository.refreshRecent(RecentWindow.LAST_DAY)
+        )
+        assertEquals(
+            setOf("cached1", "cached2"),
+            repository.observeEarthquakes(dayQuery).first().map { it.id }.toSet()
+        )
+        assertEquals(
+            previousSuccess,
+            database.feedSyncDao().getLastSuccessEpochMillis("all_day")
+        )
+    }
+
+    @Test
+    fun unexpectedlySparseTrustedSnapshot_rollsBackEntireRefresh() = runTest {
+        val occurred = now.minus(2, ChronoUnit.HOURS).toEpochMilli()
+        dao.upsertIfNewer((1..20).map { storedEvent("cached$it", occurred) })
+
+        val oneEvent = sampleResponse(
+            id = "new-but-untrusted",
+            magnitude = 4.0,
+            occurredAt = now.minus(1, ChronoUnit.HOURS),
+            updatedAt = now.minus(30, ChronoUnit.MINUTES)
+        )
+        api.response = oneEvent.copy(
+            metadata = UsgsEarthquakeMetadataDto(
+                generated = now.toEpochMilli(), count = 1, status = 200
+            )
+        )
+
+        assertEquals(
+            RefreshResult.Failure(RefreshFailure.INVALID_RESPONSE),
+            repository.refreshRecent(RecentWindow.LAST_DAY)
+        )
+        val stored = repository.observeEarthquakes(dayQuery).first()
+        assertEquals(20, stored.size)
+        assertTrue(stored.none { it.id == "new-but-untrusted" })
+        assertNull(database.feedSyncDao().getLastSuccessEpochMillis("all_day"))
+    }
+
+    @Test
+    fun emptyTrustedSnapshot_withoutCachedEvents_isValid() = runTest {
+        api.response = UsgsEarthquakeCollectionDto(
+            features = emptyList(),
+            metadata = UsgsEarthquakeMetadataDto(
+                generated = now.toEpochMilli(), count = 0, status = 200
+            )
+        )
+
+        assertEquals(
+            RefreshResult.Success,
+            repository.refreshRecent(RecentWindow.LAST_DAY)
+        )
+        assertTrue(repository.observeEarthquakes(dayQuery).first().isEmpty())
+        assertEquals(
+            now.toEpochMilli(),
+            database.feedSyncDao().getLastSuccessEpochMillis("all_day")
+        )
+    }
     private fun storedEvent(id: String, occurredAt: Long) = EarthquakeEntity(
         id = id, magnitude = 4.0, place = "Stored", latitude = -33.4,
         longitude = -71.6, depthKilometers = 10.0,
