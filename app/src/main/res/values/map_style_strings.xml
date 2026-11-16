@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="map_style_load_failed">No se pudo cargar el mapa base. Puedes reintentarlo sin cambiar los filtros.</string>
+    <string name="map_style_retry">Reintentar mapa</string>
+</resources>
