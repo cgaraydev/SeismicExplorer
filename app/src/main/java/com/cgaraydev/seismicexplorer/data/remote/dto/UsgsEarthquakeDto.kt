@@ -4,7 +4,15 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class UsgsEarthquakeCollectionDto(
-    val features: List<UsgsEarthquakeFeatureDto>
+    val features: List<UsgsEarthquakeFeatureDto>,
+    val metadata: UsgsEarthquakeMetadataDto? = null
+)
+
+@Serializable
+data class UsgsEarthquakeMetadataDto(
+    val generated: Long? = null,
+    val count: Int? = null,
+    val status: Int? = null
 )
 
 @Serializable

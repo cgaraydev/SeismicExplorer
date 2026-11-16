@@ -10,6 +10,8 @@ import com.cgaraydev.seismicexplorer.data.local.dao.EarthquakeDao
 import com.cgaraydev.seismicexplorer.data.remote.api.UsgsEarthquakeApi
 import com.cgaraydev.seismicexplorer.data.remote.dto.UsgsEarthquakeCollectionDto
 import com.cgaraydev.seismicexplorer.data.remote.dto.UsgsEarthquakeFeatureDto
+import com.cgaraydev.seismicexplorer.data.remote.dto.UsgsEarthquakeMetadataDto
+import com.cgaraydev.seismicexplorer.data.local.entity.EarthquakeEntity
 import com.cgaraydev.seismicexplorer.data.remote.dto.UsgsEarthquakeGeometryDto
 import com.cgaraydev.seismicexplorer.data.remote.dto.UsgsEarthquakePropertiesDto
 import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
@@ -531,6 +533,67 @@ class OfflineFirstEarthquakeRepositoryTest {
             repository.getFeedCacheStatus(window)
         )
     }
+
+    @Test
+    fun verifiedDailySnapshot_removesWithdrawnButKeepsOlderWeeklyEvent() = runTest {
+        val recent = now.minus(2, ChronoUnit.HOURS).toEpochMilli()
+        val older = now.minus(4, ChronoUnit.DAYS).toEpochMilli()
+        dao.upsertIfNewer(
+            listOf(
+                storedEvent("withdrawn", recent),
+                storedEvent("older", older)
+            )
+        )
+        val response = sampleResponse(
+            id = "present",
+            magnitude = 4.1,
+            occurredAt = now.minus(1, ChronoUnit.HOURS),
+            updatedAt = now.minus(30, ChronoUnit.MINUTES)
+        )
+        api.response = response.copy(
+            metadata = UsgsEarthquakeMetadataDto(
+                generated = now.toEpochMilli(),
+                count = response.features.size,
+                status = 200
+            )
+        )
+
+        assertEquals(RefreshResult.Success, repository.refreshRecent(RecentWindow.LAST_DAY))
+        assertEquals(
+            setOf("present", "older"),
+            repository.observeEarthquakes(weekQuery).first().map { it.id }.toSet()
+        )
+    }
+
+    @Test
+    fun inconsistentFeedMetadata_doesNotMutateRoomOrSyncTimestamp() = runTest {
+        val response = sampleResponse(
+            id = "invalid",
+            magnitude = 4.1,
+            occurredAt = now.minus(1, ChronoUnit.HOURS),
+            updatedAt = now.minus(30, ChronoUnit.MINUTES)
+        )
+        api.response = response.copy(
+            metadata = UsgsEarthquakeMetadataDto(
+                generated = now.toEpochMilli(), count = 8, status = 200
+            )
+        )
+
+        assertEquals(
+            RefreshResult.Failure(RefreshFailure.INVALID_RESPONSE),
+            repository.refreshRecent(RecentWindow.LAST_DAY)
+        )
+        assertTrue(repository.observeEarthquakes(dayQuery).first().isEmpty())
+        assertNull(database.feedSyncDao().getLastSuccessEpochMillis("all_day"))
+    }
+
+    private fun storedEvent(id: String, occurredAt: Long) = EarthquakeEntity(
+        id = id, magnitude = 4.0, place = "Stored", latitude = -33.4,
+        longitude = -71.6, depthKilometers = 10.0,
+        occurredAtEpochMillis = occurredAt,
+        updatedAtEpochMillis = occurredAt,
+        detailUrl = null
+    )
 
     private fun sampleResponse(
         id: String,

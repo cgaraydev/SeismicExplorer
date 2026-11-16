@@ -17,6 +17,7 @@ import com.cgaraydev.seismicexplorer.domain.model.RefreshFailure
 import com.cgaraydev.seismicexplorer.domain.model.RefreshResult
 import com.cgaraydev.seismicexplorer.domain.repository.EarthquakeRepository
 import java.io.IOException
+import java.time.Duration
 import java.time.Clock
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -153,20 +154,35 @@ class OfflineFirstEarthquakeRepository @Inject constructor(
             )
         }
 
-        val entities = withContext(Dispatchers.Default) {
+        val receivedAt = clock.millis()
+        val earthquakes = withContext(Dispatchers.Default) {
             response.toDomain()
-                .map { it.toEntity() }
+        }
+        val snapshotDecision = UsgsSnapshotPolicy.assess(
+            response = response,
+            mappedEarthquakes = earthquakes,
+            window = window,
+            nowEpochMillis = receivedAt
+        )
+        if (snapshotDecision == UsgsSnapshotDecision.Invalid) {
+            return RefreshResult.Failure(RefreshFailure.INVALID_RESPONSE)
+        }
+        val entities = withContext(Dispatchers.Default) {
+            earthquakes.map { it.toEntity() }
         }
 
-        dao.upsertIfNewer(entities)
-
-        feedSyncDao.upsert(
-            FeedSyncEntity(
+        // Upsert, reconciliación, retención y marca de sincronización
+        // se consolidan como una única transacción.
+        dao.persistFeedSnapshot(
+            earthquakes = entities,
+            feedSync = FeedSyncEntity(
                 feedName = feed.feedName,
-                lastSuccessEpochMillis = clock.millis()
-            )
+                lastSuccessEpochMillis = receivedAt
+            ),
+            reconciliationScope =
+                (snapshotDecision as? UsgsSnapshotDecision.Trusted)?.scope,
+            retentionCutoffMillis = receivedAt - Duration.ofDays(31).toMillis()
         )
-
         return RefreshResult.Success
     }
 }

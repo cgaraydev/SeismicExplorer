@@ -5,6 +5,7 @@ import androidx.room3.Query
 import androidx.room3.Transaction
 import androidx.room3.Upsert
 import com.cgaraydev.seismicexplorer.data.local.entity.EarthquakeEntity
+import com.cgaraydev.seismicexplorer.data.local.entity.FeedSyncEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -78,6 +79,57 @@ abstract class EarthquakeDao {
     protected abstract suspend fun getExistingVersions(
         ids: List<String>
     ): List<EarthquakeVersion>
+
+    @Upsert
+    protected abstract suspend fun upsertFeedSync(entity: FeedSyncEntity)
+
+    @Query(
+        """
+        SELECT id FROM earthquakes
+        WHERE occurredAtEpochMillis >= :startMillis
+          AND occurredAtEpochMillis < :endMillis
+          AND updatedAtEpochMillis <= :generatedMillis
+        """
+    )
+    protected abstract suspend fun findReconciliationCandidates(
+        startMillis: Long,
+        endMillis: Long,
+        generatedMillis: Long
+    ): List<String>
+
+    @Query("DELETE FROM earthquakes WHERE id IN (:ids)")
+    protected abstract suspend fun deleteByIds(ids: List<String>)
+
+    @Query("DELETE FROM earthquakes WHERE occurredAtEpochMillis < :cutoffMillis")
+    protected abstract suspend fun deleteExpired(cutoffMillis: Long)
+
+    // Todas las escrituras quedan en una sola transacción Room.
+    @Transaction
+    open suspend fun persistFeedSnapshot(
+        earthquakes: List<EarthquakeEntity>,
+        feedSync: FeedSyncEntity,
+        reconciliationScope: FeedReconciliationScope?,
+        retentionCutoffMillis: Long
+    ) {
+        upsertIfNewer(earthquakes)
+
+        if (reconciliationScope != null) {
+            val presentIds = earthquakes.mapTo(HashSet()) { it.id }
+            val candidates = findReconciliationCandidates(
+                startMillis = reconciliationScope.startEpochMillis,
+                endMillis = reconciliationScope.endEpochMillis,
+                generatedMillis = reconciliationScope.endEpochMillis
+            )
+            candidates.filterNot { it in presentIds }
+                .chunked(400)
+                .forEach { ids -> deleteByIds(ids) }
+        }
+
+        // El producto solo permite consultas de hasta 30 días.
+        // Un día extra evita podar eventos en el borde temporal.
+        deleteExpired(retentionCutoffMillis)
+        upsertFeedSync(feedSync)
+    }
 
     @Transaction
     open suspend fun upsertIfNewer(
