@@ -1,7 +1,9 @@
 package com.cgaraydev.seismicexplorer.presentation.map
 
 import android.annotation.SuppressLint
+import android.content.ComponentCallbacks2
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.RectF
 import android.util.Log
 import android.widget.FrameLayout
@@ -179,6 +181,7 @@ private class SeismicMapHostView(
 ) : FrameLayout(context) {
 
     private val mapView = MapView(context)
+    private val callbacksContext = context.applicationContext ?: context
 
     private var mapLibreMap: MapLibreMap? = null
     private var loadedStyle: Style? = null
@@ -234,6 +237,29 @@ private class SeismicMapHostView(
             }
         }
 
+    // El MapView recibe presion de memoria incluso si vive en AndroidView.
+    // Se registra en Application y se desregistra al liberar el host.
+    private val memoryCallbacks = object : ComponentCallbacks2 {
+        override fun onConfigurationChanged(newConfig: Configuration) = Unit
+
+        override fun onLowMemory() {
+            forwardLowMemory()
+        }
+
+        @Suppress("DEPRECATION")
+        override fun onTrimMemory(level: Int) {
+            // Los niveles RUNNING_* de Android antiguos estan deprecados,
+            // pero siguen siendo utiles en minSdk 29; incluye UI_HIDDEN.
+            if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+                forwardLowMemory()
+            }
+        }
+    }
+
+    private fun forwardLowMemory() {
+        if (!released) mapView.onLowMemory()
+    }
+
     private val lifecycleObserver =
         object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
@@ -268,6 +294,7 @@ private class SeismicMapHostView(
 
         mapView.onCreate(null)
         mapView.addOnDidFailLoadingMapListener(mapFailureListener)
+        callbacksContext.registerComponentCallbacks(memoryCallbacks)
         lifecycle.addObserver(lifecycleObserver)
 
         if (!released) {
@@ -487,6 +514,7 @@ private class SeismicMapHostView(
         released = true
 
         lifecycle.removeObserver(lifecycleObserver)
+        callbacksContext.unregisterComponentCallbacks(memoryCallbacks)
         mapView.removeOnDidFailLoadingMapListener(mapFailureListener)
 
         mapLibreMap?.let { map ->
