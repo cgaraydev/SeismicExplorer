@@ -101,4 +101,11 @@
     <string name="explore_map">Mapa</string>
     <string name="explore_recent_title">Actividad reciente</string>
     <string name="explore_results_count">%1$d eventos</string>
+    <string name="explore_map_heading">Vista cartográfica</string>
+    <string name="explore_filters_label">Filtros</string>
+    <string name="explore_filter_summary">%1$s · %2$s</string>
+    <string name="explore_all_magnitudes">Todas las magnitudes</string>
+    <string name="explore_reset_filters">Restablecer</string>
+    <string name="explore_filters_expanded">Filtros desplegados</string>
+    <string name="explore_filters_collapsed">Filtros contraídos</string>
 </resources>

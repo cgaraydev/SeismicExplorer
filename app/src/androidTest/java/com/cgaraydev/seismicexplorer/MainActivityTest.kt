@@ -3,6 +3,8 @@ package com.cgaraydev.seismicexplorer
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import com.cgaraydev.seismicexplorer.di.RepositoryModule
@@ -77,13 +79,11 @@ class MainActivityTest {
 
     @Test
     fun selectingPeriod_updatesStateThroughViewModel() {
-        composeRule
-            .onNodeWithText("7 días")
-            .performClick()
+        composeRule.onNodeWithTag("explore_filters_toggle").performClick()
+        composeRule.onNodeWithTag("explore_period_LAST_WEEK").performClick()
+        composeRule.onNodeWithTag("explore_filter_summary")
+            .assertTextContains("7 días", substring = true)
 
-        composeRule
-            .onNodeWithText("7 días")
-            .assertIsDisplayed()
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
             fakeRepository.syncRequests.contains(

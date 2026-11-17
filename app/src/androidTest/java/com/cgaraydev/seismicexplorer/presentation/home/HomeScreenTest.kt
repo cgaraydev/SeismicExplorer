@@ -69,9 +69,8 @@ class HomeScreenTest {
             }
         }
 
-        composeRule
-            .onNodeWithTag("explore_period_LAST_WEEK")
-            .performClick()
+        composeRule.onNodeWithTag("explore_filters_toggle").performClick()
+        composeRule.onNodeWithTag("explore_period_LAST_WEEK").performClick()
 
         composeRule.runOnIdle {
             assertEquals(
@@ -92,14 +91,48 @@ class HomeScreenTest {
                 )
             }
         }
-        composeRule.onNodeWithTag("explore_magnitude").performClick()
-        composeRule.onNodeWithText("M 4.5+").performClick()
+        composeRule.onNodeWithTag("explore_filters_toggle").performClick()
+        composeRule.onNodeWithTag("explore_magnitude_MAGNITUDE_4_5").performClick()
         composeRule.runOnIdle {
             assertEquals(
                 HomeAction.SelectMagnitude(MagnitudeThreshold.MAGNITUDE_4_5),
                 emittedAction
             )
         }
+    }
+
+    @Test
+    fun filtersAreCollapsedByDefault_andCanBeExpanded() {
+        composeRule.setContent {
+            SeismicExplorerTheme {
+                HomeScreen(state = HomeUiState(isReadingLocal = false), onAction = {})
+            }
+        }
+        composeRule.onNodeWithTag("explore_filter_panel").assertDoesNotExist()
+        composeRule.onNodeWithTag("explore_filters_toggle").performClick()
+        composeRule.onNodeWithTag("explore_filter_panel").assertExists()
+    }
+
+    @Test
+    fun filtersPanelPersistsAcrossEventAndMapModes() {
+        var selected: HomeAction? = null
+        composeRule.setContent {
+            SeismicExplorerTheme {
+                HomeScreen(
+                    state = HomeUiState(isReadingLocal = false),
+                    onAction = { selected = it },
+                    mapPreview = { _, _, _, _, _ -> Text("Vista de prueba") }
+                )
+            }
+        }
+        composeRule.onNodeWithTag("explore_filters_toggle").performClick()
+        composeRule.onNodeWithTag("explore_period_LAST_MONTH").performClick()
+        composeRule.runOnIdle {
+            assertEquals(HomeAction.SelectTimeWindow(TimeWindow.LAST_MONTH), selected)
+        }
+        composeRule.onNodeWithTag("explore_map").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("explore_filter_panel").assertExists()
     }
 
     @Test
@@ -128,11 +161,9 @@ class HomeScreenTest {
 
         composeRule
             .onNodeWithTag("home_list")
-            .performScrollToNode(hasText("Actualizar"))
+            .performScrollToNode(hasTestTag("explore_refresh"))
 
-        composeRule
-            .onNodeWithText("Actualizar")
-            .performClick()
+        composeRule.onNodeWithTag("explore_refresh").performClick()
 
         composeRule.runOnIdle {
             assertEquals(HomeAction.Refresh, emittedAction)

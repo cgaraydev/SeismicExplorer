@@ -12,20 +12,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -43,8 +50,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -112,6 +122,7 @@ fun HomeScreen(
     }
 ) {
     var showMap by rememberSaveable { mutableStateOf(false) }
+    var filtersExpanded by rememberSaveable { mutableStateOf(false) }
     val listScroll = rememberLazyListState()
     // Mantener por separado el scroll de las dos representaciones.
     val mapScroll = rememberLazyListState(initialFirstVisibleItemIndex = 1)
@@ -119,9 +130,28 @@ fun HomeScreen(
         mutableStateOf(defaultSeismicCameraPosition())
     }
 
-    Crossfade(
+    AnimatedContent(
         targetState = showMap,
-        animationSpec = tween(durationMillis = 180),
+        transitionSpec = {
+            // Mapa avanza desde la derecha; Eventos regresa desde la izquierda.
+            if (targetState) {
+                slideInHorizontally(
+                    initialOffsetX = { it },
+                    animationSpec = tween(260)
+                ) togetherWith slideOutHorizontally(
+                    targetOffsetX = { -it },
+                    animationSpec = tween(260)
+                )
+            } else {
+                slideInHorizontally(
+                    initialOffsetX = { -it },
+                    animationSpec = tween(260)
+                ) togetherWith slideOutHorizontally(
+                    targetOffsetX = { it },
+                    animationSpec = tween(260)
+                )
+            }
+        },
         label = "explore_mode"
     ) { selectedMap ->
     LazyColumn(
@@ -147,9 +177,12 @@ fun HomeScreen(
             )
         }
 
-        item(key = "explore_filters") {
-            ExploreFilterRow(
+        item(key = "explore_results_header") {
+            ExploreResultsHeader(
                 state = state,
+                selectedMap = selectedMap,
+                filtersExpanded = filtersExpanded,
+                onToggleFilters = { filtersExpanded = !filtersExpanded },
                 onAction = onAction,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
@@ -166,48 +199,6 @@ fun HomeScreen(
                 )
             }
         } else {
-        item(key = "explore_results_header") {
-            Column(
-                modifier = Modifier.padding(
-                    start = 20.dp,
-                    end = 20.dp,
-                    top = 4.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = stringResource(R.string.explore_recent_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.weight(1f)
-                    )
-                    TextButton(
-                        onClick = { onAction(HomeAction.Refresh) },
-                        enabled = state.refreshState != HomeRefreshState.Refreshing
-                    ) {
-                        Text(stringResource(R.string.home_refresh))
-                    }
-                }
-
-                if (!state.isReadingLocal || state.earthquakes.isNotEmpty()) {
-                    Text(
-                        text = stringResource(
-                            R.string.explore_results_count,
-                            state.earthquakes.size
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-
         if (state.feedCacheStatus != FeedCacheStatus.Unknown) {
             item(key = "cache_status") {
                 FeedCacheStatusText(
@@ -350,6 +341,7 @@ private fun ExploreViewSelector(
     ) {
         ExploreSelectorTab(
             label = stringResource(R.string.explore_list),
+            iconRes = R.drawable.ic_atlas_events,
             active = !selectedMap,
             onClick = onListClick,
             modifier = Modifier
@@ -358,6 +350,7 @@ private fun ExploreViewSelector(
         )
         ExploreSelectorTab(
             label = stringResource(R.string.explore_map),
+            iconRes = R.drawable.ic_atlas_map,
             active = selectedMap,
             onClick = onMapClick,
             modifier = Modifier
@@ -370,6 +363,7 @@ private fun ExploreViewSelector(
 @Composable
 private fun ExploreSelectorTab(
     label: String,
+    iconRes: Int,
     active: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -384,22 +378,149 @@ private fun ExploreSelectorTab(
         contentPadding = PaddingValues(horizontal = 8.dp),
         colors = ButtonDefaults.outlinedButtonColors(
             containerColor = if (active) {
-                MaterialTheme.colorScheme.primaryContainer
+                MaterialTheme.colorScheme.surfaceContainerHighest
             } else {
                 MaterialTheme.colorScheme.surfaceContainer
             },
-            contentColor = if (active) {
-                MaterialTheme.colorScheme.onPrimaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            }
+            contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExploreResultsHeader(
+    state: HomeUiState,
+    selectedMap: Boolean,
+    filtersExpanded: Boolean,
+    onToggleFilters: () -> Unit,
+    onAction: (HomeAction) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val periodLabel = when (state.timeWindow) {
+        TimeWindow.LAST_DAY -> R.string.explore_period_short_day
+        TimeWindow.LAST_WEEK -> R.string.home_period_week
+        TimeWindow.LAST_MONTH -> R.string.home_period_month
+    }
+    val filterState = stringResource(
+        if (filtersExpanded) R.string.explore_filters_expanded
+        else R.string.explore_filters_collapsed
+    )
+    val magnitudeLabel = when (state.minimumMagnitude) {
+        MagnitudeThreshold.ALL -> R.string.explore_all_magnitudes
+        MagnitudeThreshold.MAGNITUDE_2_5 -> R.string.home_magnitude_2_5
+        MagnitudeThreshold.MAGNITUDE_4_5 -> R.string.home_magnitude_4_5
+    }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(
+                        if (selectedMap) R.string.explore_map_heading
+                        else R.string.explore_recent_title
+                    ),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                if (!state.isReadingLocal || state.earthquakes.isNotEmpty()) {
+                    Text(
+                        text = stringResource(
+                            R.string.explore_results_count,
+                            state.earthquakes.size
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            IconButton(
+                onClick = { onAction(HomeAction.Refresh) },
+                enabled = state.refreshState != HomeRefreshState.Refreshing,
+                modifier = Modifier.testTag("explore_refresh")
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_atlas_refresh),
+                    contentDescription = stringResource(R.string.home_refresh)
+                )
+            }
+            Surface(
+                onClick = onToggleFilters,
+                modifier = Modifier
+                    .semantics { stateDescription = filterState }
+                    .testTag("explore_filters_toggle"),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .defaultMinSize(minHeight = 48.dp)
+                        .padding(horizontal = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_map_filters),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.explore_filters_label),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                    Icon(
+                        painter = painterResource(R.drawable.ic_atlas_chevron_down),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .rotate(if (filtersExpanded) 180f else 0f)
+                    )
+                }
+            }
+        }
+
         Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium
+            text = stringResource(
+                R.string.explore_filter_summary,
+                stringResource(periodLabel),
+                stringResource(magnitudeLabel)
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.testTag("explore_filter_summary")
         )
+
+        AnimatedVisibility(
+            visible = filtersExpanded,
+            enter = expandVertically(animationSpec = tween(180)),
+            exit = shrinkVertically(animationSpec = tween(180))
+        ) {
+            ExploreFilterRow(state = state, onAction = onAction)
+        }
     }
 }
 
@@ -409,43 +530,48 @@ private fun ExploreFilterRow(
     onAction: (HomeAction) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Filtros visibles sin ocupar dos bloques de controles de 48 dp.
-    // FlowRow puede saltar de línea en teléfonos estrechos o con texto grande.
-    FlowRow(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(0.dp)
+    Surface(
+        modifier = modifier.fillMaxWidth().testTag("explore_filter_panel"),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(14.dp),
+        tonalElevation = 1.dp
     ) {
-        TimeWindow.entries.forEach { window ->
-            val label = when (window) {
-                TimeWindow.LAST_DAY -> R.string.explore_period_short_day
-                TimeWindow.LAST_WEEK -> R.string.home_period_week
-                TimeWindow.LAST_MONTH -> R.string.home_period_month
-            }
-            FilterChip(
-                selected = state.timeWindow == window,
-                onClick = { onAction(HomeAction.SelectTimeWindow(window)) },
-                label = { Text(stringResource(label)) },
-                modifier = Modifier.testTag("explore_period_${window.name}")
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.home_period_title),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface
             )
-        }
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                TimeWindow.entries.forEach { window ->
+                    val label = when (window) {
+                        TimeWindow.LAST_DAY -> R.string.explore_period_short_day
+                        TimeWindow.LAST_WEEK -> R.string.home_period_week
+                        TimeWindow.LAST_MONTH -> R.string.home_period_month
+                    }
+                    FilterChip(
+                        selected = state.timeWindow == window,
+                        onClick = { onAction(HomeAction.SelectTimeWindow(window)) },
+                        label = { Text(stringResource(label)) },
+                        modifier = Modifier.testTag("explore_period_${window.name}")
+                    )
+                }
+            }
 
-        Box {
-            var expanded by rememberSaveable { mutableStateOf(false) }
-            val currentLabel = when (state.minimumMagnitude) {
-                MagnitudeThreshold.ALL -> R.string.home_magnitude_all
-                MagnitudeThreshold.MAGNITUDE_2_5 -> R.string.home_magnitude_2_5
-                MagnitudeThreshold.MAGNITUDE_4_5 -> R.string.home_magnitude_4_5
-            }
-            FilterChip(
-                selected = state.minimumMagnitude != MagnitudeThreshold.ALL,
-                onClick = { expanded = true },
-                label = { Text(stringResource(currentLabel) + " ▾") },
-                modifier = Modifier.testTag("explore_magnitude")
+            Text(
+                text = stringResource(R.string.home_magnitude_title),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface
             )
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
                 MagnitudeThreshold.entries.forEach { threshold ->
                     val label = when (threshold) {
@@ -453,14 +579,28 @@ private fun ExploreFilterRow(
                         MagnitudeThreshold.MAGNITUDE_2_5 -> R.string.home_magnitude_2_5
                         MagnitudeThreshold.MAGNITUDE_4_5 -> R.string.home_magnitude_4_5
                     }
-                    DropdownMenuItem(
-                        text = { Text(stringResource(label)) },
-                        onClick = {
-                            expanded = false
-                            onAction(HomeAction.SelectMagnitude(threshold))
-                        }
+                    FilterChip(
+                        selected = state.minimumMagnitude == threshold,
+                        onClick = { onAction(HomeAction.SelectMagnitude(threshold)) },
+                        label = { Text(stringResource(label)) },
+                        modifier = Modifier.testTag("explore_magnitude_${threshold.name}")
                     )
                 }
+            }
+            TextButton(
+                onClick = {
+                    if (state.timeWindow != TimeWindow.LAST_DAY) {
+                        onAction(HomeAction.SelectTimeWindow(TimeWindow.LAST_DAY))
+                    }
+                    if (state.minimumMagnitude != MagnitudeThreshold.ALL) {
+                        onAction(HomeAction.SelectMagnitude(MagnitudeThreshold.ALL))
+                    }
+                },
+                modifier = Modifier.align(Alignment.End),
+                enabled = state.timeWindow != TimeWindow.LAST_DAY ||
+                    state.minimumMagnitude != MagnitudeThreshold.ALL
+            ) {
+                Text(stringResource(R.string.explore_reset_filters))
             }
         }
     }
