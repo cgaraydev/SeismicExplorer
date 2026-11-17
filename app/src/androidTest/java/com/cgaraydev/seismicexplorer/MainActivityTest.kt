@@ -78,10 +78,6 @@ class MainActivityTest {
     @Test
     fun selectingPeriod_updatesStateThroughViewModel() {
         composeRule
-            .onNodeWithText("24 horas")
-            .performClick()
-
-        composeRule
             .onNodeWithText("7 días")
             .performClick()
 

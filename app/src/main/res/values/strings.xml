@@ -94,9 +94,10 @@
     <string name="explore_header_title">Explorar</string>
     <string name="explore_header_subtitle">Descubre la actividad sísmica del mundo</string>
     <string name="explore_expand_map">Ampliar mapa</string>
-    <string name="explore_map_hint">Toca un sismo para abrir su detalle. Puedes mover y ampliar el mapa.</string>
+    <string name="explore_map_hint">Vista previa. Toca el mapa para abrirlo y explorar sus eventos.</string>
     <!-- BLOQUE 3.2.3: EXPLORACIÓN EDITORIAL -->
-    <string name="explore_list">Lista</string>
+    <string name="explore_list">Eventos</string>
+    <string name="explore_period_short_day">24 h</string>
     <string name="explore_map">Mapa</string>
     <string name="explore_recent_title">Actividad reciente</string>
     <string name="explore_results_count">%1$d eventos</string>

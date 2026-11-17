@@ -11,12 +11,12 @@ class MapStyleProviderTest {
             MapStyleProvider.forDarkTheme(false)
         )
         assertEquals(
-            MapStyleProvider.OPEN_FREE_MAP_DARK,
+            MapStyleProvider.OPEN_FREE_MAP_FIORD,
             MapStyleProvider.forDarkTheme(true)
         )
         assertEquals(
-            "https://tiles.openfreemap.org/styles/dark",
-            MapStyleProvider.OPEN_FREE_MAP_DARK.styleUrl
+            "https://tiles.openfreemap.org/styles/fiord",
+            MapStyleProvider.OPEN_FREE_MAP_FIORD.styleUrl
         )
     }
 }

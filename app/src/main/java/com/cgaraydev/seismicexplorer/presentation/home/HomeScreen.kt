@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -23,6 +25,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -116,8 +119,13 @@ fun HomeScreen(
         mutableStateOf(defaultSeismicCameraPosition())
     }
 
+    Crossfade(
+        targetState = showMap,
+        animationSpec = tween(durationMillis = 180),
+        label = "explore_mode"
+    ) { selectedMap ->
     LazyColumn(
-        state = if (showMap) mapScroll else listScroll,
+        state = if (selectedMap) mapScroll else listScroll,
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
@@ -132,7 +140,7 @@ fun HomeScreen(
 
         item(key = "explore_switch") {
             ExploreViewSelector(
-                selectedMap = showMap,
+                selectedMap = selectedMap,
                 onListClick = { showMap = false },
                 onMapClick = { showMap = true },
                 modifier = Modifier.padding(horizontal = 16.dp)
@@ -147,7 +155,7 @@ fun HomeScreen(
             )
         }
 
-        if (showMap) {
+        if (selectedMap) {
             item(key = "inline_map") {
                 mapPreview(
                     state.earthquakes,
@@ -319,6 +327,7 @@ fun HomeScreen(
         }
         }
     }
+    }
 }
 
 @Composable
@@ -400,77 +409,40 @@ private fun ExploreFilterRow(
     onAction: (HomeAction) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    // Filtros visibles sin ocupar dos bloques de controles de 48 dp.
+    // FlowRow puede saltar de línea en teléfonos estrechos o con texto grande.
+    FlowRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        Box(Modifier.weight(1f)) {
-            var expanded by rememberSaveable { mutableStateOf(false) }
-            val currentLabel = when (state.timeWindow) {
-                TimeWindow.LAST_DAY -> R.string.home_period_day
+        TimeWindow.entries.forEach { window ->
+            val label = when (window) {
+                TimeWindow.LAST_DAY -> R.string.explore_period_short_day
                 TimeWindow.LAST_WEEK -> R.string.home_period_week
                 TimeWindow.LAST_MONTH -> R.string.home_period_month
             }
-            OutlinedButton(
-                onClick = { expanded = true },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .defaultMinSize(minHeight = 48.dp)
-                    .testTag("explore_period"),
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp)
-            ) {
-                Text(
-                    text = stringResource(currentLabel),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(" ▾")
-            }
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                TimeWindow.entries.forEach { window ->
-                    val label = when (window) {
-                        TimeWindow.LAST_DAY -> R.string.home_period_day
-                        TimeWindow.LAST_WEEK -> R.string.home_period_week
-                        TimeWindow.LAST_MONTH -> R.string.home_period_month
-                    }
-                    DropdownMenuItem(
-                        text = { Text(stringResource(label)) },
-                        onClick = {
-                            expanded = false
-                            onAction(HomeAction.SelectTimeWindow(window))
-                        }
-                    )
-                }
-            }
+            FilterChip(
+                selected = state.timeWindow == window,
+                onClick = { onAction(HomeAction.SelectTimeWindow(window)) },
+                label = { Text(stringResource(label)) },
+                modifier = Modifier.testTag("explore_period_${window.name}")
+            )
         }
-        Box(Modifier.weight(1f)) {
+
+        Box {
             var expanded by rememberSaveable { mutableStateOf(false) }
             val currentLabel = when (state.minimumMagnitude) {
                 MagnitudeThreshold.ALL -> R.string.home_magnitude_all
                 MagnitudeThreshold.MAGNITUDE_2_5 -> R.string.home_magnitude_2_5
                 MagnitudeThreshold.MAGNITUDE_4_5 -> R.string.home_magnitude_4_5
             }
-            OutlinedButton(
+            FilterChip(
+                selected = state.minimumMagnitude != MagnitudeThreshold.ALL,
                 onClick = { expanded = true },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .defaultMinSize(minHeight = 48.dp)
-                    .testTag("explore_magnitude"),
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp)
-            ) {
-                Text(
-                    text = stringResource(currentLabel),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(" ▾")
-            }
+                label = { Text(stringResource(currentLabel) + " ▾") },
+                modifier = Modifier.testTag("explore_magnitude")
+            )
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }

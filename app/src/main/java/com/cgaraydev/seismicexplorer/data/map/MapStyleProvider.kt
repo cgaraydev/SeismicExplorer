@@ -6,12 +6,12 @@ enum class MapStyleProvider(
     OPEN_FREE_MAP(
         "https://tiles.openfreemap.org/styles/liberty"
     ),
-    OPEN_FREE_MAP_DARK(
-        "https://tiles.openfreemap.org/styles/dark"
+    OPEN_FREE_MAP_FIORD(
+        "https://tiles.openfreemap.org/styles/fiord"
     );
 
     companion object {
         fun forDarkTheme(dark: Boolean): MapStyleProvider =
-            if (dark) OPEN_FREE_MAP_DARK else OPEN_FREE_MAP
+            if (dark) OPEN_FREE_MAP_FIORD else OPEN_FREE_MAP
     }
 }

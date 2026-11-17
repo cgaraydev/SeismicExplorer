@@ -70,11 +70,7 @@ class HomeScreenTest {
         }
 
         composeRule
-            .onNodeWithText("24 horas")
-            .performClick()
-
-        composeRule
-            .onNodeWithText("7 días")
+            .onNodeWithTag("explore_period_LAST_WEEK")
             .performClick()
 
         composeRule.runOnIdle {

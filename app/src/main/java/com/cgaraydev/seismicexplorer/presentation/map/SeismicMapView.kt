@@ -84,7 +84,8 @@ fun SeismicMapView(
     eventBounds: MapEventBounds? = null,
     fitEventsRequestId: Int = 0,
     userPosition: LatLng? = null,
-    centerUserRequestId: Int = 0
+    centerUserRequestId: Int = 0,
+    gesturesEnabled: Boolean = true
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.4f
@@ -97,7 +98,7 @@ fun SeismicMapView(
     // guardada por el llamador. El host reinstala sus fuentes y capas.
     val resolvedStyleBuilder = styleBuilder ?: defaultStyleBuilder
 
-    key(lifecycleOwner, resolvedStyleBuilder) {
+    key(lifecycleOwner, resolvedStyleBuilder, gesturesEnabled) {
         var styleLoadState by remember {
             mutableStateOf(MapStyleLoadState.LOADING)
         }
@@ -115,6 +116,7 @@ fun SeismicMapView(
                         styleBuilder = resolvedStyleBuilder,
                         initialResetCameraRequestId = resetCameraRequestId,
                         initialFitEventsRequestId = fitEventsRequestId,
+                        gesturesEnabled = gesturesEnabled,
                         onStyleStateChanged = { styleLoadState = it }
                     )
                 },
@@ -184,6 +186,7 @@ private class SeismicMapHostView(
     private val styleBuilder: Style.Builder,
     private val initialResetCameraRequestId: Int,
     private val initialFitEventsRequestId: Int,
+    private val gesturesEnabled: Boolean,
     private val onStyleStateChanged: (MapStyleLoadState) -> Unit
 ) : FrameLayout(context) {
 
@@ -314,6 +317,7 @@ private class SeismicMapHostView(
             if (released) return@getMapAsync
 
             mapLibreMap = readyMap
+            readyMap.uiSettings.setAllGesturesEnabled(gesturesEnabled)
             readyMap.cameraPosition = initialCamera
             applyPendingResetCamera()
             applyPendingFitIfReady()

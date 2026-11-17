@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -101,7 +102,7 @@ internal fun ExploreInlineMap(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(480.dp)
+                .height(240.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .testTag("explore_map_preview")
         ) {
@@ -111,7 +112,21 @@ internal fun ExploreInlineMap(
                 onCameraChanged = onCameraChanged,
                 onEarthquakeClick = onEarthquakeClick,
                 eventBounds = mapData.bounds,
-                fitEventsRequestId = fitRequestId
+                fitEventsRequestId = fitRequestId,
+                gesturesEnabled = false
+            )
+
+            // La vista previa no captura arrastres verticales del LazyColumn.
+            // Tocar el área abre la cartografía interactiva completa.
+            val expandDescription = stringResource(R.string.explore_expand_map)
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    // Dejar libre la atribución cartográfica en el borde inferior.
+                    .padding(bottom = 34.dp)
+                    .clickable(onClick = onExpandClick)
+                    .testTag("explore_preview_open")
+                    .semantics { contentDescription = expandDescription }
             )
 
             val fitDescription = stringResource(R.string.map_fit_events)
