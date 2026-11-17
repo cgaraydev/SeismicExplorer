@@ -13,10 +13,16 @@ import com.cgaraydev.seismicexplorer.domain.model.RefreshFailure
 import com.cgaraydev.seismicexplorer.ui.theme.SeismicExplorerTheme
 import java.time.Instant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 import androidx.compose.ui.test.hasText
 
@@ -236,27 +242,39 @@ class HomeScreenTest {
     }
 
     @Test
-    fun mapButton_invokesNavigationCallback() {
-        var mapRequested = false
+    fun mapTab_displaysIntegratedPreview_withoutOpeningFullScreen() {
+        var fullscreenRequested = false
 
         composeRule.setContent {
             SeismicExplorerTheme {
                 HomeScreen(
                     state = HomeUiState(isReadingLocal = false),
                     onAction = {},
-                    onMapClick = {
-                        mapRequested = true
+                    onMapClick = { fullscreenRequested = true },
+                    // El test verifica la navegacion sin iniciar MapLibre nativo.
+                    mapPreview = { _, _, _, _, onExpand ->
+                        Column {
+                            Text(
+                                text = "Vista integrada",
+                                modifier = Modifier.testTag("fake_map_preview")
+                            )
+                            TextButton(onClick = onExpand) {
+                                Text("Ampliar mapa")
+                            }
+                        }
                     }
                 )
             }
         }
 
-        composeRule
-            .onNodeWithTag("explore_map")
-            .performClick()
-
+        composeRule.onNodeWithTag("explore_map").performClick()
+        composeRule.onNodeWithTag("fake_map_preview").assertExists()
         composeRule.runOnIdle {
-            assertTrue(mapRequested)
+            assertFalse(fullscreenRequested)
+        }
+        composeRule.onNodeWithText("Ampliar mapa").performClick()
+        composeRule.runOnIdle {
+            assertTrue(fullscreenRequested)
         }
     }
 

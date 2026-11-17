@@ -93,6 +93,8 @@
     <!-- IDENTIDAD ATLAS MINERAL -->
     <string name="explore_header_title">Explorar</string>
     <string name="explore_header_subtitle">Descubre la actividad sísmica del mundo</string>
+    <string name="explore_expand_map">Ampliar mapa</string>
+    <string name="explore_map_hint">Toca un sismo para abrir su detalle. Puedes mover y ampliar el mapa.</string>
     <!-- BLOQUE 3.2.3: EXPLORACIÓN EDITORIAL -->
     <string name="explore_list">Lista</string>
     <string name="explore_map">Mapa</string>

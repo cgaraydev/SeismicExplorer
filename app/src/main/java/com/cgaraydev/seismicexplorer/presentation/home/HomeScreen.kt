@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
@@ -56,6 +57,8 @@ import com.cgaraydev.seismicexplorer.domain.model.RefreshFailure
 import com.cgaraydev.seismicexplorer.presentation.common.AtlasExploreHeader
 import com.cgaraydev.seismicexplorer.presentation.common.FeedCacheStatusText
 import com.cgaraydev.seismicexplorer.presentation.common.SeismicMagnitudeScale
+import com.cgaraydev.seismicexplorer.presentation.map.defaultSeismicCameraPosition
+import org.maplibre.android.camera.CameraPosition
 import com.cgaraydev.seismicexplorer.ui.theme.SeismicExplorerTheme
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -88,9 +91,33 @@ fun HomeScreen(
     onAction: (HomeAction) -> Unit,
     modifier: Modifier = Modifier,
     onEarthquakeClick: (String) -> Unit = {},
-    onMapClick: () -> Unit = {}
+    onMapClick: () -> Unit = {},
+    mapPreview: @Composable (
+        List<Earthquake>,
+        CameraPosition,
+        (CameraPosition) -> Unit,
+        (String) -> Unit,
+        () -> Unit
+    ) -> Unit = { events, camera, onCameraChanged, onEventClick, onExpand ->
+        ExploreInlineMap(
+            earthquakes = events,
+            initialCamera = camera,
+            onCameraChanged = onCameraChanged,
+            onEarthquakeClick = onEventClick,
+            onExpandClick = onExpand
+        )
+    }
 ) {
+    var showMap by rememberSaveable { mutableStateOf(false) }
+    val listScroll = rememberLazyListState()
+    // Mantener por separado el scroll de las dos representaciones.
+    val mapScroll = rememberLazyListState(initialFirstVisibleItemIndex = 1)
+    var mapCamera by rememberSaveable {
+        mutableStateOf(defaultSeismicCameraPosition())
+    }
+
     LazyColumn(
+        state = if (showMap) mapScroll else listScroll,
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
@@ -105,7 +132,9 @@ fun HomeScreen(
 
         item(key = "explore_switch") {
             ExploreViewSelector(
-                onMapClick = onMapClick,
+                selectedMap = showMap,
+                onListClick = { showMap = false },
+                onMapClick = { showMap = true },
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
         }
@@ -118,6 +147,17 @@ fun HomeScreen(
             )
         }
 
+        if (showMap) {
+            item(key = "inline_map") {
+                mapPreview(
+                    state.earthquakes,
+                    mapCamera,
+                    { camera -> mapCamera = camera },
+                    onEarthquakeClick,
+                    onMapClick
+                )
+            }
+        } else {
         item(key = "explore_results_header") {
             Column(
                 modifier = Modifier.padding(
@@ -277,11 +317,14 @@ fun HomeScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        }
     }
 }
 
 @Composable
 private fun ExploreViewSelector(
+    selectedMap: Boolean,
+    onListClick: () -> Unit,
     onMapClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -289,47 +332,65 @@ private fun ExploreViewSelector(
         modifier = modifier
             .fillMaxWidth()
             .background(
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                shape = RoundedCornerShape(16.dp)
+                MaterialTheme.colorScheme.surfaceContainer,
+                RoundedCornerShape(16.dp)
             )
             .padding(4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Surface(
+        ExploreSelectorTab(
+            label = stringResource(R.string.explore_list),
+            active = !selectedMap,
+            onClick = onListClick,
             modifier = Modifier
                 .weight(1f)
-                .semantics { selected = true },
-            color = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Box(
-                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = stringResource(R.string.explore_list),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-        OutlinedButton(
+                .testTag("explore_list")
+        )
+        ExploreSelectorTab(
+            label = stringResource(R.string.explore_map),
+            active = selectedMap,
             onClick = onMapClick,
             modifier = Modifier
                 .weight(1f)
-                .defaultMinSize(minHeight = 48.dp)
-                .testTag("explore_map"),
-            shape = RoundedCornerShape(12.dp),
-            border = null,
-            contentPadding = PaddingValues(horizontal = 8.dp),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = MaterialTheme.colorScheme.onSurface
-            )
-        ) {
-            Text(stringResource(R.string.explore_map))
-        }
+                .testTag("explore_map")
+        )
+    }
+}
+
+@Composable
+private fun ExploreSelectorTab(
+    label: String,
+    active: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier
+            .defaultMinSize(minHeight = 48.dp)
+            .semantics { selected = active },
+        shape = RoundedCornerShape(12.dp),
+        border = null,
+        contentPadding = PaddingValues(horizontal = 8.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = if (active) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            },
+            contentColor = if (active) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            }
+        )
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium
+        )
     }
 }
 

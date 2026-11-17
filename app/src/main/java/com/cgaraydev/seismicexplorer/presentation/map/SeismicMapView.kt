@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -86,8 +87,17 @@ fun SeismicMapView(
     centerUserRequestId: Int = 0
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.4f
+    val defaultStyleBuilder = remember(dark) {
+        Style.Builder().fromUri(
+            MapStyleProvider.forDarkTheme(dark).styleUrl
+        )
+    }
+    // Al cambiar el tema, reconstruir el estilo sin perder la camara
+    // guardada por el llamador. El host reinstala sus fuentes y capas.
+    val resolvedStyleBuilder = styleBuilder ?: defaultStyleBuilder
 
-    key(lifecycleOwner, styleBuilder) {
+    key(lifecycleOwner, resolvedStyleBuilder) {
         var styleLoadState by remember {
             mutableStateOf(MapStyleLoadState.LOADING)
         }
@@ -102,10 +112,7 @@ fun SeismicMapView(
                         context = context,
                         lifecycle = lifecycleOwner.lifecycle,
                         initialCamera = initialCamera,
-                        styleBuilder = styleBuilder
-                            ?: Style.Builder().fromUri(
-                                MapStyleProvider.OPEN_FREE_MAP.styleUrl
-                            ),
+                        styleBuilder = resolvedStyleBuilder,
                         initialResetCameraRequestId = resetCameraRequestId,
                         initialFitEventsRequestId = fitEventsRequestId,
                         onStyleStateChanged = { styleLoadState = it }

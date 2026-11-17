@@ -115,4 +115,13 @@ en el detalle de eventos, junto a q tipo de escala se utiliza, podemos ponder un
 seccion guardados
 seccion ajustes
 animaciones, figma, personalizacion
+incluir otrasd apis q aporten funcionalidades nuevas o detalles a los eventos
+verificar por apis chilenas q aporten detalles 
+seccion terremotos mas grandes de la historia
+seccion aprendizaje/wiki
+seccion filtros avanzados - slider para magnitudes y otras opciones q obtenemos de usgs
+cambiar a espanol la informacion recibida de usgs
+cambiar nombre a "lista" de la seccion lista/mapa, lista no suena bien, debemos buscar algo mas tecnico
+
+
 
