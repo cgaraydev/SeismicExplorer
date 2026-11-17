@@ -7,37 +7,38 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.cgaraydev.seismicexplorer.R
 
-/** Arte original decorativo: no transmite información sísmica ni indica actividad en vivo. */
+/**
+ * Cabecera editorial de ancho completo. El arte es decorativo, no un dato sísmico.
+ * La imagen ocupa incluso la zona tras la barra del sistema; el contenido respeta
+ * el inset superior y la altura puede crecer cuando aumenta el tamaño de fuente.
+ */
 @Composable
-fun AtlasExploreHeader(
-    modifier: Modifier = Modifier
-) {
+fun AtlasExploreHeader(modifier: Modifier = Modifier) {
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.4f
     val ink = if (dark) Color(0xFFF1F3EF) else Color(0xFF183344)
     val paper = if (dark) Color(0xFF14232D) else Color(0xFFF4EBDD)
@@ -45,50 +46,69 @@ fun AtlasExploreHeader(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(180.dp)
-            .clip(RoundedCornerShape(22.dp))
+            .defaultMinSize(minHeight = 194.dp)
             .background(paper)
+            .testTag("explore_header")
     ) {
         Image(
             painter = painterResource(R.drawable.atlas_mineral_explore),
             contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.matchParentSize(),
             contentScale = ContentScale.Crop,
             alignment = Alignment.Center
         )
         Box(
-            Modifier.fillMaxSize().background(
-                if (dark) Brush.horizontalGradient(
-                    colors = listOf(
-                        Color(0xF0101D27), Color(0xD318303A), Color(0x5A101D27)
-                    ), startX = 0f
-                ) else Brush.horizontalGradient(
-                    colors = listOf(
-                        Color(0xFFF9F0E4), Color(0xEBF9F0E4), Color(0x0CF9F0E4)
-                    ), startX = 0f
+            Modifier
+                .matchParentSize()
+                .background(
+                    if (dark) {
+                        Brush.horizontalGradient(
+                            listOf(
+                                Color(0xF0101D27),
+                                Color(0xDE18303A),
+                                Color(0x62101D27)
+                            )
+                        )
+                    } else {
+                        Brush.horizontalGradient(
+                            listOf(
+                                Color(0xFFF9F0E4),
+                                Color(0xEBF9F0E4),
+                                Color(0x0CF9F0E4)
+                            )
+                        )
+                    }
                 )
-            )
         )
+
         Column(
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .fillMaxWidth(0.85f)
-                .padding(horizontal = 18.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(7.dp)
+                .statusBarsPadding()
+                .fillMaxWidth(0.87f)
+                .padding(
+                    start = 20.dp,
+                    end = 12.dp,
+                    top = 10.dp,
+                    bottom = 18.dp
+                ),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 AtlasWaveformIcon(
-                    modifier = Modifier.size(width = 34.dp, height = 24.dp),
+                    modifier = Modifier.size(width = 32.dp, height = 22.dp),
                     color = if (dark) Color(0xFFF3AC90) else Color(0xFFA04F30)
                 )
                 Text(
                     text = stringResource(R.string.app_name),
                     style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
                     color = ink,
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
             Text(
@@ -101,14 +121,13 @@ fun AtlasExploreHeader(
                 text = stringResource(R.string.explore_header_subtitle),
                 style = MaterialTheme.typography.bodySmall,
                 color = ink,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                maxLines = 3
             )
         }
     }
 }
 
-/** Icono original simple: una señal de onda estilizada, sin atribución a actividad real. */
+/** Icono decorativo: una onda estilizada, sin atribución a un registro real. */
 @Composable
 fun AtlasWaveformIcon(
     modifier: Modifier = Modifier,

@@ -93,4 +93,9 @@
     <!-- IDENTIDAD ATLAS MINERAL -->
     <string name="explore_header_title">Explorar</string>
     <string name="explore_header_subtitle">Descubre la actividad sísmica del mundo</string>
+    <!-- BLOQUE 3.2.3: EXPLORACIÓN EDITORIAL -->
+    <string name="explore_list">Lista</string>
+    <string name="explore_map">Mapa</string>
+    <string name="explore_recent_title">Actividad reciente</string>
+    <string name="explore_results_count">%1$d eventos</string>
 </resources>

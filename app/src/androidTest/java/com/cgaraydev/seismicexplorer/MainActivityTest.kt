@@ -78,12 +78,16 @@ class MainActivityTest {
     @Test
     fun selectingPeriod_updatesStateThroughViewModel() {
         composeRule
+            .onNodeWithText("24 horas")
+            .performClick()
+
+        composeRule
             .onNodeWithText("7 días")
             .performClick()
 
         composeRule
             .onNodeWithText("7 días")
-            .assertIsSelected()
+            .assertIsDisplayed()
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
             fakeRepository.syncRequests.contains(

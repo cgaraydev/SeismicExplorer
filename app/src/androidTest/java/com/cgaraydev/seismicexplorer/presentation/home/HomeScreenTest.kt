@@ -64,6 +64,10 @@ class HomeScreenTest {
         }
 
         composeRule
+            .onNodeWithText("24 horas")
+            .performClick()
+
+        composeRule
             .onNodeWithText("7 días")
             .performClick()
 
@@ -74,6 +78,38 @@ class HomeScreenTest {
             )
         }
     }
+
+    @Test
+    fun selectingMagnitudeFromCompactMenu_emitsExpectedAction() {
+        var emittedAction: HomeAction? = null
+        composeRule.setContent {
+            SeismicExplorerTheme {
+                HomeScreen(
+                    state = HomeUiState(),
+                    onAction = { emittedAction = it }
+                )
+            }
+        }
+        composeRule.onNodeWithTag("explore_magnitude").performClick()
+        composeRule.onNodeWithText("M 4.5+").performClick()
+        composeRule.runOnIdle {
+            assertEquals(
+                HomeAction.SelectMagnitude(MagnitudeThreshold.MAGNITUDE_4_5),
+                emittedAction
+            )
+        }
+    }
+
+    @Test
+    fun illustratedHeader_isPresent() {
+        composeRule.setContent {
+            SeismicExplorerTheme {
+                HomeScreen(state = HomeUiState(), onAction = {})
+            }
+        }
+        composeRule.onNodeWithTag("explore_header").assertIsDisplayed()
+    }
+
 
     @Test
     fun refreshButton_emitsRefreshAction() {
@@ -216,13 +252,7 @@ class HomeScreenTest {
         }
 
         composeRule
-            .onNodeWithTag("home_list")
-            .performScrollToNode(
-                hasText("Ver mapa mundial")
-            )
-
-        composeRule
-            .onNodeWithText("Ver mapa mundial")
+            .onNodeWithTag("explore_map")
             .performClick()
 
         composeRule.runOnIdle {
