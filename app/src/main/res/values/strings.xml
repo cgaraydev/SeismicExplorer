@@ -29,6 +29,8 @@
     <string name="home_local_error">No se pudieron consultar los eventos almacenados.</string>
     <string name="home_event_magnitude">M %1$.1f</string>
     <string name="home_event_magnitude_unknown">Magnitud desconocida</string>
+    <string name="home_event_magnitude_label">Magnitud</string>
+    <string name="home_event_magnitude_short_unknown">N/D</string>
     <string name="home_event_place_unknown">Ubicación no especificada</string>
     <string name="home_event_depth">Profundidad: %1$.1f km</string>
     <string name="home_source">Fuente: USGS (U.S. Geological Survey).</string>
@@ -88,4 +90,7 @@
     <!-- SAFETY AND DISCLAIMERS -->
     <string name="home_disclaimer">Esta aplicación es informativa y no sustituye sistemas oficiales de alerta ni recomendaciones de emergencia.</string>
 
+    <!-- IDENTIDAD ATLAS MINERAL -->
+    <string name="explore_header_title">Explorar</string>
+    <string name="explore_header_subtitle">Descubre la actividad sísmica del mundo</string>
 </resources>

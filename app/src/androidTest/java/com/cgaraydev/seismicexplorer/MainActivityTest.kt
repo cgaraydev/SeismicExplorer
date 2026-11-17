@@ -55,7 +55,11 @@ class MainActivityTest {
     @Test
     fun launch_displaysHomeScreen() {
         composeRule
-            .onNodeWithText("Actividad sísmica mundial")
+            .onNodeWithText("Explorar")
+            .assertIsDisplayed()
+
+        composeRule
+            .onNodeWithText("Descubre la actividad sísmica del mundo")
             .assertIsDisplayed()
 
         composeRule.waitUntil(timeoutMillis = 5_000) {

@@ -1,15 +1,14 @@
 package com.cgaraydev.seismicexplorer.data.local
 
-import androidx.room3.Room
 import androidx.room3.testing.MigrationTestHelper
 import androidx.sqlite.driver.AndroidSQLiteDriver
 import androidx.sqlite.execSQL
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -33,64 +32,132 @@ class SeismicDatabaseMigrationTest {
 
     @Test
     fun migrationFrom1To2_preservesEarthquakes() = runTest {
-        val oldConnection = migrationHelper.createDatabase(1)
 
-        oldConnection.execSQL(
-            """
-            INSERT INTO earthquakes (
-                id,
-                magnitude,
-                place,
-                latitude,
-                longitude,
-                depthKilometers,
-                occurredAtEpochMillis,
-                updatedAtEpochMillis,
-                detailUrl
-            ) VALUES (
-                'migration-event',
-                4.5,
-                'Coast of Chile',
-                -33.4,
-                -71.6,
-                12.0,
-                1700000000000,
-                1700000001000,
-                NULL
-            )
-            """.trimIndent()
+        // Garantizar una base de prueba limpia.
+        instrumentation.targetContext.deleteDatabase(
+            databaseName
         )
 
-        oldConnection.close()
-
-        val database = Room.databaseBuilder<SeismicDatabase>(
-            context = instrumentation.targetContext,
-            name = databaseName
-        )
-            .setDriver(AndroidSQLiteDriver())
-            .build()
+        // Crear una base con el esquema de la versión 1.
+        val oldConnection =
+            migrationHelper.createDatabase(1)
 
         try {
-            val earthquakes = database.earthquakeDao()
-                .observeEarthquakes(
-                    startTime = 0L,
-                    endTime = Long.MAX_VALUE,
-                    minimumMagnitude = null
+            oldConnection.execSQL(
+                """
+                INSERT INTO earthquakes (
+                    id,
+                    magnitude,
+                    place,
+                    latitude,
+                    longitude,
+                    depthKilometers,
+                    occurredAtEpochMillis,
+                    updatedAtEpochMillis,
+                    detailUrl
+                ) VALUES (
+                    'migration-event',
+                    4.5,
+                    'Coast of Chile',
+                    -33.4,
+                    -71.6,
+                    12.0,
+                    1700000000000,
+                    1700000001000,
+                    NULL
                 )
-                .first()
-
-            assertEquals(1, earthquakes.size)
-            assertEquals(
-                "migration-event",
-                earthquakes.single().id
+                """.trimIndent()
             )
 
-            assertNull(
-                database.feedSyncDao()
-                    .getLastSuccessEpochMillis("all_day")
-            )
+            // Confirmar que el evento existe
+            // ANTES de ejecutar la migración.
+            oldConnection.prepare(
+                "SELECT COUNT(*) FROM earthquakes"
+            ).use { statement ->
+                assertTrue(statement.step())
+                assertEquals(
+                    1L,
+                    statement.getLong(0)
+                )
+            }
         } finally {
-            database.close()
+            oldConnection.close()
+        }
+
+        // Ejecutar la migración automática 1 -> 2
+        // y validar el esquema resultante.
+        val migratedConnection =
+            migrationHelper.runMigrationsAndValidate(
+                version = 2,
+                migrations = emptyList()
+            )
+
+        try {
+            // Comprobar que el terremoto
+            // conserva sus datos originales.
+            migratedConnection.prepare(
+                """
+                SELECT id, magnitude, place,
+                       occurredAtEpochMillis,
+                       updatedAtEpochMillis
+                FROM earthquakes
+                WHERE id = 'migration-event'
+                """.trimIndent()
+            ).use { statement ->
+
+                assertTrue(
+                    "La migración debe conservar el terremoto",
+                    statement.step()
+                )
+
+                assertEquals(
+                    "migration-event",
+                    statement.getText(0)
+                )
+
+                assertEquals(
+                    4.5,
+                    statement.getDouble(1),
+                    0.0
+                )
+
+                assertEquals(
+                    "Coast of Chile",
+                    statement.getText(2)
+                )
+
+                assertEquals(
+                    1700000000000L,
+                    statement.getLong(3)
+                )
+
+                assertEquals(
+                    1700000001000L,
+                    statement.getLong(4)
+                )
+
+                assertFalse(
+                    "No deben existir registros duplicados",
+                    statement.step()
+                )
+            }
+
+            // La versión 2 incorpora feed_sync,
+            // que inicialmente debe estar vacía.
+            migratedConnection.prepare(
+                "SELECT COUNT(*) FROM feed_sync"
+            ).use { statement ->
+
+                assertTrue(statement.step())
+
+                assertEquals(
+                    0L,
+                    statement.getLong(0)
+                )
+            }
+
+        } finally {
+            migratedConnection.close()
         }
     }
 }

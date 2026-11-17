@@ -1,5 +1,14 @@
 package com.cgaraydev.seismicexplorer.presentation.home
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.cgaraydev.seismicexplorer.presentation.common.SeismicMagnitudeScale
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -33,6 +42,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cgaraydev.seismicexplorer.R
+import com.cgaraydev.seismicexplorer.presentation.common.AtlasExploreHeader
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
 import com.cgaraydev.seismicexplorer.domain.model.RefreshFailure
 import com.cgaraydev.seismicexplorer.ui.theme.SeismicExplorerTheme
@@ -91,20 +101,7 @@ fun HomeScreen(
             contentPadding = PaddingValues(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item {
-                Text(
-                    text = stringResource(R.string.home_title),
-                    style = MaterialTheme.typography.headlineMedium
-                )
-            }
-
-            item {
-                Text(
-                    text = stringResource(R.string.home_description),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            item { AtlasExploreHeader() }
 
             item {
                 Text(
@@ -358,54 +355,90 @@ private fun EarthquakeCard(
     onClick: () -> Unit
 ) {
     val locale = LocalConfiguration.current.locales[0]
-
     val occurredAt = DateTimeFormatter
         .ofLocalizedDateTime(FormatStyle.SHORT)
         .withLocale(locale)
         .withZone(ZoneId.systemDefault())
         .format(earthquake.occurredAt)
 
-    OutlinedCard(
+    val magnitudeDescription = earthquake.magnitude?.let { magnitude ->
+        stringResource(R.string.home_event_magnitude, magnitude)
+    } ?: stringResource(R.string.home_event_magnitude_unknown)
+
+    val magnitudeLabel = earthquake.magnitude?.let { magnitude ->
+        stringResource(R.string.home_event_magnitude, magnitude)
+    } ?: stringResource(R.string.home_event_magnitude_short_unknown)
+
+    val accentColor = SeismicMagnitudeScale.accent(earthquake.magnitude)
+
+    Card(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("earthquake_${earthquake.id}")
+            .testTag("earthquake_${earthquake.id}"),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        shape = RoundedCornerShape(18.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text(
-                text = earthquake.magnitude?.let { magnitude ->
-                    stringResource(
-                        R.string.home_event_magnitude,
-                        magnitude
+            Column(
+                modifier = Modifier
+                    .width(88.dp)
+                    .background(
+                        color = accentColor.copy(alpha = 0.18f),
+                        shape = RoundedCornerShape(14.dp)
                     )
-                } ?: stringResource(R.string.home_event_magnitude_unknown),
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            Text(
-                text = earthquake.place
-                    ?: stringResource(R.string.home_event_place_unknown),
-                style = MaterialTheme.typography.bodyMedium
-            )
-
-            Text(
-                text = occurredAt,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            earthquake.depthKilometers?.let { depth ->
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = magnitudeDescription
+                    }
+                    .padding(horizontal = 6.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
                 Text(
-                    text = stringResource(
-                        R.string.home_event_depth,
-                        depth
-                    ),
+                    text = magnitudeLabel,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1
+                )
+                Text(
+                    text = stringResource(R.string.home_event_magnitude_label),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Text(
+                    text = earthquake.place
+                        ?: stringResource(R.string.home_event_place_unknown),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = occurredAt,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                earthquake.depthKilometers?.let { depth ->
+                    Text(
+                        text = stringResource(R.string.home_event_depth, depth),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
