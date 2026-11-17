@@ -17,16 +17,11 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -35,11 +30,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,14 +47,11 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -67,12 +60,8 @@ import com.cgaraydev.seismicexplorer.R
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
 import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 import com.cgaraydev.seismicexplorer.domain.model.RefreshFailure
-import com.cgaraydev.seismicexplorer.presentation.common.AtlasExploreHeader
 import com.cgaraydev.seismicexplorer.presentation.common.FeedCacheStatusText
 import com.cgaraydev.seismicexplorer.presentation.common.SeismicMagnitudeScale
-import com.cgaraydev.seismicexplorer.presentation.map.defaultSeismicCameraPosition
-import org.maplibre.android.camera.CameraPosition
-import com.cgaraydev.seismicexplorer.ui.theme.SeismicExplorerTheme
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -104,424 +93,161 @@ fun HomeScreen(
     onAction: (HomeAction) -> Unit,
     modifier: Modifier = Modifier,
     onEarthquakeClick: (String) -> Unit = {},
-    onMapClick: () -> Unit = {},
-    mapPreview: @Composable (
-        List<Earthquake>,
-        CameraPosition,
-        (CameraPosition) -> Unit,
-        (String) -> Unit,
-        () -> Unit
-    ) -> Unit = { events, camera, onCameraChanged, onEventClick, onExpand ->
-        ExploreInlineMap(
-            earthquakes = events,
-            initialCamera = camera,
-            onCameraChanged = onCameraChanged,
-            onEarthquakeClick = onEventClick,
-            onExpandClick = onExpand
-        )
-    }
+    onMapClick: () -> Unit = {}
 ) {
-    var showMap by rememberSaveable { mutableStateOf(false) }
     var filtersExpanded by rememberSaveable { mutableStateOf(false) }
-    val listScroll = rememberLazyListState()
-    // Mantener por separado el scroll de las dos representaciones.
-    val mapScroll = rememberLazyListState(initialFirstVisibleItemIndex = 1)
-    var mapCamera by rememberSaveable {
-        mutableStateOf(defaultSeismicCameraPosition())
+    var showLearning by rememberSaveable { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+    // Destacado real del conjunto mostrado; nunca se inventa una magnitud.
+    val featured = remember(state.earthquakes) {
+        state.earthquakes.filter { it.magnitude != null }
+            .maxWithOrNull(compareBy<Earthquake> { it.magnitude!! }
+                .thenBy { it.occurredAt }.thenBy { it.id })
     }
-
-    AnimatedContent(
-        targetState = showMap,
-        transitionSpec = {
-            // Mapa avanza desde la derecha; Eventos regresa desde la izquierda.
-            if (targetState) {
-                slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(260)
-                ) togetherWith slideOutHorizontally(
-                    targetOffsetX = { -it },
-                    animationSpec = tween(260)
-                )
-            } else {
-                slideInHorizontally(
-                    initialOffsetX = { -it },
-                    animationSpec = tween(260)
-                ) togetherWith slideOutHorizontally(
-                    targetOffsetX = { it },
-                    animationSpec = tween(260)
-                )
-            }
-        },
-        label = "explore_mode"
-    ) { selectedMap ->
-    LazyColumn(
-        state = if (selectedMap) mapScroll else listScroll,
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .navigationBarsPadding()
-            .testTag("home_list"),
-        contentPadding = PaddingValues(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item(key = "atlas_header") {
-            AtlasExploreHeader()
-        }
-
-        item(key = "explore_switch") {
-            ExploreViewSelector(
-                selectedMap = selectedMap,
-                onListClick = { showMap = false },
-                onMapClick = { showMap = true },
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-        }
-
-        item(key = "explore_results_header") {
-            ExploreResultsHeader(
-                state = state,
-                selectedMap = selectedMap,
-                filtersExpanded = filtersExpanded,
-                onToggleFilters = { filtersExpanded = !filtersExpanded },
-                onAction = onAction,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-        }
-
-        if (selectedMap) {
-            item(key = "inline_map") {
-                mapPreview(
-                    state.earthquakes,
-                    mapCamera,
-                    { camera -> mapCamera = camera },
-                    onEarthquakeClick,
-                    onMapClick
-                )
-            }
-        } else {
-        if (state.feedCacheStatus != FeedCacheStatus.Unknown) {
-            item(key = "cache_status") {
-                FeedCacheStatusText(
-                    status = state.feedCacheStatus,
-                    modifier = Modifier.padding(horizontal = 20.dp)
-                )
-            }
-        }
-
-        if (state.refreshState == HomeRefreshState.Refreshing) {
-            item(key = "refresh_progress") {
-                Column(
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    LinearProgressIndicator(Modifier.fillMaxWidth())
-                    Text(
-                        text = stringResource(R.string.home_refreshing),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-        }
-
-        val refreshFailure = state.refreshState as? HomeRefreshState.Failed
-        if (refreshFailure != null) {
-            item(key = "refresh_failure") {
-                OutlinedCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                ) {
-                    Text(
-                        text = refreshFailureMessage(refreshFailure.reason),
-                        modifier = Modifier.padding(16.dp),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-        }
-
-        if (state.localReadFailed) {
-            item(key = "local_error") {
-                Text(
-                    text = stringResource(R.string.home_local_error),
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        }
-
-        if (state.isReadingLocal && state.earthquakes.isEmpty()) {
-            item(key = "local_loading") {
-                Row(
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CircularProgressIndicator()
-                    Text(stringResource(R.string.home_loading_local))
-                }
-            }
-        } else if (
-            !state.localReadFailed &&
-            state.earthquakes.isEmpty() &&
-            state.refreshState != HomeRefreshState.Refreshing
-        ) {
-            item(key = "empty_state") {
-                OutlinedCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.home_empty_title),
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            text = stringResource(R.string.home_empty_description),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-            }
-        }
-
-        items(
-            items = state.earthquakes,
-            key = { earthquake -> earthquake.id }
-        ) { earthquake ->
-            EarthquakeCard(
-                earthquake = earthquake,
-                onClick = { onEarthquakeClick(earthquake.id) },
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-        }
-
-        item(key = "source") {
-            Text(
-                text = stringResource(R.string.home_source),
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        item(key = "disclaimer") {
-            Text(
-                text = stringResource(R.string.home_disclaimer),
-                modifier = Modifier.padding(horizontal = 20.dp),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        }
-    }
-    }
-}
-
-@Composable
-private fun ExploreViewSelector(
-    selectedMap: Boolean,
-    onListClick: () -> Unit,
-    onMapClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(
-                MaterialTheme.colorScheme.surfaceContainer,
-                RoundedCornerShape(16.dp)
-            )
-            .padding(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        ExploreSelectorTab(
-            label = stringResource(R.string.explore_list),
-            iconRes = R.drawable.ic_atlas_events,
-            active = !selectedMap,
-            onClick = onListClick,
-            modifier = Modifier
-                .weight(1f)
-                .testTag("explore_list")
-        )
-        ExploreSelectorTab(
-            label = stringResource(R.string.explore_map),
-            iconRes = R.drawable.ic_atlas_map,
-            active = selectedMap,
-            onClick = onMapClick,
-            modifier = Modifier
-                .weight(1f)
-                .testTag("explore_map")
-        )
-    }
-}
-
-@Composable
-private fun ExploreSelectorTab(
-    label: String,
-    iconRes: Int,
-    active: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = modifier
-            .defaultMinSize(minHeight = 48.dp)
-            .semantics { selected = active },
-        shape = RoundedCornerShape(12.dp),
-        border = null,
-        contentPadding = PaddingValues(horizontal = 8.dp),
-        colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = if (active) {
-                MaterialTheme.colorScheme.surfaceContainerHighest
-            } else {
-                MaterialTheme.colorScheme.surfaceContainer
-            },
-            contentColor = MaterialTheme.colorScheme.onSurface
-        )
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                painter = painterResource(iconRes),
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium
-            )
-        }
-    }
-}
-
-@Composable
-private fun ExploreResultsHeader(
-    state: HomeUiState,
-    selectedMap: Boolean,
-    filtersExpanded: Boolean,
-    onToggleFilters: () -> Unit,
-    onAction: (HomeAction) -> Unit,
-    modifier: Modifier = Modifier
-) {
     val periodLabel = when (state.timeWindow) {
-        TimeWindow.LAST_DAY -> R.string.explore_period_short_day
+        TimeWindow.LAST_DAY -> R.string.home_period_day
         TimeWindow.LAST_WEEK -> R.string.home_period_week
         TimeWindow.LAST_MONTH -> R.string.home_period_month
     }
-    val filterState = stringResource(
-        if (filtersExpanded) R.string.explore_filters_expanded
-        else R.string.explore_filters_collapsed
-    )
     val magnitudeLabel = when (state.minimumMagnitude) {
         MagnitudeThreshold.ALL -> R.string.explore_all_magnitudes
         MagnitudeThreshold.MAGNITUDE_2_5 -> R.string.home_magnitude_2_5
         MagnitudeThreshold.MAGNITUDE_4_5 -> R.string.home_magnitude_4_5
     }
-
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+    val filterState = stringResource(if (filtersExpanded) R.string.explore_filters_expanded
+        else R.string.explore_filters_collapsed)
+    LazyColumn(
+        state = listState,
+        modifier = modifier.fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding().navigationBarsPadding().testTag("home_list"),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(
-                        if (selectedMap) R.string.explore_map_heading
-                        else R.string.explore_recent_title
-                    ),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                if (!state.isReadingLocal || state.earthquakes.isNotEmpty()) {
+        item(key = "editorial_title") { EditorialMasthead() }
+        item(key = "editorial_controls") {
+            Column(
+                Modifier.padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = stringResource(
-                            R.string.explore_results_count,
-                            state.earthquakes.size
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
+                        stringResource(R.string.editorial_scope),
+                        Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    IconButton(
+                        onClick = { onAction(HomeAction.Refresh) },
+                        enabled = state.refreshState != HomeRefreshState.Refreshing,
+                        modifier = Modifier.testTag("explore_refresh")
+                    ) {
+                        Icon(painterResource(R.drawable.ic_atlas_refresh),
+                            contentDescription = stringResource(R.string.home_refresh))
+                    }
+                    TextButton(
+                        onClick = { filtersExpanded = !filtersExpanded },
+                        modifier = Modifier.testTag("explore_filters_toggle").semantics {
+                            stateDescription = filterState
+                        }
+                    ) {
+                        Icon(painterResource(R.drawable.ic_map_filters), null,
+                            Modifier.size(18.dp))
+                        Text(stringResource(R.string.explore_filters_label),
+                            Modifier.padding(start = 6.dp))
+                    }
                 }
-            }
-            IconButton(
-                onClick = { onAction(HomeAction.Refresh) },
-                enabled = state.refreshState != HomeRefreshState.Refreshing,
-                modifier = Modifier.testTag("explore_refresh")
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_atlas_refresh),
-                    contentDescription = stringResource(R.string.home_refresh)
+                Text(
+                    stringResource(R.string.explore_filter_summary,
+                        stringResource(periodLabel), stringResource(magnitudeLabel)),
+                    Modifier.testTag("explore_filter_summary"),
+                    style = MaterialTheme.typography.bodyMedium
                 )
-            }
-            Surface(
-                onClick = onToggleFilters,
-                modifier = Modifier
-                    .semantics { stateDescription = filterState }
-                    .testTag("explore_filters_toggle"),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .defaultMinSize(minHeight = 48.dp)
-                        .padding(horizontal = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_map_filters),
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.explore_filters_label),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                    Icon(
-                        painter = painterResource(R.drawable.ic_atlas_chevron_down),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(16.dp)
-                            .rotate(if (filtersExpanded) 180f else 0f)
-                    )
+                AnimatedVisibility(visible = filtersExpanded,
+                    enter = expandVertically(tween(180)),
+                    exit = shrinkVertically(tween(180))) {
+                    ExploreFilterRow(state, onAction)
+                }
+                if (state.feedCacheStatus != FeedCacheStatus.Unknown) {
+                    FeedCacheStatusText(state.feedCacheStatus)
+                }
+                if (state.refreshState == HomeRefreshState.Refreshing) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    Text(stringResource(R.string.home_refreshing),
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                (state.refreshState as? HomeRefreshState.Failed)?.let { failure ->
+                    Text(refreshFailureMessage(failure.reason),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium)
+                }
+                if (state.localReadFailed) {
+                    Text(stringResource(R.string.home_local_error),
+                        color = MaterialTheme.colorScheme.error)
                 }
             }
         }
-
-        Text(
-            text = stringResource(
-                R.string.explore_filter_summary,
-                stringResource(periodLabel),
-                stringResource(magnitudeLabel)
-            ),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.testTag("explore_filter_summary")
-        )
-
-        AnimatedVisibility(
-            visible = filtersExpanded,
-            enter = expandVertically(animationSpec = tween(180)),
-            exit = shrinkVertically(animationSpec = tween(180))
-        ) {
-            ExploreFilterRow(state = state, onAction = onAction)
+        featured?.let { earthquake ->
+            item(key = "editorial_feature") {
+                EditorialFeaturedEvent(earthquake, onEarthquakeClick)
+            }
+        }
+        item(key = "editorial_actions") {
+            EditorialActions(onMapClick, onLearnClick = { showLearning = true })
+        }
+        item(key = "editorial_activity") {
+            Column(Modifier.padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Text(stringResource(R.string.explore_recent_title),
+                    style = MaterialTheme.typography.headlineSmall)
+                Text(stringResource(R.string.explore_results_count, state.earthquakes.size),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (state.isReadingLocal && state.earthquakes.isEmpty()) {
+            item(key = "loading") {
+                Row(Modifier.padding(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.size(24.dp))
+                    Text(stringResource(R.string.home_loading_local))
+                }
+            }
+        } else if (!state.localReadFailed && state.earthquakes.isEmpty() &&
+            state.refreshState != HomeRefreshState.Refreshing) {
+            item(key = "empty") {
+                Column(Modifier.padding(horizontal = 20.dp)) {
+                    Text(stringResource(R.string.home_empty_title),
+                        style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.home_empty_description),
+                        style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+        // Primeros tres eventos antes del bloque visual; los demás siguen abajo.
+        items(state.earthquakes.take(3), key = { it.id }) { earthquake ->
+            EarthquakeCard(earthquake, { onEarthquakeClick(earthquake.id) },
+                Modifier.padding(horizontal = 16.dp))
+        }
+        item(key = "editorial_chart") { EditorialHourlyPreview() }
+        items(state.earthquakes.drop(3), key = { it.id }) { earthquake ->
+            EarthquakeCard(earthquake, { onEarthquakeClick(earthquake.id) },
+                Modifier.padding(horizontal = 16.dp))
+        }
+        item(key = "source") {
+            Column(Modifier.padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.home_source),
+                    style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.home_disclaimer),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
+    if (showLearning) EditorialLearningDialog(onDismiss = { showLearning = false })
 }
 
 @Composable
@@ -633,9 +359,9 @@ private fun EarthquakeCard(
             .fillMaxWidth()
             .testTag("earthquake_${earthquake.id}"),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.background
         ),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -712,16 +438,3 @@ private fun refreshFailureMessage(failure: RefreshFailure?): String {
     return stringResource(messageRes)
 }
 
-@Preview(showBackground = true)
-@Composable
-private fun HomeScreenPreview() {
-    SeismicExplorerTheme {
-        HomeScreen(
-            state = HomeUiState(
-                isReadingLocal = false,
-                refreshState = HomeRefreshState.Completed
-            ),
-            onAction = {}
-        )
-    }
-}

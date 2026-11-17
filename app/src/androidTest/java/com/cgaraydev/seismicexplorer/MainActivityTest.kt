@@ -1,7 +1,8 @@
 package com.cgaraydev.seismicexplorer
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.assertTextContains
@@ -57,11 +58,11 @@ class MainActivityTest {
     @Test
     fun launch_displaysHomeScreen() {
         composeRule
-            .onNodeWithText("Explorar")
+            .onNodeWithText("El planeta, hoy")
             .assertIsDisplayed()
 
         composeRule
-            .onNodeWithText("Descubre la actividad sísmica del mundo")
+            .onNodeWithText("Un atlas para observar y comprender la actividad sísmica.")
             .assertIsDisplayed()
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
@@ -79,7 +80,9 @@ class MainActivityTest {
 
     @Test
     fun selectingPeriod_updatesStateThroughViewModel() {
+        composeRule.onNodeWithTag("home_list").performScrollToNode(hasTestTag("explore_filters_toggle"))
         composeRule.onNodeWithTag("explore_filters_toggle").performClick()
+        composeRule.onNodeWithTag("home_list").performScrollToNode(hasTestTag("explore_period_LAST_WEEK"))
         composeRule.onNodeWithTag("explore_period_LAST_WEEK").performClick()
         composeRule.onNodeWithTag("explore_filter_summary")
             .assertTextContains("7 días", substring = true)

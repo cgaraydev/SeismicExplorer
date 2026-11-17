@@ -90,12 +90,11 @@
     <!-- SAFETY AND DISCLAIMERS -->
     <string name="home_disclaimer">Esta aplicación es informativa y no sustituye sistemas oficiales de alerta ni recomendaciones de emergencia.</string>
 
-    <!-- IDENTIDAD ATLAS MINERAL -->
+    <!-- EXPLORACIÓN -->
     <string name="explore_header_title">Explorar</string>
     <string name="explore_header_subtitle">Descubre la actividad sísmica del mundo</string>
     <string name="explore_expand_map">Ampliar mapa</string>
     <string name="explore_map_hint">Vista previa. Toca el mapa para abrirlo y explorar sus eventos.</string>
-    <!-- BLOQUE 3.2.3: EXPLORACIÓN EDITORIAL -->
     <string name="explore_list">Eventos</string>
     <string name="explore_period_short_day">24 h</string>
     <string name="explore_map">Mapa</string>
@@ -108,4 +107,28 @@
     <string name="explore_reset_filters">Restablecer</string>
     <string name="explore_filters_expanded">Filtros desplegados</string>
     <string name="explore_filters_collapsed">Filtros contraídos</string>
+
+    <!--    ATLAS-->
+    <string name="editorial_title">El planeta, hoy</string>
+    <string name="editorial_subtitle">Un atlas para observar y comprender la actividad sísmica.</string>
+    <string name="editorial_scope">Selección de eventos · USGS</string>
+    <string name="editorial_featured_label">Mayor magnitud entre los resultados</string>
+    <string name="editorial_open_event">Explorar evento ↗</string>
+    <string name="editorial_decorative_art">Arte decorativo</string>
+    <string name="editorial_open_atlas">Abrir atlas ↗</string>
+    <string name="editorial_map_hint">Explora el mapa mundial</string>
+    <string name="editorial_understand">Entender los sismos</string>
+    <string name="editorial_learn_hint">Magnitud, profundidad e intensidad</string>
+    <string name="editorial_hourly_title">Eventos por hora</string>
+    <string name="editorial_demo_badge">VISTA PREVIA · DATOS DE EJEMPLO</string>
+    <string name="editorial_demo_description">Demostración visual. Estas barras no representan los eventos de USGS ni cambian con los filtros.</string>
+    <string name="editorial_demo_accessibility">Gráfico ilustrativo de 24 barras horarias. Valores ficticios de diseño, sin relación con la actividad sísmica real.</string>
+    <string name="editorial_collapse_demo">Ocultar ejemplo</string>
+    <string name="editorial_expand_demo">Mostrar ejemplo</string>
+    <string name="editorial_learn_magnitude">Magnitud: describe el tamaño del sismo. Existen distintos tipos de magnitud; no todos los valores corresponden a la escala de Richter.</string>
+    <string name="editorial_learn_depth">Profundidad: indica la ubicación del foco bajo la superficie. El epicentro es su proyección sobre la superficie.</string>
+    <string name="editorial_learn_intensity">Intensidad: describe los efectos del movimiento en un lugar. Puede ser diferente entre localidades para un mismo sismo.</string>
+    <string name="editorial_learn_source">Guía introductoria. La información detallada y revisada de cada evento está disponible en su fuente USGS.</string>
+    <string name="editorial_close">Entendido</string>
+
 </resources>

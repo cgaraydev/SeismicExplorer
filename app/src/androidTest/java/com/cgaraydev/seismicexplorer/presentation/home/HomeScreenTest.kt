@@ -1,355 +1,197 @@
 package com.cgaraydev.seismicexplorer.presentation.home
 
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
 import com.cgaraydev.seismicexplorer.domain.model.GeoCoordinates
+import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 import com.cgaraydev.seismicexplorer.domain.model.RefreshFailure
 import com.cgaraydev.seismicexplorer.ui.theme.SeismicExplorerTheme
 import java.time.Instant
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import androidx.compose.ui.test.hasTestTag
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.foundation.layout.Column
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
-import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
-import androidx.compose.ui.test.hasText
 
 class HomeScreenTest {
+    @get:Rule val composeRule = createComposeRule()
 
-    @get:Rule
-    val composeRule = createComposeRule()
-
-    @Test
-    fun emptyState_displaysInformativeMessage() {
+    private fun show(
+        state: HomeUiState = HomeUiState(isReadingLocal = false),
+        onAction: (HomeAction) -> Unit = {},
+        onEvent: (String) -> Unit = {},
+        onMap: () -> Unit = {}
+    ) {
         composeRule.setContent {
             SeismicExplorerTheme {
-                HomeScreen(
-                    state = HomeUiState(
-                        isReadingLocal = false,
-                        refreshState = HomeRefreshState.Completed
-                    ),
-                    onAction = {}
-                )
+                HomeScreen(state, onAction, onEarthquakeClick = onEvent, onMapClick = onMap)
             }
         }
-
-        composeRule
-            .onNodeWithTag("home_list")
-            .performScrollToNode(
-                hasText("No hay eventos para estos filtros")
-            )
-
-        composeRule
-            .onNodeWithText("No hay eventos para estos filtros")
-            .assertIsDisplayed()
     }
 
-    @Test
-    fun selectingPeriod_emitsExpectedAction() {
-        var emittedAction: HomeAction? = null
+    private fun scrollTo(tag: String) {
+        composeRule.onNodeWithTag("home_list").performScrollToNode(hasTestTag(tag))
+    }
 
-        composeRule.setContent {
-            SeismicExplorerTheme {
-                HomeScreen(
-                    state = HomeUiState(),
-                    onAction = { emittedAction = it }
-                )
-            }
-        }
+    @Test fun editorialHeader_isPresent_withoutModeTabs() {
+        show()
+        composeRule.onNodeWithTag("editorial_header").assertIsDisplayed()
+        composeRule.onNodeWithText("El planeta, hoy").assertIsDisplayed()
+        composeRule.onNodeWithTag("explore_map").assertDoesNotExist()
+        composeRule.onNodeWithTag("explore_list").assertDoesNotExist()
+    }
 
+    @Test fun selectingPeriod_emitsExpectedAction() {
+        var selected: HomeAction? = null
+        show(onAction = { selected = it })
+        scrollTo("explore_filters_toggle")
         composeRule.onNodeWithTag("explore_filters_toggle").performClick()
+        scrollTo("explore_period_LAST_WEEK")
         composeRule.onNodeWithTag("explore_period_LAST_WEEK").performClick()
-
         composeRule.runOnIdle {
-            assertEquals(
-                HomeAction.SelectTimeWindow(TimeWindow.LAST_WEEK),
-                emittedAction
-            )
+            assertEquals(HomeAction.SelectTimeWindow(TimeWindow.LAST_WEEK), selected)
         }
     }
 
-    @Test
-    fun selectingMagnitudeFromCompactMenu_emitsExpectedAction() {
-        var emittedAction: HomeAction? = null
-        composeRule.setContent {
-            SeismicExplorerTheme {
-                HomeScreen(
-                    state = HomeUiState(),
-                    onAction = { emittedAction = it }
-                )
-            }
-        }
+    @Test fun selectingMagnitude_emitsExpectedAction() {
+        var selected: HomeAction? = null
+        show(onAction = { selected = it })
+        scrollTo("explore_filters_toggle")
         composeRule.onNodeWithTag("explore_filters_toggle").performClick()
+        scrollTo("explore_magnitude_MAGNITUDE_4_5")
         composeRule.onNodeWithTag("explore_magnitude_MAGNITUDE_4_5").performClick()
         composeRule.runOnIdle {
-            assertEquals(
-                HomeAction.SelectMagnitude(MagnitudeThreshold.MAGNITUDE_4_5),
-                emittedAction
-            )
+            assertEquals(HomeAction.SelectMagnitude(MagnitudeThreshold.MAGNITUDE_4_5), selected)
         }
     }
 
-    @Test
-    fun filtersAreCollapsedByDefault_andCanBeExpanded() {
-        composeRule.setContent {
-            SeismicExplorerTheme {
-                HomeScreen(state = HomeUiState(isReadingLocal = false), onAction = {})
-            }
-        }
+    @Test fun filtersAreCollapsedByDefault_andCanBeExpanded() {
+        show()
         composeRule.onNodeWithTag("explore_filter_panel").assertDoesNotExist()
+        scrollTo("explore_filters_toggle")
         composeRule.onNodeWithTag("explore_filters_toggle").performClick()
         composeRule.onNodeWithTag("explore_filter_panel").assertExists()
     }
 
-    @Test
-    fun filtersPanelPersistsAcrossEventAndMapModes() {
+    @Test fun refreshButton_emitsRefreshAction() {
         var selected: HomeAction? = null
-        composeRule.setContent {
-            SeismicExplorerTheme {
-                HomeScreen(
-                    state = HomeUiState(isReadingLocal = false),
-                    onAction = { selected = it },
-                    mapPreview = { _, _, _, _, _ -> Text("Vista de prueba") }
-                )
-            }
-        }
-        composeRule.onNodeWithTag("explore_filters_toggle").performClick()
-        composeRule.onNodeWithTag("explore_period_LAST_MONTH").performClick()
-        composeRule.runOnIdle {
-            assertEquals(HomeAction.SelectTimeWindow(TimeWindow.LAST_MONTH), selected)
-        }
-        composeRule.onNodeWithTag("explore_map").performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag("explore_filter_panel").assertExists()
-    }
-
-    @Test
-    fun illustratedHeader_isPresent() {
-        composeRule.setContent {
-            SeismicExplorerTheme {
-                HomeScreen(state = HomeUiState(), onAction = {})
-            }
-        }
-        composeRule.onNodeWithTag("explore_header").assertIsDisplayed()
-    }
-
-
-    @Test
-    fun refreshButton_emitsRefreshAction() {
-        var emittedAction: HomeAction? = null
-
-        composeRule.setContent {
-            SeismicExplorerTheme {
-                HomeScreen(
-                    state = HomeUiState(isReadingLocal = false),
-                    onAction = { emittedAction = it }
-                )
-            }
-        }
-
-        composeRule
-            .onNodeWithTag("home_list")
-            .performScrollToNode(hasTestTag("explore_refresh"))
-
+        show(onAction = { selected = it })
+        scrollTo("explore_refresh")
         composeRule.onNodeWithTag("explore_refresh").performClick()
-
-        composeRule.runOnIdle {
-            assertEquals(HomeAction.Refresh, emittedAction)
-        }
+        composeRule.runOnIdle { assertEquals(HomeAction.Refresh, selected) }
     }
 
-    @Test
-    fun cachedEvents_remainVisibleWhenRefreshFails() {
-        composeRule.setContent {
-            SeismicExplorerTheme {
-                HomeScreen(
-                    state = HomeUiState(
-                        earthquakes = listOf(sampleEarthquake()),
-                        isReadingLocal = false,
-                        refreshState = HomeRefreshState.Failed(
-                            RefreshFailure.CONNECTION
-                        )
-                    ),
-                    onAction = {}
-                )
-            }
-        }
-
-        composeRule
-            .onNodeWithTag("home_list")
-            .performScrollToNode(hasText("Coast of Chile"))
-
-        composeRule
-            .onNodeWithText("Coast of Chile")
-            .assertIsDisplayed()
-
-        composeRule
-            .onNodeWithTag("home_list")
-            .performScrollToNode(
-                hasText(
-                    "No se pudo conectar con USGS. " +
-                            "Se mantienen los datos guardados."
-                )
-            )
-
-        composeRule
-            .onNodeWithText(
-                "No se pudo conectar con USGS. " +
-                        "Se mantienen los datos guardados."
-            )
-            .assertIsDisplayed()
+    @Test fun emptyState_displaysInformativeMessage() {
+        show(HomeUiState(isReadingLocal = false, refreshState = HomeRefreshState.Completed))
+        composeRule.onNodeWithTag("home_list").performScrollToNode(
+            hasText("No hay eventos para estos filtros"))
+        composeRule.onNodeWithText("No hay eventos para estos filtros").assertIsDisplayed()
     }
 
-    @Test
-    fun refreshingState_keepsCachedEventsAvailable() {
-        composeRule.setContent {
-            SeismicExplorerTheme {
-                HomeScreen(
-                    state = HomeUiState(
-                        earthquakes = listOf(sampleEarthquake()),
-                        isReadingLocal = false,
-                        refreshState = HomeRefreshState.Refreshing
-                    ),
-                    onAction = {}
-                )
-            }
-        }
-
-        composeRule
-            .onNodeWithTag("home_list")
-            .performScrollToNode(hasText("Coast of Chile"))
-
-        composeRule
-            .onNodeWithText("Coast of Chile")
-            .assertIsDisplayed()
-    }
-
-    @Test
-    fun selectingEarthquake_emitsItsId() {
+    @Test fun featuredEvent_isMaximumKnownMagnitude_andOpensItsId() {
         var selectedId: String? = null
-
-        composeRule.setContent {
-            SeismicExplorerTheme {
-                HomeScreen(
-                    state = HomeUiState(
-                        earthquakes = listOf(sampleEarthquake()),
-                        isReadingLocal = false
-                    ),
-                    onAction = {},
-                    onEarthquakeClick = { selectedId = it }
-                )
-            }
-        }
-
-        composeRule
-            .onNodeWithTag("home_list")
-            .performScrollToNode(
-                hasTestTag("earthquake_us123")
-            )
-
-        composeRule
-            .onNodeWithTag("earthquake_us123")
-            .performClick()
-
-        composeRule.runOnIdle {
-            assertEquals("us123", selectedId)
-        }
+        show(HomeUiState(isReadingLocal = false, earthquakes = listOf(
+            sample("unknown", null), sample("small", 2.3), sample("largest", 5.2))),
+            onEvent = { selectedId = it })
+        scrollTo("editorial_open_featured")
+        composeRule.onNodeWithTag("editorial_open_featured").performClick()
+        composeRule.runOnIdle { assertEquals("largest", selectedId) }
     }
 
-    @Test
-    fun mapTab_displaysIntegratedPreview_withoutOpeningFullScreen() {
-        var fullscreenRequested = false
-
-        composeRule.setContent {
-            SeismicExplorerTheme {
-                HomeScreen(
-                    state = HomeUiState(isReadingLocal = false),
-                    onAction = {},
-                    onMapClick = { fullscreenRequested = true },
-                    // El test verifica la navegacion sin iniciar MapLibre nativo.
-                    mapPreview = { _, _, _, _, onExpand ->
-                        Column {
-                            Text(
-                                text = "Vista integrada",
-                                modifier = Modifier.testTag("fake_map_preview")
-                            )
-                            TextButton(onClick = onExpand) {
-                                Text("Ampliar mapa")
-                            }
-                        }
-                    }
-                )
-            }
-        }
-
-        composeRule.onNodeWithTag("explore_map").performClick()
-        composeRule.onNodeWithTag("fake_map_preview").assertExists()
-        composeRule.runOnIdle {
-            assertFalse(fullscreenRequested)
-        }
-        composeRule.onNodeWithText("Ampliar mapa").performClick()
-        composeRule.runOnIdle {
-            assertTrue(fullscreenRequested)
-        }
+    @Test fun unknownMagnitudes_doNotCreateAnInventedFeaturedEvent() {
+        show(HomeUiState(isReadingLocal = false, earthquakes = listOf(sample("unknown", null))))
+        composeRule.onNodeWithTag("editorial_featured").assertDoesNotExist()
+        scrollTo("earthquake_unknown")
+        composeRule.onNodeWithTag("earthquake_unknown").assertIsDisplayed()
     }
 
-    @Test
-    fun staleFeed_displaysLastSyncStatus() {
+    @Test fun featuredEvent_changesWhenResultsChange() {
+        var state by mutableStateOf(HomeUiState(isReadingLocal = false,
+            earthquakes = listOf(sample("first", 5.0))))
+        var opened: String? = null
         composeRule.setContent {
             SeismicExplorerTheme {
-                HomeScreen(
-                    state = HomeUiState(
-                        isReadingLocal = false,
-                        refreshState = HomeRefreshState.UpToDate,
-                        feedCacheStatus = FeedCacheStatus.Synced(
-                            lastSuccessEpochMillis =
-                                Instant.parse(
-                                    "2026-11-14T12:00:00Z"
-                                ).toEpochMilli(),
-                            isFresh = false
-                        )
-                    ),
-                    onAction = {}
-                )
+                HomeScreen(state, {}, onEarthquakeClick = { opened = it })
             }
         }
+        composeRule.runOnIdle {
+            state = state.copy(earthquakes = listOf(sample("second", 4.0)))
+        }
+        scrollTo("editorial_open_featured")
+        composeRule.onNodeWithTag("editorial_open_featured").performClick()
+        composeRule.runOnIdle { assertEquals("second", opened) }
+    }
 
-        composeRule
-            .onNodeWithTag("home_list")
-            .performScrollToNode(
-                hasText("Datos desactualizados", substring = true)
-            )
+    @Test fun mapAction_opensExistingMap() {
+        var requested = false
+        show(onMap = { requested = true })
+        scrollTo("editorial_open_map")
+        composeRule.onNodeWithTag("editorial_open_map").performClick()
+        composeRule.runOnIdle { assertTrue(requested) }
+    }
 
-        composeRule
-            .onNode(
-                hasText("Datos desactualizados", substring = true)
-            )
+    @Test fun learningAction_opensAndClosesExplanation() {
+        show()
+        scrollTo("editorial_learn")
+        composeRule.onNodeWithTag("editorial_learn").performClick()
+        composeRule.onNodeWithTag("editorial_learning_dialog").assertIsDisplayed()
+        composeRule.onNodeWithText("Entendido").performClick()
+        composeRule.onNodeWithTag("editorial_learning_dialog").assertDoesNotExist()
+    }
+
+    @Test fun chart_isExplicitlyIllustrative_andCanBeCollapsed() {
+        show()
+        scrollTo("editorial_chart")
+        composeRule.onNodeWithText("VISTA PREVIA · DATOS DE EJEMPLO").assertIsDisplayed()
+        scrollTo("editorial_chart_toggle")
+        composeRule.onNodeWithTag("editorial_chart_toggle").performClick()
+        composeRule.onNodeWithText("Mostrar ejemplo").assertIsDisplayed()
+    }
+
+    @Test fun eventsAfterChart_remainReachableAndClickable() {
+        var opened: String? = null
+        show(HomeUiState(isReadingLocal = false,
+            earthquakes = (1..8).map { sample("event$it", 3.0) }), onEvent = { opened = it })
+        scrollTo("earthquake_event8")
+        composeRule.onNodeWithTag("earthquake_event8").performClick()
+        composeRule.runOnIdle { assertEquals("event8", opened) }
+    }
+
+    @Test fun cachedEvents_remainAvailableWhenRefreshFails() {
+        show(HomeUiState(isReadingLocal = false, earthquakes = listOf(sample("cached", 4.5)),
+            refreshState = HomeRefreshState.Failed(RefreshFailure.CONNECTION)))
+        composeRule.onNodeWithTag("home_list").performScrollToNode(
+            hasText("No se pudo conectar con USGS. Se mantienen los datos guardados."))
+        composeRule.onNodeWithText("No se pudo conectar con USGS. Se mantienen los datos guardados.")
             .assertIsDisplayed()
+        scrollTo("earthquake_cached")
+        composeRule.onNodeWithTag("earthquake_cached").assertIsDisplayed()
     }
 
-    private fun sampleEarthquake() = Earthquake(
-        id = "us123",
-        magnitude = 4.5,
-        place = "Coast of Chile",
-        coordinates = GeoCoordinates(
-            latitude = -33.4,
-            longitude = -71.6
-        ),
-        depthKilometers = 12.0,
+    @Test fun refreshingState_keepsCachedEventsAvailable() {
+        show(HomeUiState(isReadingLocal = false, earthquakes = listOf(sample("cached", 4.5)),
+            refreshState = HomeRefreshState.Refreshing))
+        scrollTo("explore_refresh")
+        composeRule.onNodeWithTag("explore_refresh").assertIsNotEnabled()
+        scrollTo("earthquake_cached")
+        composeRule.onNodeWithTag("earthquake_cached").assertIsDisplayed()
+    }
+
+    @Test fun staleFeed_displaysLastSyncStatus() {
+        show(HomeUiState(isReadingLocal = false,
+            feedCacheStatus = FeedCacheStatus.Synced(
+                Instant.parse("2026-11-14T12:00:00Z").toEpochMilli(), false)))
+        composeRule.onNodeWithTag("home_list").performScrollToNode(
+            hasText("Datos desactualizados", substring = true))
+        composeRule.onNode(hasText("Datos desactualizados", substring = true)).assertIsDisplayed()
+    }
+
+    private fun sample(id: String, magnitude: Double?) = Earthquake(
+        id = id, magnitude = magnitude, place = "Coast of Chile",
+        coordinates = GeoCoordinates(-33.4, -71.6), depthKilometers = 12.0,
         occurredAt = Instant.parse("2026-11-14T10:00:00Z"),
-        updatedAt = Instant.parse("2026-11-14T10:30:00Z"),
-        detailUrl = null
-    )
+        updatedAt = Instant.parse("2026-11-14T10:30:00Z"), detailUrl = null)
 }
