@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -39,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cgaraydev.seismicexplorer.R
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
+import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailFailure
+import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailSource
 import com.cgaraydev.seismicexplorer.domain.model.GeoCoordinates
 import com.cgaraydev.seismicexplorer.ui.theme.SeismicExplorerTheme
 import java.time.Instant
@@ -52,9 +55,11 @@ fun EarthquakeDetailRoute(
     viewModel: EarthquakeDetailViewModel,
     onBack: () -> Unit,
     onOpenLearn: () -> Unit,
-    onOpenDepthLearn: () -> Unit
+    onOpenDepthLearn: () -> Unit,
+    onOpenRevisionLearn: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val scientificState by viewModel.scientificState.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
 
     EarthquakeDetailScreen(
@@ -62,7 +67,10 @@ fun EarthquakeDetailRoute(
         onBack = onBack,
         onOpenSource = uriHandler::openUri,
         onOpenLearn = onOpenLearn,
-        onOpenDepthLearn = onOpenDepthLearn
+        onOpenDepthLearn = onOpenDepthLearn,
+        scientificState = scientificState,
+        onRequestScientificDetail = viewModel::requestScientificDetail,
+        onOpenRevisionLearn = onOpenRevisionLearn
     )
 }
 
@@ -74,7 +82,10 @@ fun EarthquakeDetailScreen(
     onOpenSource: (String) -> Unit,
     modifier: Modifier = Modifier,
     onOpenLearn: () -> Unit = {},
-    onOpenDepthLearn: () -> Unit = {}
+    onOpenDepthLearn: () -> Unit = {},
+    scientificState: ScientificDetailUiState = ScientificDetailUiState.Idle,
+    onRequestScientificDetail: () -> Unit = {},
+    onOpenRevisionLearn: () -> Unit = {}
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -130,6 +141,9 @@ fun EarthquakeDetailScreen(
                     onOpenSource = onOpenSource,
                     onOpenLearn = onOpenLearn,
                     onOpenDepthLearn = onOpenDepthLearn,
+                    scientificState = scientificState,
+                    onRequestScientificDetail = onRequestScientificDetail,
+                    onOpenRevisionLearn = onOpenRevisionLearn,
                     modifier = Modifier.padding(innerPadding)
                 )
             }
@@ -144,6 +158,9 @@ private fun EarthquakeDetailContent(
     onOpenSource: (String) -> Unit,
     onOpenLearn: () -> Unit,
     onOpenDepthLearn: () -> Unit,
+    scientificState: ScientificDetailUiState,
+    onRequestScientificDetail: () -> Unit,
+    onOpenRevisionLearn: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val locale = LocalConfiguration.current.locales[0]
@@ -291,6 +308,13 @@ private fun EarthquakeDetailContent(
             }
         }
 
+        ScientificDetailCard(
+            earthquake = earthquake,
+            state = scientificState,
+            onRequest = onRequestScientificDetail,
+            onOpenRevisions = onOpenRevisionLearn
+        )
+
         OutlinedCard(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -383,6 +407,132 @@ private fun EarthquakeDetailContent(
             }
         }
     }
+}
+
+/** Inventario, no un visor ni un indicador de intensidad o daño medido. */
+@Composable
+private fun ScientificDetailCard(
+    earthquake: Earthquake,
+    state: ScientificDetailUiState,
+    onRequest: () -> Unit,
+    onOpenRevisions: () -> Unit
+) {
+    val colors = MaterialTheme.colorScheme
+    OutlinedCard(modifier = Modifier.fillMaxWidth().testTag("detail_science_card")) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                stringResource(R.string.detail_science_heading),
+                style = MaterialTheme.typography.titleMedium,
+                color = colors.onSurface
+            )
+            Text(
+                stringResource(R.string.detail_science_description),
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.onSurfaceVariant
+            )
+            when (state) {
+                ScientificDetailUiState.Idle -> Text(
+                    stringResource(R.string.detail_science_idle),
+                    modifier = Modifier.testTag("detail_science_idle"),
+                    color = colors.onSurfaceVariant
+                )
+                ScientificDetailUiState.Loading -> Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                    Text(stringResource(R.string.detail_science_loading),
+                        color = colors.onSurface,
+                        modifier = Modifier.testTag("detail_science_loading"))
+                }
+                is ScientificDetailUiState.Error -> Text(
+                    stringResource(scientificDetailErrorRes(state.failure)),
+                    color = colors.onSurface,
+                    modifier = Modifier.testTag("detail_science_error")
+                )
+                is ScientificDetailUiState.Available -> {
+                    val detail = state.detail
+                    val stale = state.isStale ||
+                        detail.sourceUpdatedAtEpochMillis < earthquake.updatedAt.toEpochMilli()
+                    val provenanceRes = if (state.source == ScientificDetailSource.CACHE) {
+                        R.string.detail_science_from_cache
+                    } else {
+                        R.string.detail_science_from_network
+                    }
+                    Text(stringResource(provenanceRes),
+                        color = colors.onSurface,
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.testTag("detail_science_status"))
+                    if (stale) {
+                        Text(stringResource(R.string.detail_science_stale),
+                            color = colors.onSurfaceVariant,
+                            modifier = Modifier.testTag("detail_science_stale"))
+                    }
+                    if (detail.availableProductTypes.isEmpty()) {
+                        Text(stringResource(R.string.detail_science_no_products),
+                            color = colors.onSurface,
+                            modifier = Modifier.testTag("detail_science_empty"))
+                    } else {
+                        Text(stringResource(
+                            R.string.detail_science_product_count,
+                            detail.availableProductCount,
+                            detail.availableProductTypes.size
+                        ), color = colors.onSurfaceVariant)
+                        detail.availableProductTypes.forEach { productType ->
+                            val nameRes = scientificProductNameRes(productType)
+                            val label = if (nameRes == null) productType else {
+                                "${stringResource(nameRes)} · $productType"
+                            }
+                            Text(label, color = colors.onSurface,
+                                modifier = Modifier.testTag("detail_science_product_$productType"))
+                        }
+                    }
+                    Text(stringResource(R.string.detail_science_disclaimer),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant)
+                }
+            }
+            OutlinedButton(
+                onClick = onRequest,
+                enabled = state != ScientificDetailUiState.Loading,
+                modifier = Modifier.fillMaxWidth().testTag("detail_science_request")
+            ) {
+                Text(stringResource(when (state) {
+                    ScientificDetailUiState.Idle -> R.string.detail_science_consult
+                    is ScientificDetailUiState.Available -> R.string.detail_science_refresh
+                    else -> R.string.detail_science_retry
+                }))
+            }
+            TextButton(onClick = onOpenRevisions,
+                modifier = Modifier.testTag("detail_science_learn")) {
+                Text(stringResource(R.string.detail_science_learn))
+            }
+        }
+    }
+}
+
+private fun scientificProductNameRes(type: String): Int? = when (type.lowercase(Locale.ROOT)) {
+    "shakemap" -> R.string.detail_science_shakemap
+    "dyfi" -> R.string.detail_science_dyfi
+    "pager" -> R.string.detail_science_pager
+    "moment-tensor" -> R.string.detail_science_moment_tensor
+    "finite-fault" -> R.string.detail_science_finite_fault
+    "phase-data" -> R.string.detail_science_phase_data
+    "origin" -> R.string.detail_science_origin
+    "magnitude" -> R.string.detail_science_magnitude
+    else -> null
+}
+
+private fun scientificDetailErrorRes(error: ScientificDetailFailure): Int = when (error) {
+    ScientificDetailFailure.INVALID_EVENT_ID -> R.string.detail_science_invalid_event
+    ScientificDetailFailure.EVENT_NOT_FOUND -> R.string.detail_science_not_found
+    ScientificDetailFailure.CONNECTION -> R.string.detail_science_connection_error
+    ScientificDetailFailure.SERVICE -> R.string.detail_science_service_error
+    ScientificDetailFailure.INVALID_RESPONSE -> R.string.detail_science_invalid_response
+    ScientificDetailFailure.RESPONSE_TOO_LARGE -> R.string.detail_science_too_large
 }
 
 @Composable

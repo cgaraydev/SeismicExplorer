@@ -304,4 +304,33 @@
     <string name="detail_review_status">Estado de la estimación</string>
     <string name="detail_reviewed">Revisado</string>
     <string name="detail_automatic">Automático</string>
+    <!-- INFORMACIÓN CIENTÍFICA 3.5.3 -->
+    <string name="detail_science_heading">Información científica</string>
+    <string name="detail_science_description">Consulta el inventario de productos científicos que USGS publica para este terremoto.</string>
+    <string name="detail_science_idle">La consulta es opcional y requiere conexión si no hay una copia guardada.</string>
+    <string name="detail_science_loading">Consultando información en USGS…</string>
+    <string name="detail_science_consult">Consultar productos científicos</string>
+    <string name="detail_science_refresh">Actualizar consulta</string>
+    <string name="detail_science_retry">Volver a intentar</string>
+    <string name="detail_science_from_network">Inventario recibido de USGS</string>
+    <string name="detail_science_from_cache">Inventario almacenado en el dispositivo</string>
+    <string name="detail_science_stale">Los datos almacenados o publicados pueden no reflejar la última revisión del evento.</string>
+    <string name="detail_science_product_count">%1$d productos activos de %2$d tipos</string>
+    <string name="detail_science_no_products">USGS no incluye productos científicos activos en este inventario.</string>
+    <string name="detail_science_disclaimer">Se muestran únicamente tipos de productos publicados. Sus mapas, mediciones y archivos aún no se descargan ni se interpretan en esta pantalla.</string>
+    <string name="detail_science_learn">¿Por qué cambian los datos de un terremoto?</string>
+    <string name="detail_science_invalid_event">Este identificador no permite consultar el detalle científico.</string>
+    <string name="detail_science_not_found">USGS no tiene disponible el detalle científico de este evento.</string>
+    <string name="detail_science_connection_error">No se pudo conectar con USGS. Comprueba tu conexión.</string>
+    <string name="detail_science_service_error">USGS no pudo responder en este momento.</string>
+    <string name="detail_science_invalid_response">La información recibida no pudo verificarse.</string>
+    <string name="detail_science_too_large">La respuesta supera el límite seguro para esta consulta.</string>
+    <string name="detail_science_shakemap">ShakeMap · movimiento estimado del suelo</string>
+    <string name="detail_science_dyfi">DYFI · reportes de personas que lo sintieron</string>
+    <string name="detail_science_pager">PAGER · estimaciones de impacto</string>
+    <string name="detail_science_moment_tensor">Tensor de momento · fuente sísmica</string>
+    <string name="detail_science_finite_fault">Ruptura de falla · modelo de deslizamiento</string>
+    <string name="detail_science_phase_data">Fases sísmicas · observaciones de estaciones</string>
+    <string name="detail_science_origin">Origen · estimaciones de localización</string>
+    <string name="detail_science_magnitude">Magnitud · estimaciones publicadas</string>
 </resources>

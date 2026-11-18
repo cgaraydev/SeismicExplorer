@@ -16,6 +16,9 @@ import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
 import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 import com.cgaraydev.seismicexplorer.domain.model.RefreshResult
 import com.cgaraydev.seismicexplorer.domain.repository.EarthquakeRepository
+import com.cgaraydev.seismicexplorer.domain.repository.ScientificDetailRepository
+import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailFailure
+import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailResult
 import dagger.hilt.android.testing.BindValue
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -40,6 +43,19 @@ class MainActivityTest {
     @BindValue
     @JvmField
     val repository: EarthquakeRepository = fakeRepository
+
+    // RepositoryModule se desinstala en este test Hilt: hay que ligar también
+    // el repositorio científico requerido por el ViewModel del detalle.
+    @BindValue
+    @JvmField
+    val scientificRepository: ScientificDetailRepository = object : ScientificDetailRepository {
+        override suspend fun getDetail(
+            eventId: String,
+            knownUpdatedAtEpochMillis: Long?,
+            forceRefresh: Boolean
+        ): ScientificDetailResult =
+            ScientificDetailResult.Failed(ScientificDetailFailure.EVENT_NOT_FOUND)
+    }
 
     @BindValue
     @JvmField

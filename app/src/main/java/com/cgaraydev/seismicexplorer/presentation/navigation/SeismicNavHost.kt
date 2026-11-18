@@ -106,6 +106,11 @@ fun SeismicNavHost() {
                         if (backStack.lastOrNull() == destination) {
                             backStack.add(LearnArticleDestination(LearnCatalog.EPICENTER_DEPTH))
                         }
+                    },
+                    onOpenRevisionLearn = {
+                        if (backStack.lastOrNull() == destination) {
+                            backStack.add(LearnArticleDestination(LearnCatalog.REVISIONS))
+                        }
                     }
                 )
             }

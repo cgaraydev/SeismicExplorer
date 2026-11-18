@@ -1,12 +1,16 @@
 package com.cgaraydev.seismicexplorer.presentation.detail
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
 import com.cgaraydev.seismicexplorer.domain.model.GeoCoordinates
+import com.cgaraydev.seismicexplorer.domain.model.ScientificDetail
+import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailFailure
+import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailSource
 import com.cgaraydev.seismicexplorer.ui.theme.SeismicExplorerTheme
 import java.time.Instant
 import org.junit.Assert.assertEquals
@@ -53,6 +57,73 @@ class EarthquakeDetailScreenTest {
         }
         composeRule.onNodeWithText("mww").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Revisado").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun scientificInventoryIsExplicitlyRequestedInDarkMode() {
+        var requests = 0
+        composeRule.setContent {
+            SeismicExplorerTheme(darkTheme = true) {
+                EarthquakeDetailScreen(
+                    state = EarthquakeDetailUiState.Content(sampleEarthquake()),
+                    onBack = {}, onOpenSource = {},
+                    onRequestScientificDetail = { requests++ }
+                )
+            }
+        }
+        composeRule.onNodeWithTag("detail_science_idle").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("detail_science_product_shakemap").assertDoesNotExist()
+        composeRule.runOnIdle { assertEquals(0, requests) }
+        composeRule.onNodeWithTag("detail_science_request").performScrollTo().performClick()
+        composeRule.runOnIdle { assertEquals(1, requests) }
+    }
+
+    @Test
+    fun scientificProductsShowCacheStalenessAndEducationalAccess() {
+        var learnRequested = 0
+        composeRule.setContent {
+            SeismicExplorerTheme(darkTheme = false) {
+                EarthquakeDetailScreen(
+                    state = EarthquakeDetailUiState.Content(sampleEarthquake()),
+                    onBack = {}, onOpenSource = {},
+                    scientificState = ScientificDetailUiState.Available(
+                        detail = ScientificDetail(
+                            eventId = "us123", sourceUpdatedAtEpochMillis = 1700000000000L,
+                            fetchedAtEpochMillis = 1700000010000L,
+                            availableProductTypes = listOf("shakemap", "dyfi"),
+                            availableProductCount = 3
+                        ),
+                        source = ScientificDetailSource.CACHE, isStale = true
+                    ),
+                    onOpenRevisionLearn = { learnRequested++ }
+                )
+            }
+        }
+        composeRule.onNodeWithTag("detail_science_status").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("detail_science_stale").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("detail_science_product_shakemap")
+            .performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("detail_science_product_dyfi")
+            .performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("detail_science_learn").performScrollTo().performClick()
+        composeRule.runOnIdle { assertEquals(1, learnRequested) }
+    }
+
+    @Test
+    fun scientificErrorsProvideRetryWithoutInventingProducts() {
+        composeRule.setContent {
+            SeismicExplorerTheme(darkTheme = true) {
+                EarthquakeDetailScreen(
+                    state = EarthquakeDetailUiState.Content(sampleEarthquake()),
+                    onBack = {}, onOpenSource = {},
+                    scientificState = ScientificDetailUiState.Error(
+                        ScientificDetailFailure.EVENT_NOT_FOUND
+                    )
+                )
+            }
+        }
+        composeRule.onNodeWithTag("detail_science_error").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("detail_science_product_shakemap").assertDoesNotExist()
     }
 
     @Test

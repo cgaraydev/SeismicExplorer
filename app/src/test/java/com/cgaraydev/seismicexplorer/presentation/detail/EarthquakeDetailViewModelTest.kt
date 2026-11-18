@@ -8,6 +8,11 @@ import com.cgaraydev.seismicexplorer.domain.model.GeoCoordinates
 import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 import com.cgaraydev.seismicexplorer.domain.model.RefreshResult
 import com.cgaraydev.seismicexplorer.domain.repository.EarthquakeRepository
+import com.cgaraydev.seismicexplorer.domain.repository.ScientificDetailRepository
+import com.cgaraydev.seismicexplorer.domain.model.ScientificDetail
+import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailFailure
+import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailResult
+import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailSource
 import com.cgaraydev.seismicexplorer.presentation.navigation.EarthquakeDetailDestination
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +31,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
@@ -36,12 +42,14 @@ class EarthquakeDetailViewModelTest {
     private val dispatcher = StandardTestDispatcher()
 
     private lateinit var repository: FakeRepository
+    private lateinit var scienceRepository: FakeScientificRepository
     private lateinit var viewModel: EarthquakeDetailViewModel
 
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
         repository = FakeRepository()
+        scienceRepository = FakeScientificRepository()
     }
 
     @After
@@ -122,9 +130,60 @@ class EarthquakeDetailViewModelTest {
         )
     }
 
+    @Test
+    fun scientificDetailIsNotRequestedJustByOpeningEarthquake() = runTest {
+        repository.earthquake.value = sampleEarthquake()
+        createViewModel("us123")
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.uiState.collect()
+        }
+        advanceUntilIdle()
+        assertEquals(ScientificDetailUiState.Idle, viewModel.scientificState.value)
+        assertTrue(scienceRepository.calls.isEmpty())
+    }
+
+    @Test
+    fun scientificRequestPassesEventRevisionAndRefreshesOnlyWhenPressedAgain() = runTest {
+        repository.earthquake.value = sampleEarthquake()
+        scienceRepository.result = ScientificDetailResult.Available(
+            detail = ScientificDetail("us123", 1_700_000_000_000L, 1_700_000_010_000L,
+                listOf("dyfi", "shakemap"), 3),
+            source = ScientificDetailSource.CACHE,
+            isStale = true
+        )
+        createViewModel("us123")
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.uiState.collect()
+        }
+        advanceUntilIdle()
+        viewModel.requestScientificDetail()
+        advanceUntilIdle()
+        assertEquals(1, scienceRepository.calls.size)
+        assertEquals(Triple("us123", sampleEarthquake().updatedAt.toEpochMilli(), false),
+            scienceRepository.calls.single())
+        val available = viewModel.scientificState.value as ScientificDetailUiState.Available
+        assertTrue(available.isStale)
+        assertEquals(listOf("dyfi", "shakemap"), available.detail.availableProductTypes)
+        viewModel.requestScientificDetail()
+        advanceUntilIdle()
+        assertEquals(2, scienceRepository.calls.size)
+        assertEquals(true, scienceRepository.calls.last().third)
+    }
+
+    @Test
+    fun scientificFailureIsAnExplicitViewState() = runTest {
+        scienceRepository.result = ScientificDetailResult.Failed(ScientificDetailFailure.EVENT_NOT_FOUND)
+        createViewModel("us123")
+        viewModel.requestScientificDetail()
+        advanceUntilIdle()
+        assertEquals(ScientificDetailUiState.Error(ScientificDetailFailure.EVENT_NOT_FOUND),
+            viewModel.scientificState.value)
+    }
+
     private fun createViewModel(id: String) {
         viewModel = EarthquakeDetailViewModel(
             repository = repository,
+            scientificRepository = scienceRepository,
             destination = EarthquakeDetailDestination(
                 earthquakeId = id
             )
@@ -144,6 +203,20 @@ class EarthquakeDetailViewModelTest {
         updatedAt = Instant.parse("2026-11-14T10:30:00Z"),
         detailUrl = null
     )
+
+    private class FakeScientificRepository : ScientificDetailRepository {
+        val calls = mutableListOf<Triple<String, Long?, Boolean>>()
+        var result: ScientificDetailResult =
+            ScientificDetailResult.Failed(ScientificDetailFailure.CONNECTION)
+        override suspend fun getDetail(
+            eventId: String,
+            knownUpdatedAtEpochMillis: Long?,
+            forceRefresh: Boolean
+        ): ScientificDetailResult {
+            calls += Triple(eventId, knownUpdatedAtEpochMillis, forceRefresh)
+            return result
+        }
+    }
 
     private class FakeRepository : EarthquakeRepository {
 
