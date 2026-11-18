@@ -196,7 +196,7 @@
 <string name="learn_topic_waves_hint">Cómo se propagan</string>
 <string name="learn_coming_soon">Próximamente</string>
 <string name="learn_featured_title">Explora la magnitud</string>
-<string name="learn_featured_description">Comprende por qué magnitud e intensidad son diferentes</string>
+<string name="learn_featured_description">Compara dos magnitudes y descubre su relación energética aproximada</string>
 <string name="learn_faq_heading">Una pregunta frecuente</string>
 <string name="learn_faq_richter">¿Todos se miden en Richter?</string>
 <string name="learn_article_title">Comprender un sismo</string>
@@ -254,4 +254,25 @@
 <string name="learn_depth_sheet_heading">¿Dónde comienza un terremoto?</string>
 <string name="learn_depth_sheet_body">La profundidad indica dónde se ubica el hipocentro respecto de una superficie de referencia. El epicentro es su proyección en la superficie. Este valor no determina por sí solo cuánto se sentirá el sismo.</string>
 <string name="learn_depth_sheet_read_article">Comprender la profundidad</string>
+    <!-- APRENDER 3.4.3: LABORATORIO DE MAGNITUDES -->
+    <string name="learn_lab_back">Volver a Aprender</string>
+    <string name="learn_lab_eyebrow">MODELO DIDÁCTICO</string>
+    <string name="learn_lab_title">Explora la magnitud</string>
+    <string name="learn_lab_magnitude_a">Magnitud A</string>
+    <string name="learn_lab_magnitude_b">Magnitud B</string>
+    <string name="learn_lab_energy_factor">≈%1$s×</string>
+    <string name="learn_lab_approximate_label">Relación aproximada de energía</string>
+    <string name="learn_lab_a_greater">La magnitud A es mayor: su energía estimada es superior a la de B.</string>
+    <string name="learn_lab_b_greater">La magnitud B es mayor: su energía estimada es superior a la de A.</string>
+    <string name="learn_lab_equal">Ambas magnitudes son iguales en este ejemplo.</string>
+    <string name="learn_lab_caveat">Compara valores ficticios mediante un modelo aproximado. No predice intensidad, efectos locales ni daños; no representa mediciones de eventos reales.</string>
+    <string name="learn_lab_how_calculated">Cómo se calcula</string>
+    <string name="learn_lab_formula_title">Relación entre magnitud y energía</string>
+    <string name="learn_lab_formula_description">El modelo compara la energía estimada correspondiente a dos valores de magnitud. Una unidad de diferencia equivale a unas 32 veces más energía; dos unidades, a unas 1.000 veces.</string>
+    <string name="learn_lab_formula_equation">Factor ≈ 10^(1,5 × |MB − MA|)</string>
+    <string name="learn_lab_formula_disclaimer">Es una relación empírica educativa utilizada por USGS. No es una medición directa de energía ni una estimación de daños. Las magnitudes reales emplean diferentes métodos.</string>
+    <string name="learn_lab_official_source">Ver fuente USGS</string>
+    <string name="learn_lab_related">Comprender los datos</string>
+    <string name="learn_lab_related_magnitude">Magnitud e intensidad</string>
+    <string name="learn_lab_related_depth">Epicentro y profundidad</string>
 </resources>

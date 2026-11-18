@@ -41,6 +41,7 @@ import com.cgaraydev.seismicexplorer.presentation.home.SeismicCatalogScreen
 import com.cgaraydev.seismicexplorer.presentation.learn.LearnArticleScreen
 import com.cgaraydev.seismicexplorer.presentation.learn.LearnCatalog
 import com.cgaraydev.seismicexplorer.presentation.learn.LearnHomeScreen
+import com.cgaraydev.seismicexplorer.presentation.learn.LearnMagnitudeLabScreen
 import com.cgaraydev.seismicexplorer.presentation.map.SeismicMapRoute
 
 private enum class ObservatoryTab(val labelRes: Int, val drawableRes: Int, val testTag: String) {
@@ -127,11 +128,17 @@ private fun ObservatoryTabs(
 ) {
     var currentTab by rememberSaveable { mutableStateOf(ObservatoryTab.SUMMARY) }
     var selectedLearnArticle by rememberSaveable { mutableStateOf<String?>(null) }
+    var showMagnitudeLab by rememberSaveable { mutableStateOf(false) }
+    var returnToLabFromArticle by rememberSaveable { mutableStateOf(false) }
     val tabStates = rememberSaveableStateHolder()
 
     BackHandler(enabled = currentTab != ObservatoryTab.SUMMARY) {
         if (currentTab == ObservatoryTab.LEARN && selectedLearnArticle != null) {
             selectedLearnArticle = null
+            if (returnToLabFromArticle) showMagnitudeLab = true
+            returnToLabFromArticle = false
+        } else if (currentTab == ObservatoryTab.LEARN && showMagnitudeLab) {
+            showMagnitudeLab = false
         } else {
             currentTab = ObservatoryTab.SUMMARY
         }
@@ -202,14 +209,35 @@ private fun ObservatoryTabs(
                 }
                 ObservatoryTab.LEARN -> tabStates.SaveableStateProvider("learn") {
                     val articleId = selectedLearnArticle
-                    if (articleId == null) {
-                        LearnHomeScreen(onOpenArticle = { selectedLearnArticle = it })
-                    } else {
+                    if (articleId != null) {
                         val uriHandler = LocalUriHandler.current
                         LearnArticleScreen(
                             articleId = articleId,
-                            onBack = { selectedLearnArticle = null },
+                            onBack = {
+                                selectedLearnArticle = null
+                                if (returnToLabFromArticle) showMagnitudeLab = true
+                                returnToLabFromArticle = false
+                            },
                             onOpenSource = uriHandler::openUri
+                        )
+                    } else if (showMagnitudeLab) {
+                        val uriHandler = LocalUriHandler.current
+                        LearnMagnitudeLabScreen(
+                            onBack = { showMagnitudeLab = false },
+                            onOpenArticle = {
+                                selectedLearnArticle = it
+                                returnToLabFromArticle = true
+                                showMagnitudeLab = false
+                            },
+                            onOpenSource = uriHandler::openUri
+                        )
+                    } else {
+                        LearnHomeScreen(
+                            onOpenArticle = {
+                                selectedLearnArticle = it
+                                returnToLabFromArticle = false
+                            },
+                            onOpenLaboratory = { showMagnitudeLab = true }
                         )
                     }
                 }

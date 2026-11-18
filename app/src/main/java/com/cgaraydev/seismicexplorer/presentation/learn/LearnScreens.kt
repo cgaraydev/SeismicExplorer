@@ -55,7 +55,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun LearnHomeScreen(
     onOpenArticle: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenLaboratory: () -> Unit = {}
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     val resources = LocalResources.current
@@ -122,7 +123,7 @@ fun LearnHomeScreen(
         }
         item(key = "featured") {
             Card(
-                onClick = { onOpenArticle(LearnCatalog.MAGNITUDE_INTENSITY) },
+                onClick = onOpenLaboratory,
                 modifier = Modifier.fillMaxWidth().testTag("learn_featured"),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = cardColor),
@@ -235,7 +236,8 @@ fun LearnArticleScreen(
     if (article == null) {
         Column(modifier.fillMaxSize().statusBarsPadding().padding(20.dp)) {
             TextButton(onClick = onBack) { Text(stringResource(R.string.detail_back)) }
-            Text(stringResource(R.string.learn_unavailable))
+            Text(stringResource(R.string.learn_unavailable),
+                color = MaterialTheme.colorScheme.onBackground)
         }
         return
     }
@@ -263,10 +265,12 @@ fun LearnArticleScreen(
                     }
                     Spacer(Modifier.weight(1f))
                     Text(stringResource(R.string.learn_title),
-                        style = MaterialTheme.typography.titleMedium)
+                        style = MaterialTheme.typography.titleMedium,
+                        color = colors.onBackground)
                 }
                 Text(stringResource(article.titleRes),
                     style = MaterialTheme.typography.headlineLarge,
+                    color = colors.onBackground,
                     fontWeight = FontWeight.Bold)
                 Text(stringResource(article.subtitleRes),
                     style = MaterialTheme.typography.bodyLarge,
@@ -286,6 +290,7 @@ fun LearnArticleScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = highlightedSurface,
+                contentColor = colors.onSurface,
                 shape = RoundedCornerShape(14.dp),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
@@ -294,10 +299,11 @@ fun LearnArticleScreen(
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.secondary)
                     Text(stringResource(article.takeawayBodyRes),
-                        style = MaterialTheme.typography.bodyMedium)
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.onSurface)
                     TextButton(onClick = { scope.launch { state.animateScrollToItem(4) } },
                         modifier = Modifier.testTag("learn_explore_difference")) {
-                        Text(stringResource(R.string.learn_explore_more))
+                        Text(stringResource(R.string.learn_explore_more), color = colors.secondary)
                     }
                 }
             }
@@ -305,7 +311,8 @@ fun LearnArticleScreen(
         item(key = "related") {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(stringResource(R.string.learn_related_heading),
-                    style = MaterialTheme.typography.titleLarge)
+                    style = MaterialTheme.typography.titleLarge,
+                    color = colors.onBackground)
                 sections.drop(1).forEachIndexed { index, section ->
                     TextButton(
                         onClick = { scope.launch { state.animateScrollToItem(5 + index) } },
@@ -314,7 +321,8 @@ fun LearnArticleScreen(
                     ) {
                         Text(section.number, color = MaterialTheme.colorScheme.secondary)
                         Text(stringResource(section.titleRes),
-                            modifier = Modifier.weight(1f).padding(start = 12.dp))
+                            modifier = Modifier.weight(1f).padding(start = 12.dp),
+                            color = colors.onBackground)
                         Icon(painterResource(R.drawable.ic_observatory_arrow_right),
                             contentDescription = null, modifier = Modifier.size(18.dp))
                     }
@@ -335,14 +343,16 @@ fun LearnArticleScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Text(stringResource(R.string.learn_sources_heading),
-                    style = MaterialTheme.typography.titleLarge)
+                    style = MaterialTheme.typography.titleLarge,
+                    color = colors.onBackground)
                 Text(stringResource(R.string.learn_sources_note),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 article.sources.forEachIndexed { index, source ->
                     TextButton(onClick = { onOpenSource(source.url) },
                         modifier = Modifier.fillMaxWidth().testTag("learn_source_$index")) {
-                        Text(stringResource(source.labelRes), Modifier.weight(1f))
+                        Text(stringResource(source.labelRes), Modifier.weight(1f),
+                            color = colors.onBackground)
                         Icon(painterResource(R.drawable.ic_observatory_arrow_right),
                             contentDescription = null, modifier = Modifier.size(18.dp))
                     }
@@ -357,6 +367,7 @@ fun LearnArticleScreen(
 
 @Composable
 private fun LearnChapter(section: LearnSection, modifier: Modifier = Modifier) {
+    val textColor = MaterialTheme.colorScheme.onBackground
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -371,10 +382,12 @@ private fun LearnChapter(section: LearnSection, modifier: Modifier = Modifier) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(stringResource(section.titleRes),
                     style = MaterialTheme.typography.titleLarge,
+                    color = textColor,
                     fontWeight = FontWeight.Bold)
             }
         }
-        Text(stringResource(section.bodyRes), style = MaterialTheme.typography.bodyLarge)
+        Text(stringResource(section.bodyRes), style = MaterialTheme.typography.bodyLarge,
+            color = textColor)
     }
 }
 
@@ -389,12 +402,14 @@ private fun LearnDepthDiagram() {
     Surface(
         modifier = Modifier.fillMaxWidth().testTag("learn_depth_diagram"),
         color = surfaceColor,
+        contentColor = colors.onSurface,
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, colors.outlineVariant)
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(stringResource(R.string.learn_depth_diagram_heading),
-                style = MaterialTheme.typography.titleMedium)
+                style = MaterialTheme.typography.titleMedium,
+                color = colors.onSurface)
             Canvas(Modifier.fillMaxWidth().height(154.dp)
                 .clearAndSetSemantics { contentDescription = description }) {
                 val surfaceY = size.height * .20f
@@ -436,7 +451,9 @@ private fun LearnConceptDiagram() {
     val surface = MaterialTheme.colorScheme.surfaceContainerLow
     val description = stringResource(R.string.learn_diagram_accessibility)
     Surface(modifier = Modifier.fillMaxWidth().testTag("learn_diagram"),
-        color = surface, shape = RoundedCornerShape(16.dp)) {
+        color = surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = RoundedCornerShape(16.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Canvas(Modifier.fillMaxWidth().height(132.dp)
                 .clearAndSetSemantics { contentDescription = description }) {
@@ -453,9 +470,11 @@ private fun LearnConceptDiagram() {
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(stringResource(R.string.learn_diagram_source),
-                    style = MaterialTheme.typography.labelMedium)
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface)
                 Text(stringResource(R.string.learn_diagram_places),
-                    style = MaterialTheme.typography.labelMedium)
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface)
             }
             Text(stringResource(R.string.learn_diagram_caveat),
                 style = MaterialTheme.typography.bodySmall,

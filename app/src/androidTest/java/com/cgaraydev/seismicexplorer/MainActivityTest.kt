@@ -173,6 +173,26 @@ class MainActivityTest {
             .assertTextContains("24 h", substring = true)
     }
 
+    @Test
+    fun learningLaboratoryOpensRelatedArticleAndReturnsToLaboratory() {
+        composeRule.onNodeWithTag("tab_learn").performClick()
+        composeRule.onNodeWithTag("learn_home")
+            .performScrollToNode(hasTestTag("learn_featured"))
+        composeRule.onNodeWithTag("learn_featured").performClick()
+        composeRule.onNodeWithTag("learn_lab").assertIsDisplayed()
+        composeRule.onNodeWithTag("learn_lab")
+            .performScrollToNode(hasTestTag("learn_lab_open_magnitude"))
+        composeRule.onNodeWithTag("learn_lab_open_magnitude").performClick()
+        composeRule.onNodeWithTag("learn_article").assertIsDisplayed()
+        composeRule.onNodeWithTag("learn_back").performClick()
+        composeRule.onNodeWithTag("learn_lab").assertIsDisplayed()
+        composeRule.onNodeWithTag("learn_lab_back").performClick()
+        composeRule.onNodeWithTag("learn_home").assertIsDisplayed()
+        composeRule.onNodeWithTag("tab_summary").performClick()
+        composeRule.onNodeWithTag("observatory_window")
+            .assertTextContains("24 h", substring = true)
+    }
+
     private class FakeEarthquakeRepository :
         EarthquakeRepository {
 

@@ -47,6 +47,27 @@ class LearnScreensTest {
     }
 
     @Test
+    fun featuredCardOpensLaboratoryWithoutOpeningAnArticle() {
+        var openedArticle: String? = null
+        var openedLab = false
+        rule.setContent {
+            SeismicExplorerTheme(darkTheme = true) {
+                LearnHomeScreen(
+                    onOpenArticle = { openedArticle = it },
+                    onOpenLaboratory = { openedLab = true }
+                )
+            }
+        }
+        rule.onNodeWithTag("learn_home")
+            .performScrollToNode(hasTestTag("learn_featured"))
+        rule.onNodeWithTag("learn_featured").performClick()
+        rule.runOnIdle {
+            assertEquals(true, openedLab)
+            assertEquals(null, openedArticle)
+        }
+    }
+
+    @Test
     fun articleShowsScientificContentOfflineInDarkMode() {
         articleTheme(dark = true)
         rule.onNodeWithTag("learn_article").assertExists()
