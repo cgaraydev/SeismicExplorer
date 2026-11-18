@@ -193,6 +193,21 @@ class MainActivityTest {
             .assertTextContains("24 h", substring = true)
     }
 
+    @Test
+    fun learningRevisionFaqOpensArticleAndReturnsToAtlas() {
+        composeRule.onNodeWithTag("tab_learn").performClick()
+        composeRule.onNodeWithTag("learn_home")
+            .performScrollToNode(hasTestTag("learn_faq_revisions"))
+        composeRule.onNodeWithTag("learn_faq_revisions").performClick()
+        composeRule.onNodeWithTag("learn_article").assertIsDisplayed()
+        composeRule.onNodeWithText("¿Por qué cambian los datos de un terremoto?").assertIsDisplayed()
+        composeRule.onNodeWithTag("learn_back").performClick()
+        composeRule.onNodeWithTag("learn_home").assertIsDisplayed()
+        composeRule.onNodeWithTag("tab_summary").performClick()
+        composeRule.onNodeWithTag("observatory_window")
+            .assertTextContains("24 h", substring = true)
+    }
+
     private class FakeEarthquakeRepository :
         EarthquakeRepository {
 

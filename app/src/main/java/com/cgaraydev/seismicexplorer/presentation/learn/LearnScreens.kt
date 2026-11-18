@@ -161,6 +161,22 @@ fun LearnHomeScreen(
                             contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
                     }
                 }
+                Card(
+                    onClick = { onOpenArticle(LearnCatalog.REVISIONS) },
+                    modifier = Modifier.fillMaxWidth().testTag("learn_faq_revisions"),
+                    colors = CardDefaults.cardColors(containerColor = cardColor),
+                    border = cardBorder
+                ) {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.learn_faq_revisions),
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = colors.onSurface)
+                        Icon(painterResource(R.drawable.ic_observatory_arrow_right),
+                            contentDescription = null,
+                            tint = colors.secondary)
+                    }
+                }
             }
         }
     }
@@ -284,6 +300,7 @@ fun LearnArticleScreen(
             when (article.diagram) {
                 LearnDiagram.INTENSITY_LOCATIONS -> LearnConceptDiagram()
                 LearnDiagram.FOCUS_CROSS_SECTION -> LearnDepthDiagram()
+                LearnDiagram.REVISION_TIMELINE -> LearnRevisionDiagram()
             }
         }
         item(key = "takeaway") {

@@ -24,6 +24,17 @@ class LearnCatalogTest {
     }
 
     @Test
+    fun revisionsArticleHasOwnSectionsDiagramAndSources() {
+        val article = LearnCatalog.articleOrNull(LearnCatalog.REVISIONS)
+        assertNotNull(article)
+        assertEquals(4, article!!.sections.size)
+        assertEquals(LearnDiagram.REVISION_TIMELINE, article.diagram)
+        assertEquals(3, article.sources.size)
+        assertNotEquals(LearnCatalog.EPICENTER_DEPTH, article.id)
+        assertTrue(LearnCatalog.contains(LearnCatalog.REVISIONS))
+    }
+
+    @Test
     fun unpublishedAndUnknownArticlesCannotBeOpened() {
         assertNull(LearnCatalog.articleOrNull("ondas"))
         assertFalse(LearnCatalog.contains("ondas"))
@@ -34,7 +45,8 @@ class LearnCatalogTest {
     fun sourcesUseOfficialHttpsPagesOnly() {
         val catalog = listOfNotNull(
             LearnCatalog.articleOrNull(LearnCatalog.MAGNITUDE_INTENSITY),
-            LearnCatalog.articleOrNull(LearnCatalog.EPICENTER_DEPTH)
+            LearnCatalog.articleOrNull(LearnCatalog.EPICENTER_DEPTH),
+            LearnCatalog.articleOrNull(LearnCatalog.REVISIONS)
         )
         assertTrue(catalog.all { article ->
             article.sources.isNotEmpty() && article.sources.all { source ->

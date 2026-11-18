@@ -68,6 +68,38 @@ class LearnScreensTest {
     }
 
     @Test
+    fun atlasFaqOpensRevisionArticle() {
+        var opened: String? = null
+        rule.setContent {
+            SeismicExplorerTheme(darkTheme = true) {
+                LearnHomeScreen(onOpenArticle = { opened = it })
+            }
+        }
+        rule.onNodeWithTag("learn_home")
+            .performScrollToNode(hasTestTag("learn_faq_revisions"))
+        rule.onNodeWithTag("learn_faq_revisions").performClick()
+        rule.runOnIdle { assertEquals(LearnCatalog.REVISIONS, opened) }
+    }
+
+    @Test
+    fun revisionArticleHasAccessibleDiagramAndSourcesInDarkMode() {
+        articleTheme(dark = true, articleId = LearnCatalog.REVISIONS)
+        rule.onNodeWithText("La primera estimación").assertExists()
+        rule.onNodeWithTag("learn_article")
+            .performScrollToNode(hasTestTag("learn_revision_diagram"))
+        rule.onNodeWithTag("learn_revision_diagram").assertExists()
+        rule.onNodeWithTag("learn_article")
+            .performScrollToNode(hasTestTag("learn_sources"))
+        rule.onNodeWithTag("learn_sources").assertExists()
+    }
+
+    @Test
+    fun revisionArticleRendersInLightMode() {
+        articleTheme(dark = false, articleId = LearnCatalog.REVISIONS)
+        rule.onNodeWithText("La primera estimación").assertExists()
+    }
+
+    @Test
     fun articleShowsScientificContentOfflineInDarkMode() {
         articleTheme(dark = true)
         rule.onNodeWithTag("learn_article").assertExists()

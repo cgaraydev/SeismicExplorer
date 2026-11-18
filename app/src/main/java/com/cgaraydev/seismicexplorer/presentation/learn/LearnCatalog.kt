@@ -8,6 +8,7 @@ import com.cgaraydev.seismicexplorer.R
 object LearnCatalog {
     const val MAGNITUDE_INTENSITY = "magnitud-intensidad"
     const val EPICENTER_DEPTH = "epicentro-profundidad"
+    const val REVISIONS = "revisiones-sismicas"
 
     fun contains(articleId: String): Boolean = articleOrNull(articleId) != null
 
@@ -38,6 +39,13 @@ object LearnCatalog {
         LearnSection("04", R.string.learn_depth_section_four, R.string.learn_depth_section_four_body)
     )
 
+    val revisionSections: List<LearnSection> = listOf(
+        LearnSection("01", R.string.learn_revision_section_one, R.string.learn_revision_section_one_body),
+        LearnSection("02", R.string.learn_revision_section_two, R.string.learn_revision_section_two_body),
+        LearnSection("03", R.string.learn_revision_section_three, R.string.learn_revision_section_three_body),
+        LearnSection("04", R.string.learn_revision_section_four, R.string.learn_revision_section_four_body)
+    )
+
     val sources: List<LearnSource> = listOf(
         LearnSource(R.string.learn_source_usgs_magnitude,
             "https://www.usgs.gov/faqs/what-difference-between-earthquake-magnitude-and-earthquake-intensity-what-modified-mercalli"),
@@ -58,6 +66,15 @@ object LearnCatalog {
             "https://www.usgs.gov/faqs/what-does-it-mean-earthquake-occurred-a-depth-0-km-how-can-earthquake-have-a-negative-depth")
     )
 
+    val revisionSources: List<LearnSource> = listOf(
+        LearnSource(R.string.learn_revision_source_updates,
+            "https://www.usgs.gov/faqs/whywhen-does-usgs-update-magnitude-earthquake"),
+        LearnSource(R.string.learn_revision_source_agencies,
+            "https://www.usgs.gov/faqs/why-do-usgs-earthquake-magnitudes-differ-those-published-other-agencies"),
+        LearnSource(R.string.learn_revision_source_removed,
+            "https://www.usgs.gov/faqs/why-do-some-earthquakes-disappear-maplist")
+    )
+
     private val articles: Map<String, LearnArticle> = listOf(
         LearnArticle(
             id = MAGNITUDE_INTENSITY,
@@ -76,11 +93,20 @@ object LearnCatalog {
             sources = depthSources,
             diagram = LearnDiagram.FOCUS_CROSS_SECTION,
             takeawayBodyRes = R.string.learn_depth_takeaway_body
+        ),
+        LearnArticle(
+            id = REVISIONS,
+            titleRes = R.string.learn_revision_article_title,
+            subtitleRes = R.string.learn_revision_article_subtitle,
+            sections = revisionSections,
+            sources = revisionSources,
+            diagram = LearnDiagram.REVISION_TIMELINE,
+            takeawayBodyRes = R.string.learn_revision_takeaway_body
         )
     ).associateBy { it.id }
 }
 
-enum class LearnDiagram { INTENSITY_LOCATIONS, FOCUS_CROSS_SECTION }
+enum class LearnDiagram { INTENSITY_LOCATIONS, FOCUS_CROSS_SECTION, REVISION_TIMELINE }
 
 data class LearnArticle(
     val id: String,

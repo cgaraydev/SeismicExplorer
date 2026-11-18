@@ -197,7 +197,7 @@
 <string name="learn_coming_soon">Próximamente</string>
 <string name="learn_featured_title">Explora la magnitud</string>
 <string name="learn_featured_description">Compara dos magnitudes y descubre su relación energética aproximada</string>
-<string name="learn_faq_heading">Una pregunta frecuente</string>
+<string name="learn_faq_heading">Preguntas frecuentes</string>
 <string name="learn_faq_richter">¿Todos se miden en Richter?</string>
 <string name="learn_article_title">Comprender un sismo</string>
 <string name="learn_article_subtitle">Una idea, paso a paso</string>
@@ -275,4 +275,27 @@
     <string name="learn_lab_related">Comprender los datos</string>
     <string name="learn_lab_related_magnitude">Magnitud e intensidad</string>
     <string name="learn_lab_related_depth">Epicentro y profundidad</string>
+
+    <!-- APRENDER 3.4.4: ESTIMACIONES Y REVISIONES DE DATOS -->
+    <string name="learn_faq_revisions">¿Por qué cambia la magnitud publicada?</string>
+    <string name="learn_revision_article_title">¿Por qué cambian los datos de un terremoto?</string>
+    <string name="learn_revision_article_subtitle">De la primera estimación a una revisión científica</string>
+    <string name="learn_revision_section_one">La primera estimación</string>
+    <string name="learn_revision_section_one_body">Después de detectar un sismo, las redes sísmicas pueden publicar una estimación inicial de su magnitud y ubicación. Se calcula con la información disponible en ese momento. No debe interpretarse como un valor exacto e inmutable.</string>
+    <string name="learn_revision_section_two">Llegan nuevos registros</string>
+    <string name="learn_revision_section_two_body">Las ondas sísmicas tardan distintos tiempos en llegar a las estaciones. Además, algunos registros se transmiten con retraso. Incorporar más observaciones permite revisar la ubicación, la profundidad y la magnitud estimadas.</string>
+    <string name="learn_revision_section_three">Métodos y revisión</string>
+    <string name="learn_revision_section_three_body">Los sistemas automáticos y los especialistas analizan las señales mediante distintos procedimientos. Una nueva estimación puede ser mayor o menor que la anterior. Dos agencias también pueden publicar magnitudes distintas por sus métodos, cobertura e incertidumbre.</string>
+    <string name="learn_revision_section_four">¿Cambió el terremoto?</string>
+    <string name="learn_revision_section_four_body">Que un valor publicado se actualice no significa que el terremoto vuelva a ocurrir o haya aumentado de tamaño después de terminar. Se revisa nuestro conocimiento del evento. Algunos registros preliminares pueden corregirse, fusionarse o retirarse cuando se detectan errores.</string>
+    <string name="learn_revision_takeaway_body">Una cifra actualizada no es otro terremoto ni una predicción de sus efectos. Consulta la fuente oficial y la fecha de actualización para conocer la estimación publicada más reciente.</string>
+    <string name="learn_revision_diagram_heading">Cómo evoluciona una estimación</string>
+    <string name="learn_revision_diagram_initial">Estimación inicial</string>
+    <string name="learn_revision_diagram_data">Más registros</string>
+    <string name="learn_revision_diagram_review">Nueva estimación</string>
+    <string name="learn_revision_diagram_accessibility">Esquema conceptual con tres etapas conectadas: estimación inicial, incorporación de más registros y nueva estimación. No representa un evento real ni períodos de tiempo fijos.</string>
+    <string name="learn_revision_diagram_caveat">Proceso ilustrativo: no todos los eventos siguen las mismas etapas ni toda actualización implica revisión humana.</string>
+    <string name="learn_revision_source_updates">USGS · Por qué cambian las magnitudes</string>
+    <string name="learn_revision_source_agencies">USGS · Diferencias entre agencias</string>
+    <string name="learn_revision_source_removed">USGS · Correcciones y eventos retirados</string>
 </resources>
