@@ -157,6 +157,10 @@
     <string name="observatory_magnitudes">Magnitudes</string>
     <string name="observatory_events_per_hour">Eventos por hora</string>
     <string name="observatory_events_per_day">Eventos por día</string>
+    <string name="observatory_chart_vertical_range">Escala: de 0 a %1$d eventos por intervalo</string>
+    <string name="observatory_chart_reference">Fin del período (hora local): %1$s</string>
+    <string name="observatory_chart_day_bins_note">Cada barra representa 24 horas consecutivas, no un día calendario.</string>
+    <string name="observatory_statistics_note">Los recuentos M 2,5+ y M 4,5+ se solapan: los eventos M 4,5+ también están incluidos en M 2,5+. Las profundidades media y máxima solo incluyen valores conocidos y no negativos.</string>
     <string name="observatory_chart_accessibility">Distribución de %1$d eventos en el período seleccionado</string>
     <string name="observatory_no_events">Sin eventos disponibles para representar en este período.</string>
     <string name="observatory_open_map">Mapa</string>

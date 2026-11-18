@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -57,7 +59,9 @@ import com.cgaraydev.seismicexplorer.R
 import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 import com.cgaraydev.seismicexplorer.presentation.common.AtlasWaveformIcon
 import com.cgaraydev.seismicexplorer.presentation.common.FeedCacheStatusText
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
@@ -216,7 +220,7 @@ fun ObservatoryDashboard(
         }
         if (showStatistics) {
             item(key = "histogram") {
-                ObservatoryHourlyChart(statistics, snapshot!!.timeWindow)
+                ObservatoryHourlyChart(statistics, snapshot!!.timeWindow, snapshot.endAt)
             }
             item(key = "extra_metrics") {
                 ObservatorySecondaryMetrics(statistics)
@@ -263,7 +267,7 @@ private fun ObservatoryPeriodSelector(
         TimeWindow.LAST_WEEK -> R.string.observatory_window_week
         TimeWindow.LAST_MONTH -> R.string.observatory_window_month
     }
-    Box {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         Surface(
             modifier = Modifier.fillMaxWidth()
                 .clip(RoundedCornerShape(14.dp))
@@ -297,7 +301,11 @@ private fun ObservatoryPeriodSelector(
                 )
             }
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.width(maxWidth).testTag("observatory_period_menu")
+        ) {
             TimeWindow.entries.forEach { window ->
                 val resource = when (window) {
                     TimeWindow.LAST_DAY -> R.string.home_period_day
@@ -305,11 +313,28 @@ private fun ObservatoryPeriodSelector(
                     TimeWindow.LAST_MONTH -> R.string.home_period_month
                 }
                 DropdownMenuItem(
-                    text = { Text(stringResource(resource)) },
+                    text = {
+                        Text(
+                            text = stringResource(resource),
+                            fontWeight = if (window == selected) FontWeight.Bold else FontWeight.Normal
+                        )
+                    },
+                    trailingIcon = {
+                        if (window == selected) {
+                            Text(
+                                text = "✓",
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.testTag("observatory_period_selected")
+                            )
+                        }
+                    },
                     onClick = {
                         expanded = false
                         onSelect(window)
-                    }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                        .testTag("observatory_period_option_${window.name}")
                 )
             }
         }
@@ -449,11 +474,21 @@ private fun ObservatoryMetricPanel(
 @Composable
 private fun ObservatoryHourlyChart(
     statistics: ObservatoryStatistics,
-    selectedWindow: TimeWindow
+    selectedWindow: TimeWindow,
+    endAt: Instant
 ) {
     val colors = MaterialTheme.colorScheme
     val histogram = statistics.bucketCounts
-    val largest = histogram.maxOrNull()?.coerceAtLeast(1) ?: 1
+    val observedMaximum = histogram.maxOrNull() ?: 0
+    // The denominator must be nonzero even if there are no events.
+    val largest = observedMaximum.coerceAtLeast(1)
+    val locale = LocalConfiguration.current.locales[0]
+    val referenceText = remember(endAt, locale) {
+        DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
+            .withLocale(locale)
+            .withZone(ZoneId.systemDefault())
+            .format(endAt)
+    }
     val description = stringResource(R.string.observatory_chart_accessibility, histogram.sum())
     Surface(
         modifier = Modifier.fillMaxWidth().testTag("observatory_chart"),
@@ -468,6 +503,12 @@ private fun ObservatoryHourlyChart(
                 ),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = stringResource(R.string.observatory_chart_vertical_range, observedMaximum),
+                modifier = Modifier.testTag("observatory_chart_scale"),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant
             )
             Canvas(
                 modifier = Modifier.fillMaxWidth().height(138.dp)
@@ -498,13 +539,26 @@ private fun ObservatoryHourlyChart(
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 val labels = when (selectedWindow) {
-                    TimeWindow.LAST_DAY -> listOf("-24 h", "-18 h", "-12 h", "-6 h", "Ahora")
-                    TimeWindow.LAST_WEEK -> listOf("-7 d", "-5 d", "-3 d", "-1 d", "Hoy")
-                    TimeWindow.LAST_MONTH -> listOf("-30 d", "-23 d", "-15 d", "-7 d", "Hoy")
+                    TimeWindow.LAST_DAY -> listOf("-24 h", "-18 h", "-12 h", "-6 h", "Fin")
+                    TimeWindow.LAST_WEEK -> listOf("-7 d", "-5 d", "-3 d", "-1 d", "Fin")
+                    TimeWindow.LAST_MONTH -> listOf("-30 d", "-23 d", "-15 d", "-7 d", "Fin")
                 }
                 labels.forEach {
                     Text(it, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
                 }
+            }
+            Text(
+                text = stringResource(R.string.observatory_chart_reference, referenceText),
+                modifier = Modifier.testTag("observatory_chart_reference"),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant
+            )
+            if (!statistics.hourly) {
+                Text(
+                    text = stringResource(R.string.observatory_chart_day_bins_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant
+                )
             }
             if (statistics.eventCount == 0) {
                 Text(
@@ -557,6 +611,12 @@ private fun ObservatorySecondaryMetrics(statistics: ObservatoryStatistics) {
                 label = stringResource(R.string.observatory_max_depth)
             )
         }
+        Text(
+            text = stringResource(R.string.observatory_statistics_note),
+            modifier = Modifier.testTag("observatory_statistics_note"),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

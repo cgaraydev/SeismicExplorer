@@ -122,7 +122,8 @@ seccion aprendizaje/wiki
 cambiar a espanol la informacion recibida de usgs
 debe haber un ajusta para seleccionar modo lght o dark o simplemente seleccionar la eleccion de modo del sistema
 filtro de screen resumen, el principal de arriba q selecciona tiempo, cuando se expande, las opciones se ven mal porque quedan en el start, el espacio q ocupan tiene q ser del mismo tamano q la tarjeta q se expande
-
+en el detalle, en la parte q dice fecha y hora local, se puede incluir tambien la hora UTC
+el identificador usgs puede llevar un icono para copiarlo al portapaleles en caso de q este identificador sirva para algo
 
 
 
