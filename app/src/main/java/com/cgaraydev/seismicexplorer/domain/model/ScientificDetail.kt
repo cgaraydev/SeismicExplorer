@@ -6,7 +6,9 @@ data class ScientificDetail(
     val sourceUpdatedAtEpochMillis: Long,
     val fetchedAtEpochMillis: Long,
     val availableProductTypes: List<String>,
-    val availableProductCount: Int
+    val availableProductCount: Int,
+    // Descriptor opcional: solo referencia archivos publicados, no los descarga.
+    val shakeMap: ShakeMapProduct? = null
 )
 
 enum class ScientificDetailSource { NETWORK, CACHE }

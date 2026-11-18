@@ -7,6 +7,7 @@ import com.cgaraydev.seismicexplorer.data.remote.api.UsgsScientificDetailApi
 import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailFailure
 import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailResult
 import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailSource
+import com.cgaraydev.seismicexplorer.domain.model.ShakeMapResourceKind
 import java.io.IOException
 import java.time.Clock
 import java.time.Instant
@@ -43,6 +44,33 @@ class OfflineFirstScientificDetailRepositoryTest {
         assertEquals(1, second.detail.availableProductCount)
         assertEquals(1, api.calls)
         assertEquals(detail("us123"), cache.rows["us123"]?.payloadJson)
+    }
+
+    @Test fun shakeMapReferencesSurviveNetworkAndCacheWithoutDownloadingResources() = runBlocking {
+        val image = "https://earthquake.usgs.gov/realtime/product/shakemap/us123/us/1700000004000/download/intensity.jpg"
+        api.payload = """{
+            "type":"Feature","id":"us123","properties":{
+                "type":"earthquake","updated":1700000003000,
+                "products":{"shakemap":[{
+                    "status":"UPDATE","preferredWeight":100,"source":"us","code":"us123",
+                    "updateTime":1700000004000,
+                    "contents":{"download/intensity.jpg":{
+                        "url":"$image","contentType":"image/jpeg","length":12345
+                    }}
+                }]}
+            }
+        }""".trimIndent()
+
+        val fromNetwork = repository.getDetail("us123") as ScientificDetailResult.Available
+        val fromCache = repository.getDetail("us123") as ScientificDetailResult.Available
+        val expected = fromNetwork.detail.shakeMap!!.resources.single()
+        assertEquals(ShakeMapResourceKind.INTENSITY_MAP, expected.kind)
+        assertEquals(image, expected.url)
+        assertEquals(12345L, expected.lengthBytes)
+        assertEquals(fromNetwork.detail.shakeMap, fromCache.detail.shakeMap)
+        assertEquals(ScientificDetailSource.NETWORK, fromNetwork.source)
+        assertEquals(ScientificDetailSource.CACHE, fromCache.source)
+        assertEquals(1, api.calls) // No se descargó el JPG ni se consultó otra API.
     }
 
     @Test fun staleCacheIsReturnedWhenNetworkFails() = runBlocking {

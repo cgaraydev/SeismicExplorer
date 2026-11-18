@@ -134,7 +134,8 @@ class OfflineFirstScientificDetailRepository @Inject constructor(
             sourceUpdatedAtEpochMillis = parsed.sourceUpdatedAtEpochMillis,
             fetchedAtEpochMillis = entity.fetchedAtEpochMillis,
             availableProductTypes = parsed.availableProductTypes,
-            availableProductCount = parsed.availableProductCount
+            availableProductCount = parsed.availableProductCount,
+            shakeMap = parsed.shakeMap
         ),
         source = source,
         isStale = stale

@@ -1,0 +1,99 @@
+package com.cgaraydev.seismicexplorer.data.remote
+
+import com.cgaraydev.seismicexplorer.domain.model.ShakeMapResourceKind
+import kotlinx.serialization.json.Json
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class UsgsShakeMapResourceParserTest {
+    private val json = Json { ignoreUnknownKeys = true }
+    private val prefix =
+        "https://earthquake.usgs.gov/realtime/product/shakemap/us123/us/1700000004000/"
+
+    @Test fun selectsPreferredActiveProductAndReadsProvenance() {
+        val data = products("""
+            {"status":"UPDATE","preferredWeight":5,"updateTime":100,"code":"old"},
+            {"status":"DELETE","preferredWeight":999,"updateTime":999,"code":"removed"},
+            {"status":"UPDATE","preferredWeight":100,"updateTime":200,
+             "source":"us","code":"us123","properties":{"map-status":"REVIEWED"},
+             "contents":{
+               "download/intensity.jpg":{"url":"${prefix}download/intensity.jpg","contentType":"image/jpeg","length":4500},
+               "download/grid.xml":{"url":"${prefix}download/grid.xml","length":99000},
+               "download/stationlist.json":{"url":"${prefix}download/stationlist.json"}
+             }}
+        """)
+        val result = UsgsShakeMapResourceParser.extract(data)!!
+        assertEquals("us", result.source)
+        assertEquals("us123", result.code)
+        assertEquals(200L, result.updatedAtEpochMillis)
+        assertEquals("REVIEWED", result.mapStatus)
+        assertEquals(listOf(
+            ShakeMapResourceKind.INTENSITY_MAP,
+            ShakeMapResourceKind.GRID_XML,
+            ShakeMapResourceKind.STATION_OBSERVATIONS
+        ), result.resources.map { it.kind })
+        assertEquals(4500L, result.resources.first().lengthBytes)
+        assertEquals("image/jpeg", result.resources.first().contentType)
+    }
+
+    @Test fun newestVersionWinsWhenWeightsAreTied() {
+        val data = products("""
+            {"status":"UPDATE","preferredWeight":100,"updateTime":100,"code":"older"},
+            {"status":"UPDATE","preferredWeight":100,"updateTime":300,"code":"newer"}
+        """)
+        assertEquals("newer", UsgsShakeMapResourceParser.extract(data)?.code)
+    }
+
+    @Test fun rejectsUnsafeUrlsAndUnknownPaths() {
+        val data = products("""{"status":"UPDATE","contents":{
+            "download/intensity.jpg":{"url":"https://earthquake.usgs.gov.evil.test/realtime/product/shakemap/a/download/intensity.jpg"},
+            "download/grid.xml":{"url":"http://earthquake.usgs.gov/realtime/product/shakemap/a/download/grid.xml"},
+            "download/intensity_overlay.png":{"url":"${prefix}download/intensity_overlay.png?track=x"},
+            "download/stationlist.json":{"url":"${prefix}download/wrong.json"},
+            "download/unknown.zip":{"url":"${prefix}download/unknown.zip"}
+        }}""")
+        val result = UsgsShakeMapResourceParser.extract(data)
+        assertNotNull(result)
+        assertTrue(result!!.resources.isEmpty())
+    }
+
+    @Test fun invalidProductsCannotBeExposedAsAvailableShakeMap() {
+        assertNull(UsgsShakeMapResourceParser.extract(products("""{"status":"DELETE"}""")))
+        assertNull(UsgsShakeMapResourceParser.extract(products("""{
+            "status":"UPDATE","properties":{"map-status":"CANCELLED"}
+        }""")))
+        assertNull(UsgsShakeMapResourceParser.extract(products("""{
+            "status":"UPDATE","properties":{"event-type":"SCENARIO"}
+        }""")))
+        assertNull(UsgsShakeMapResourceParser.extract(null))
+    }
+
+    @Test fun activeProductWithoutSupportedFilesStillKeepsItsProvenance() {
+        val result = UsgsShakeMapResourceParser.extract(
+            products("""{"status":"UPDATE","source":"nc","code":"quakedata"}""")
+        )
+        assertNotNull(result)
+        assertEquals("nc", result?.source)
+        assertTrue(result!!.resources.isEmpty())
+    }
+
+    @Test fun domainParserMapsRealShakeMapResourcesWithoutFetchingFiles() {
+        val raw = """{
+            "type":"Feature","id":"us123","properties":{
+                "type":"earthquake","updated":1700000003000,
+                "products":{"shakemap":[{"status":"UPDATE","preferredWeight":20,
+                    "contents":{"download/intensity.jpg":{"url":"${prefix}download/intensity.jpg"}}
+                }]}
+            }
+        }"""
+        val parsed = UsgsScientificDetailParser(json).parse(raw, "us123")!!
+        assertEquals(listOf("shakemap"), parsed.availableProductTypes)
+        assertEquals(ShakeMapResourceKind.INTENSITY_MAP, parsed.shakeMap!!.resources.single().kind)
+    }
+
+    private fun products(inner: String) =
+        json.parseToJsonElement("[$inner]")
+}

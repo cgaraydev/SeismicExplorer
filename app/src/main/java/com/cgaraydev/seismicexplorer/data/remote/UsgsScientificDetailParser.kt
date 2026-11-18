@@ -3,6 +3,7 @@ package com.cgaraydev.seismicexplorer.data.remote
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import com.cgaraydev.seismicexplorer.domain.model.ShakeMapProduct
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
@@ -13,7 +14,8 @@ class UsgsScientificDetailParser(private val json: Json) {
         val eventId: String,
         val sourceUpdatedAtEpochMillis: Long,
         val availableProductTypes: List<String>,
-        val availableProductCount: Int
+        val availableProductCount: Int,
+        val shakeMap: ShakeMapProduct?
     )
 
     fun parse(raw: String, expectedEventId: String): Parsed? {
@@ -43,6 +45,9 @@ class UsgsScientificDetailParser(private val json: Json) {
                 total += active
             }
         }
-        return Parsed(id, updated, types.sorted(), total)
+        // Los enlaces se leen del GeoJSON ya descargado y validado, sin ninguna petición extra.
+        // Se selecciona la versión activa preferida de ComCat cuando está disponible.
+        val shakeMap = UsgsShakeMapResourceParser.extract(products["shakemap"])
+        return Parsed(id, updated, types.sorted(), total, shakeMap)
     }
 }
