@@ -231,7 +231,8 @@ fun LearnArticleScreen(
     onOpenSource: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (!LearnCatalog.contains(articleId)) {
+    val article = LearnCatalog.articleOrNull(articleId)
+    if (article == null) {
         Column(modifier.fillMaxSize().statusBarsPadding().padding(20.dp)) {
             TextButton(onClick = onBack) { Text(stringResource(R.string.detail_back)) }
             Text(stringResource(R.string.learn_unavailable))
@@ -241,7 +242,7 @@ fun LearnArticleScreen(
 
     val state = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    val sections = LearnCatalog.magnitudeSections
+    val sections = article.sections
     val colors = MaterialTheme.colorScheme
     val darkMode = colors.background.luminance() < 0.4f
     val highlightedSurface = if (darkMode) colors.surfaceContainerHigh else colors.surfaceContainerLowest
@@ -264,10 +265,10 @@ fun LearnArticleScreen(
                     Text(stringResource(R.string.learn_title),
                         style = MaterialTheme.typography.titleMedium)
                 }
-                Text(stringResource(R.string.learn_article_title),
+                Text(stringResource(article.titleRes),
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Bold)
-                Text(stringResource(R.string.learn_article_subtitle),
+                Text(stringResource(article.subtitleRes),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -276,7 +277,10 @@ fun LearnArticleScreen(
             LearnChapter(sections.first(), Modifier.testTag("learn_article_section_01"))
         }
         item(key = "diagram") {
-            LearnConceptDiagram()
+            when (article.diagram) {
+                LearnDiagram.INTENSITY_LOCATIONS -> LearnConceptDiagram()
+                LearnDiagram.FOCUS_CROSS_SECTION -> LearnDepthDiagram()
+            }
         }
         item(key = "takeaway") {
             Surface(
@@ -289,7 +293,7 @@ fun LearnArticleScreen(
                     Text(stringResource(R.string.learn_takeaway_heading),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.secondary)
-                    Text(stringResource(R.string.learn_takeaway_body),
+                    Text(stringResource(article.takeawayBodyRes),
                         style = MaterialTheme.typography.bodyMedium)
                     TextButton(onClick = { scope.launch { state.animateScrollToItem(4) } },
                         modifier = Modifier.testTag("learn_explore_difference")) {
@@ -335,7 +339,7 @@ fun LearnArticleScreen(
                 Text(stringResource(R.string.learn_sources_note),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                LearnCatalog.sources.forEachIndexed { index, source ->
+                article.sources.forEachIndexed { index, source ->
                     TextButton(onClick = { onOpenSource(source.url) },
                         modifier = Modifier.fillMaxWidth().testTag("learn_source_$index")) {
                         Text(stringResource(source.labelRes), Modifier.weight(1f))
@@ -371,6 +375,57 @@ private fun LearnChapter(section: LearnSection, modifier: Modifier = Modifier) {
             }
         }
         Text(stringResource(section.bodyRes), style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+/** Corte conceptual editable: no es un mapa, no utiliza distancias reales. */
+@Composable
+private fun LearnDepthDiagram() {
+    val colors = MaterialTheme.colorScheme
+    val surfaceColor = colors.surfaceContainerLow
+    val line = colors.onSurfaceVariant
+    val accent = colors.secondary
+    val description = stringResource(R.string.learn_depth_diagram_accessibility)
+    Surface(
+        modifier = Modifier.fillMaxWidth().testTag("learn_depth_diagram"),
+        color = surfaceColor,
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, colors.outlineVariant)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(stringResource(R.string.learn_depth_diagram_heading),
+                style = MaterialTheme.typography.titleMedium)
+            Canvas(Modifier.fillMaxWidth().height(154.dp)
+                .clearAndSetSemantics { contentDescription = description }) {
+                val surfaceY = size.height * .20f
+                val centerX = size.width * .50f
+                val focusY = size.height * .76f
+                val epicenter = Offset(centerX, surfaceY)
+                val focus = Offset(centerX, focusY)
+                // Superficie, traza simplificada de falla y profundidad vertical.
+                drawLine(line, Offset(0f, surfaceY), Offset(size.width, surfaceY),
+                    strokeWidth = 2.dp.toPx())
+                drawLine(line.copy(alpha = .65f),
+                    Offset(size.width * .18f, size.height * .97f),
+                    Offset(size.width * .81f, size.height * .53f),
+                    strokeWidth = 2.dp.toPx())
+                drawLine(accent, epicenter, focus, strokeWidth = 2.dp.toPx())
+                drawCircle(accent, radius = 6.dp.toPx(), center = epicenter)
+                drawCircle(accent, radius = 9.dp.toPx(), center = focus)
+                drawCircle(surfaceColor, radius = 3.dp.toPx(), center = focus)
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(stringResource(R.string.learn_depth_diagram_epicenter),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = colors.onSurfaceVariant)
+                Text(stringResource(R.string.learn_depth_diagram_hypocenter),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = colors.onSurfaceVariant)
+            }
+            Text(stringResource(R.string.learn_depth_diagram_caveat),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant)
+        }
     }
 }
 

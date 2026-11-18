@@ -51,7 +51,8 @@ import java.util.Locale
 fun EarthquakeDetailRoute(
     viewModel: EarthquakeDetailViewModel,
     onBack: () -> Unit,
-    onOpenLearn: () -> Unit
+    onOpenLearn: () -> Unit,
+    onOpenDepthLearn: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
@@ -60,7 +61,8 @@ fun EarthquakeDetailRoute(
         state = state,
         onBack = onBack,
         onOpenSource = uriHandler::openUri,
-        onOpenLearn = onOpenLearn
+        onOpenLearn = onOpenLearn,
+        onOpenDepthLearn = onOpenDepthLearn
     )
 }
 
@@ -71,7 +73,8 @@ fun EarthquakeDetailScreen(
     onBack: () -> Unit,
     onOpenSource: (String) -> Unit,
     modifier: Modifier = Modifier,
-    onOpenLearn: () -> Unit = {}
+    onOpenLearn: () -> Unit = {},
+    onOpenDepthLearn: () -> Unit = {}
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -126,6 +129,7 @@ fun EarthquakeDetailScreen(
                     earthquake = state.earthquake,
                     onOpenSource = onOpenSource,
                     onOpenLearn = onOpenLearn,
+                    onOpenDepthLearn = onOpenDepthLearn,
                     modifier = Modifier.padding(innerPadding)
                 )
             }
@@ -139,10 +143,12 @@ private fun EarthquakeDetailContent(
     earthquake: Earthquake,
     onOpenSource: (String) -> Unit,
     onOpenLearn: () -> Unit,
+    onOpenDepthLearn: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val locale = LocalConfiguration.current.locales[0]
     var showMagnitudeInfo by rememberSaveable { mutableStateOf(false) }
+    var showDepthInfo by rememberSaveable { mutableStateOf(false) }
 
     val dateFormatter = DateTimeFormatter
         .ofLocalizedDateTime(FormatStyle.MEDIUM)
@@ -213,15 +219,26 @@ private fun EarthquakeDetailContent(
                     value = dateFormatter.format(earthquake.updatedAt)
                 )
 
-                DetailField(
-                    label = stringResource(R.string.detail_depth),
-                    value = earthquake.depthKilometers?.let { depth ->
-                        stringResource(
-                            R.string.detail_depth_value,
-                            depth
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        DetailField(
+                            label = stringResource(R.string.detail_depth),
+                            value = earthquake.depthKilometers?.let { depth ->
+                                stringResource(R.string.detail_depth_value, depth)
+                            } ?: stringResource(R.string.detail_unknown)
                         )
-                    } ?: stringResource(R.string.detail_unknown)
-                )
+                    }
+                    IconButton(
+                        onClick = { showDepthInfo = true },
+                        modifier = Modifier.testTag("detail_depth_info")
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_learn_info),
+                            contentDescription = stringResource(R.string.learn_depth_info_button),
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                }
             }
         }
 
@@ -294,6 +311,32 @@ private fun EarthquakeDetailContent(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+
+    if (showDepthInfo) {
+        ModalBottomSheet(
+            onDismissRequest = { showDepthInfo = false },
+            modifier = Modifier.testTag("detail_depth_sheet")
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(stringResource(R.string.learn_depth_sheet_heading),
+                    style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.learn_depth_sheet_body),
+                    style = MaterialTheme.typography.bodyLarge)
+                Button(
+                    onClick = {
+                        showDepthInfo = false
+                        onOpenDepthLearn()
+                    },
+                    modifier = Modifier.fillMaxWidth().testTag("detail_depth_learn_button")
+                ) {
+                    Text(stringResource(R.string.learn_depth_sheet_read_article))
+                }
+            }
+        }
     }
 
     if (showMagnitudeInfo) {

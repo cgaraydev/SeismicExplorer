@@ -229,4 +229,29 @@
 <string name="learn_sheet_heading">¿Qué significa la magnitud?</string>
 <string name="learn_sheet_body">La magnitud describe el tamaño estimado del terremoto. No nos dice, por sí sola, cuánto se sintió en tu localidad ni qué daños causó. Para esos efectos utilizamos el concepto de intensidad.</string>
 <string name="learn_sheet_read_article">Comprender la magnitud</string>
+
+<!-- APRENDER 3.4.2: HIPOCENTRO, EPICENTRO Y PROFUNDIDAD -->
+<string name="learn_depth_article_title">¿Dónde comienza un terremoto?</string>
+<string name="learn_depth_article_subtitle">Epicentro, hipocentro y profundidad</string>
+<string name="learn_depth_section_one">Hipocentro: origen de la ruptura</string>
+<string name="learn_depth_section_one_body">El hipocentro, también llamado foco, es el punto en el interior de la Tierra donde comienza la ruptura que origina un sismo. No representa necesariamente toda la zona de ruptura: esta puede extenderse a lo largo de una falla.</string>
+<string name="learn_depth_section_two">Epicentro: proyección en la superficie</string>
+<string name="learn_depth_section_two_body">El epicentro es el punto de la superficie terrestre situado verticalmente sobre el hipocentro. No es el lugar donde comenzó la ruptura y tampoco indica, por sí solo, dónde se sintió con mayor intensidad.</string>
+<string name="learn_depth_section_three">¿Qué indica la profundidad?</string>
+<string name="learn_depth_section_three_body">La profundidad focal describe la posición vertical del hipocentro respecto de una superficie de referencia. Se expresa habitualmente en kilómetros. La profundidad publicada es una estimación que puede revisarse al incorporar observaciones adicionales.</string>
+<string name="learn_depth_section_four">¿Podemos deducir los daños?</string>
+<string name="learn_depth_section_four_body">No. La profundidad influye en la distribución del movimiento sísmico, pero la intensidad local también depende de la distancia a la fuente, las condiciones del suelo y otros factores. Algunos catálogos, como USGS, pueden mostrar profundidades negativas por su referencia geodésica: no significa que el sismo ocurriera en el aire.</string>
+<string name="learn_depth_takeaway_body">El epicentro no es el origen subterráneo del terremoto. Conocer la profundidad tampoco permite predecir automáticamente la intensidad ni los daños en una ciudad.</string>
+<string name="learn_depth_diagram_heading">Del hipocentro a la superficie</string>
+<string name="learn_depth_diagram_accessibility">Corte conceptual de la Tierra: el hipocentro se encuentra bajo la superficie, directamente debajo del epicentro. Una línea vertical representa la profundidad; una línea inclinada representa una falla simplificada. No está a escala.</string>
+<string name="learn_depth_diagram_epicenter">Epicentro · superficie</string>
+<string name="learn_depth_diagram_hypocenter">Hipocentro · interior</string>
+<string name="learn_depth_diagram_caveat">Esquema didáctico, no representa la geometría ni la profundidad de un terremoto real.</string>
+<string name="learn_depth_source_csn">CSN Chile · Preguntas frecuentes</string>
+<string name="learn_depth_source_usgs">USGS · Glosario de sismología</string>
+<string name="learn_depth_source_reference">USGS · Referencia y profundidad negativa</string>
+<string name="learn_depth_info_button">¿Qué significa la profundidad?</string>
+<string name="learn_depth_sheet_heading">¿Dónde comienza un terremoto?</string>
+<string name="learn_depth_sheet_body">La profundidad indica dónde se ubica el hipocentro respecto de una superficie de referencia. El epicentro es su proyección en la superficie. Este valor no determina por sí solo cuánto se sentirá el sismo.</string>
+<string name="learn_depth_sheet_read_article">Comprender la profundidad</string>
 </resources>

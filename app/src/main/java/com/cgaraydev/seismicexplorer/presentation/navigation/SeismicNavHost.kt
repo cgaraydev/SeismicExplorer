@@ -100,6 +100,11 @@ fun SeismicNavHost() {
                         if (backStack.lastOrNull() == destination) {
                             backStack.add(LearnArticleDestination(LearnCatalog.MAGNITUDE_INTENSITY))
                         }
+                    },
+                    onOpenDepthLearn = {
+                        if (backStack.lastOrNull() == destination) {
+                            backStack.add(LearnArticleDestination(LearnCatalog.EPICENTER_DEPTH))
+                        }
                     }
                 )
             }

@@ -17,7 +17,7 @@ class LearnScreensTest {
     @get:Rule val rule = createComposeRule()
 
     @Test
-    fun atlasOpensOnlyPublishedArticle() {
+    fun atlasOpensPublishedArticlesAndDisablesUnpublishedTopics() {
         var opened: String? = null
         rule.setContent {
             SeismicExplorerTheme(darkTheme = true) {
@@ -29,7 +29,11 @@ class LearnScreensTest {
         rule.runOnIdle { assertEquals(LearnCatalog.MAGNITUDE_INTENSITY, opened) }
         rule.onNodeWithTag("learn_home")
             .performScrollToNode(hasTestTag("learn_card_depth"))
-        rule.onNodeWithTag("learn_card_depth").assertIsNotEnabled()
+        rule.onNodeWithTag("learn_card_depth").performClick()
+        rule.runOnIdle { assertEquals(LearnCatalog.EPICENTER_DEPTH, opened) }
+        rule.onNodeWithTag("learn_home")
+            .performScrollToNode(hasTestTag("learn_card_waves"))
+        rule.onNodeWithTag("learn_card_waves").assertIsNotEnabled()
     }
 
     @Test
@@ -56,16 +60,37 @@ class LearnScreensTest {
     }
 
     @Test
+    fun depthArticleRendersDifferentContentAndDiagramInDarkMode() {
+        articleTheme(dark = true, articleId = LearnCatalog.EPICENTER_DEPTH)
+        rule.onNodeWithText("Hipocentro: origen de la ruptura").assertExists()
+        rule.onNodeWithTag("learn_article")
+            .performScrollToNode(hasTestTag("learn_depth_diagram"))
+        rule.onNodeWithTag("learn_depth_diagram").assertExists()
+        rule.onNodeWithTag("learn_article")
+            .performScrollToNode(hasTestTag("learn_sources"))
+        rule.onNodeWithTag("learn_sources").assertExists()
+    }
+
+    @Test
+    fun depthArticleIsReadableInLightMode() {
+        articleTheme(dark = false, articleId = LearnCatalog.EPICENTER_DEPTH)
+        rule.onNodeWithText("Hipocentro: origen de la ruptura").assertExists()
+    }
+
+    @Test
     fun articleShowsScientificContentInLightMode() {
         articleTheme(dark = false)
         rule.onNodeWithText("Magnitud no es intensidad").assertExists()
     }
 
-    private fun articleTheme(dark: Boolean) {
+    private fun articleTheme(
+        dark: Boolean,
+        articleId: String = LearnCatalog.MAGNITUDE_INTENSITY
+    ) {
         rule.setContent {
             SeismicExplorerTheme(darkTheme = dark) {
                 LearnArticleScreen(
-                    articleId = LearnCatalog.MAGNITUDE_INTENSITY,
+                    articleId = articleId,
                     onBack = {},
                     onOpenSource = {}
                 )

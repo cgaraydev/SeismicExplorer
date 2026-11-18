@@ -158,6 +158,21 @@ class MainActivityTest {
             .assertTextContains("24 h", substring = true)
     }
 
+    @Test
+    fun learningDepthArticleOpensAndReturnsWithoutChangingSummary() {
+        composeRule.onNodeWithTag("tab_learn").performClick()
+        composeRule.onNodeWithTag("learn_home")
+            .performScrollToNode(hasTestTag("learn_card_depth"))
+        composeRule.onNodeWithTag("learn_card_depth").performClick()
+        composeRule.onNodeWithTag("learn_article").assertIsDisplayed()
+        composeRule.onNodeWithText("¿Dónde comienza un terremoto?").assertIsDisplayed()
+        composeRule.onNodeWithTag("learn_back").performClick()
+        composeRule.onNodeWithTag("learn_home").assertIsDisplayed()
+        composeRule.onNodeWithTag("tab_summary").performClick()
+        composeRule.onNodeWithTag("observatory_window")
+            .assertTextContains("24 h", substring = true)
+    }
+
     private class FakeEarthquakeRepository :
         EarthquakeRepository {
 
