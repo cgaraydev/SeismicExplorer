@@ -37,8 +37,10 @@ class ObservatoryStatisticsTest {
             event("within", 3.3, null, end.minusSeconds(15))
         )
         val stats = calculateObservatoryStatistics(events, TimeWindow.LAST_DAY, end)
-        assertEquals(3, stats.eventCount) // La lista recibida sigue siendo la fuente del total.
-        assertEquals(1, stats.bucketCounts.sum()) // El histograma respeta el intervalo.
+        assertEquals(1, stats.eventCount)
+        assertEquals(1, stats.bucketCounts.sum())
+        assertEquals(1, stats.magnitudeAtLeast25)
+        assertEquals("within", stats.largestEvent?.id)
     }
 
     @Test

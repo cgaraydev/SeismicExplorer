@@ -1,6 +1,7 @@
 package com.cgaraydev.seismicexplorer.presentation.home
 
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
+import java.time.Duration
 import java.time.Instant
 
 /** Resumen calculado sobre la selección observable de Room; nunca extrapola a todo el planeta. */
@@ -35,16 +36,16 @@ fun calculateObservatoryStatistics(
     val start = endAt.minusSeconds(bucketCount * bucketSeconds)
     val counts = IntArray(bucketCount)
 
-    earthquakes.forEach { earthquake ->
-        val occurredAt = earthquake.occurredAt
-        if (!occurredAt.isBefore(start) && occurredAt.isBefore(endAt)) {
-            val seconds = occurredAt.epochSecond - start.epochSecond
-            val index = (seconds / bucketSeconds).toInt()
-            if (index in counts.indices) counts[index]++
-        }
+    val boundedEvents = earthquakes.filter { earthquake ->
+        !earthquake.occurredAt.isBefore(start) && earthquake.occurredAt.isBefore(endAt)
+    }
+    boundedEvents.forEach { earthquake ->
+        val elapsedMillis = Duration.between(start, earthquake.occurredAt).toMillis()
+        val index = (elapsedMillis / (bucketSeconds * 1_000L)).toInt()
+        if (index in counts.indices) counts[index]++
     }
 
-    val largestEvent = earthquakes
+    val largestEvent = boundedEvents
         .asSequence()
         .filter { it.magnitude != null }
         .maxWithOrNull(
@@ -52,12 +53,14 @@ fun calculateObservatoryStatistics(
                 .thenBy { it.occurredAt }
                 .thenBy { it.id }
         )
-    val knownDepths = earthquakes.mapNotNull { it.depthKilometers?.takeIf { depth -> depth >= 0.0 } }
+    val knownDepths = boundedEvents.mapNotNull {
+        it.depthKilometers?.takeIf { depth -> depth >= 0.0 }
+    }
     return ObservatoryStatistics(
-        eventCount = earthquakes.size,
+        eventCount = boundedEvents.size,
         largestEvent = largestEvent,
-        magnitudeAtLeast45 = earthquakes.count { (it.magnitude ?: Double.NEGATIVE_INFINITY) >= 4.5 },
-        magnitudeAtLeast25 = earthquakes.count { (it.magnitude ?: Double.NEGATIVE_INFINITY) >= 2.5 },
+        magnitudeAtLeast45 = boundedEvents.count { (it.magnitude ?: Double.NEGATIVE_INFINITY) >= 4.5 },
+        magnitudeAtLeast25 = boundedEvents.count { (it.magnitude ?: Double.NEGATIVE_INFINITY) >= 2.5 },
         maxDepthKilometers = knownDepths.maxOrNull(),
         averageDepthKilometers = if (knownDepths.isEmpty()) null else knownDepths.average(),
         hourly = hourly,

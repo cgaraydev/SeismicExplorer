@@ -26,7 +26,12 @@ class ObservatoryMetricCardsTest {
             SeismicExplorerTheme(darkTheme = true) {
                 ObservatoryDashboard(
                     state = HomeUiState(
-                        earthquakes = listOf(event("one", 3.8), event("two", 5.4)),
+                        observatorySnapshot = ObservatorySnapshot(
+                            listOf(event("one", 3.8), event("two", 5.4)),
+                            TimeWindow.LAST_DAY,
+                            Instant.parse("2026-11-17T16:00:00Z")
+                        ),
+                        isReadingObservatory = false,
                         isReadingLocal = false,
                         periodEndAt = Instant.parse("2026-11-17T16:00:00Z")
                     ),
@@ -51,7 +56,19 @@ class ObservatoryMetricCardsTest {
         rule.setContent {
             SeismicExplorerTheme(darkTheme = true) {
                 ObservatoryDashboard(
-                    state = HomeUiState(isReadingLocal = false),
+                    state = HomeUiState(
+                        observatorySnapshot = ObservatorySnapshot(
+                            emptyList(),
+                            TimeWindow.LAST_DAY,
+                            Instant.parse("2026-11-17T16:00:00Z")
+                        ),
+                        feedCacheStatus = com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus.Synced(
+                            lastSuccessEpochMillis = Instant.parse("2026-11-17T16:00:00Z").toEpochMilli(),
+                            isFresh = true
+                        ),
+                        isReadingLocal = false,
+                        isReadingObservatory = false
+                    ),
                     onAction = {},
                     onOpenCatalog = {},
                     onOpenEarthquake = {}

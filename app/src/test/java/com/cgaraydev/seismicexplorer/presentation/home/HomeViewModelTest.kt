@@ -114,6 +114,10 @@ class HomeViewModelTest {
             repository.observedQueries.last().minimumMagnitude!!,
             0.0
         )
+        assertEquals(listOf("small", "strong"),
+            viewModel.uiState.value.observatorySnapshot!!.earthquakes.map { it.id })
+        assertEquals(2, repository.observedQueries.count { it.minimumMagnitude == null })
+        assertEquals(3, repository.observedQueries.size)
     }
 
     @Test
@@ -331,7 +335,7 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         assertEquals(listOf(RecentWindow.LAST_DAY), repository.syncRequests)
-        assertEquals(1, repository.observedQueries.size)
+        assertEquals(2, repository.observedQueries.size)
         assertTrue(repository.refreshRequests.isEmpty())
     }
 
@@ -362,6 +366,62 @@ class HomeViewModelTest {
         assertEquals(now.plusSeconds(120), repository.observedQueries.last().endTime)
         assertEquals(2, repository.syncRequests.size)
         assertTrue(repository.refreshRequests.isEmpty())
+    }
+
+    @Test
+    fun periodSelection_isAtomicAndOlderObservationCannotReplaceNewWindow() = runTest {
+        repository.events.value = listOf(earthquake("daily", 3.0))
+        createViewModel()
+        advanceUntilIdle()
+        val first = viewModel.uiState.value.observatorySnapshot!!
+        assertEquals(TimeWindow.LAST_DAY, first.timeWindow)
+
+        viewModel.onAction(HomeAction.SelectTimeWindow(TimeWindow.LAST_WEEK))
+        assertEquals(null, viewModel.uiState.value.observatorySnapshot)
+        assertTrue(viewModel.uiState.value.isReadingObservatory)
+        viewModel.onAction(HomeAction.SelectTimeWindow(TimeWindow.LAST_MONTH))
+        advanceUntilIdle()
+
+        val latest = viewModel.uiState.value.observatorySnapshot!!
+        assertEquals(TimeWindow.LAST_MONTH, latest.timeWindow)
+        assertEquals(now, latest.endAt)
+        assertEquals(listOf("daily"), latest.earthquakes.map { it.id })
+        assertEquals(RecentWindow.LAST_30_DAYS.duration,
+            java.time.Duration.between(repository.observedQueries.last().startTime,
+                repository.observedQueries.last().endTime))
+    }
+
+    @Test
+    fun refreshKeepsOldSnapshotAndItsEndUntilReplacementArrives() = runTest {
+        repository.events.value = listOf(earthquake("old", 3.2))
+        createViewModel()
+        advanceUntilIdle()
+        val previous = viewModel.uiState.value.observatorySnapshot!!
+        clock.currentInstant = now.plusSeconds(120)
+
+        viewModel.onAction(HomeAction.Refresh)
+        val pending = viewModel.uiState.value
+        assertEquals(previous, pending.observatorySnapshot)
+        assertTrue(pending.isReadingObservatory)
+        assertEquals(now, pending.observatorySnapshot!!.endAt)
+        assertEquals(now.plusSeconds(120), pending.periodEndAt)
+
+        advanceUntilIdle()
+        assertEquals(now.plusSeconds(120), viewModel.uiState.value.observatorySnapshot!!.endAt)
+        assertEquals(previous.earthquakes, viewModel.uiState.value.observatorySnapshot!!.earthquakes)
+    }
+
+    @Test
+    fun failedSyncStillShowsConsistentCachedObservatorySnapshot() = runTest {
+        repository.events.value = listOf(earthquake("cached", 4.2))
+        repository.syncHandler = { FeedSyncResult.Failed(RefreshFailure.CONNECTION) }
+        createViewModel()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(HomeRefreshState.Failed(RefreshFailure.CONNECTION), state.refreshState)
+        assertEquals(listOf("cached"), state.observatorySnapshot!!.earthquakes.map { it.id })
+        assertEquals(now, state.observatorySnapshot.endAt)
     }
 
     private fun createViewModel() {

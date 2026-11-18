@@ -57,7 +57,6 @@ import com.cgaraydev.seismicexplorer.R
 import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 import com.cgaraydev.seismicexplorer.presentation.common.AtlasWaveformIcon
 import com.cgaraydev.seismicexplorer.presentation.common.FeedCacheStatusText
-import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -71,13 +70,18 @@ fun ObservatoryDashboard(
     onOpenEarthquake: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val statistics = remember(state.earthquakes, state.timeWindow, state.periodEndAt) {
-        calculateObservatoryStatistics(
-            earthquakes = state.earthquakes,
-            window = state.timeWindow,
-            endAt = state.periodEndAt ?: Instant.now()
-        )
+    val snapshot = state.observatorySnapshot
+    val statistics = remember(snapshot) {
+        snapshot?.let {
+            calculateObservatoryStatistics(
+                earthquakes = it.earthquakes,
+                window = it.timeWindow,
+                endAt = it.endAt
+            )
+        }
     }
+    val showStatistics = statistics != null &&
+        (statistics.eventCount > 0 || state.feedCacheStatus is FeedCacheStatus.Synced)
     var showSettings by rememberSaveable { mutableStateOf(false) }
     val locale = LocalConfiguration.current.locales[0]
     val date = remember(locale) {
@@ -166,6 +170,13 @@ fun ObservatoryDashboard(
                 if (state.localReadFailed) {
                     Text(stringResource(R.string.home_local_error), color = MaterialTheme.colorScheme.error)
                 }
+                if (state.observatoryReadFailed) {
+                    Text(
+                        stringResource(R.string.observatory_local_error),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
                 if (state.refreshState is HomeRefreshState.Failed) {
                     Text(
                         text = stringResource(R.string.observatory_sync_failed),
@@ -176,18 +187,40 @@ fun ObservatoryDashboard(
             }
         }
         item(key = "metrics") {
-            ObservatoryMetricPanel(
-                statistics = statistics,
-                state = state,
-                onOpenCatalog = onOpenCatalog,
-                onOpenEarthquake = onOpenEarthquake
-            )
+            if (showStatistics) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ObservatoryMetricPanel(
+                        statistics = statistics,
+                        onOpenCatalog = onOpenCatalog,
+                        onOpenEarthquake = onOpenEarthquake
+                    )
+                    if (statistics.eventCount == 0) {
+                        Text(
+                            stringResource(R.string.observatory_confirmed_empty),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                Text(
+                    text = stringResource(
+                        if (snapshot == null && state.isReadingObservatory)
+                            R.string.observatory_loading else R.string.observatory_no_data
+                    ),
+                    modifier = Modifier.testTag("observatory_unavailable"),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
-        item(key = "histogram") {
-            ObservatoryHourlyChart(statistics, state.timeWindow)
-        }
-        item(key = "extra_metrics") {
-            ObservatorySecondaryMetrics(statistics)
+        if (showStatistics) {
+            item(key = "histogram") {
+                ObservatoryHourlyChart(statistics, snapshot!!.timeWindow)
+            }
+            item(key = "extra_metrics") {
+                ObservatorySecondaryMetrics(statistics)
+            }
         }
         item(key = "footnote") {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -286,7 +319,6 @@ private fun ObservatoryPeriodSelector(
 @Composable
 private fun ObservatoryMetricPanel(
     statistics: ObservatoryStatistics,
-    state: HomeUiState,
     onOpenCatalog: () -> Unit,
     onOpenEarthquake: (String) -> Unit
 ) {
@@ -316,8 +348,7 @@ private fun ObservatoryMetricPanel(
                 verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 Text(
-                    text = if (state.isReadingLocal && state.earthquakes.isEmpty()) "…"
-                        else statistics.eventCount.toString(),
+                    text = statistics.eventCount.toString(),
                     style = MaterialTheme.typography.displayLarge,
                     fontSize = when {
                         statistics.eventCount >= 100_000 -> 26.sp

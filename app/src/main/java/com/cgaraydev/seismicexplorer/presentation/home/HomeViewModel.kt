@@ -35,14 +35,17 @@ class HomeViewModel @Inject constructor(
     private var queryEndTime: Instant = clock.instant()
 
     private var observationJob: Job? = null
+    private var observatoryJob: Job? = null
     private var refreshJob: Job? = null
 
     private var observationVersion = 0L
+    private var observatoryVersion = 0L
     private var refreshVersion = 0L
     private var initialResumeHandled = false
 
     init {
         observeCurrentSelection(clearEvents = true)
+        observeObservatorySelection(clearEvents = true)
         refreshCurrentWindow(force = false)
     }
 
@@ -57,6 +60,7 @@ class HomeViewModel @Inject constructor(
         queryEndTime = clock.instant()
         // Mantener los terremotos visibles mientras llega la nueva consulta.
         observeCurrentSelection(clearEvents = false)
+        observeObservatorySelection(clearEvents = false)
         // Room pudo actualizarse desde el mapa; comprobar TTL sin forzar red.
         refreshCurrentWindow(force = false)
     }
@@ -78,6 +82,7 @@ class HomeViewModel @Inject constructor(
                 observeCurrentSelection(
                     clearEvents = false
                 )
+                observeObservatorySelection(clearEvents = false)
 
                 // El usuario solicitó expresamente
                 // una actualización desde USGS.
@@ -90,12 +95,19 @@ class HomeViewModel @Inject constructor(
         if (_uiState.value.timeWindow == window) return
 
         _uiState.update { current ->
-            current.copy(timeWindow = window)
+            current.copy(
+                timeWindow = window,
+                observatorySnapshot = null,
+                isReadingObservatory = true,
+                observatoryReadFailed = false,
+                feedCacheStatus = FeedCacheStatus.Unknown
+            )
         }
 
         queryEndTime = clock.instant()
 
         observeCurrentSelection(clearEvents = true)
+        observeObservatorySelection(clearEvents = true)
 
         // Solo descargar si el feed está desactualizado.
         refreshCurrentWindow(force = false)
@@ -183,6 +195,63 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * El Resumen observa todos los terremotos de la ventana, independientemente
+     * del filtro de magnitud que comparten Eventos y Mapa.
+     * La colección y sus límites se publican como una única instantánea.
+     */
+    private fun observeObservatorySelection(clearEvents: Boolean) {
+        observatoryVersion++
+        val version = observatoryVersion
+        observatoryJob?.cancel()
+
+        val window = _uiState.value.timeWindow
+        val endAt = queryEndTime
+        val query = window.toRecentWindow().toQuery(
+            endTime = endAt,
+            minimumMagnitude = null
+        )
+
+        _uiState.update { current ->
+            current.copy(
+                observatorySnapshot = if (clearEvents) null else current.observatorySnapshot,
+                isReadingObservatory = true,
+                observatoryReadFailed = false
+            )
+        }
+
+        observatoryJob = viewModelScope.launch {
+            repository.observeEarthquakes(query)
+                .catch { exception ->
+                    if (exception is CancellationException) throw exception
+                    Log.e(TAG, "Failed to read observatory events", exception)
+                    if (version == observatoryVersion && _uiState.value.timeWindow == window) {
+                        _uiState.update { current ->
+                            current.copy(
+                                isReadingObservatory = false,
+                                observatoryReadFailed = true
+                            )
+                        }
+                    }
+                }
+                .collect { earthquakes ->
+                    if (version == observatoryVersion && _uiState.value.timeWindow == window) {
+                        _uiState.update { current ->
+                            current.copy(
+                                observatorySnapshot = ObservatorySnapshot(
+                                    earthquakes = earthquakes,
+                                    timeWindow = window,
+                                    endAt = endAt
+                                ),
+                                isReadingObservatory = false,
+                                observatoryReadFailed = false
+                            )
+                        }
+                    }
+                }
+        }
+    }
+
     private fun refreshCurrentWindow(force: Boolean) {
         refreshVersion++
         val version = refreshVersion
@@ -193,10 +262,7 @@ class HomeViewModel @Inject constructor(
             .toRecentWindow()
 
         _uiState.update { current ->
-            current.copy(
-                refreshState = HomeRefreshState.Refreshing,
-                feedCacheStatus = FeedCacheStatus.Unknown
-            )
+            current.copy(refreshState = HomeRefreshState.Refreshing)
         }
 
         refreshJob = viewModelScope.launch {

@@ -30,6 +30,13 @@ sealed interface HomeRefreshState {
     ) : HomeRefreshState
 }
 
+/** Conjunto y límites temporales coherentes de una única lectura de Room. */
+data class ObservatorySnapshot(
+    val earthquakes: List<Earthquake>,
+    val timeWindow: TimeWindow,
+    val endAt: java.time.Instant
+)
+
 data class HomeUiState(
     val timeWindow: TimeWindow = TimeWindow.LAST_DAY,
     val minimumMagnitude: MagnitudeThreshold = MagnitudeThreshold.ALL,
@@ -38,5 +45,8 @@ data class HomeUiState(
     val localReadFailed: Boolean = false,
     val refreshState: HomeRefreshState = HomeRefreshState.Idle,
     val feedCacheStatus: FeedCacheStatus = FeedCacheStatus.Unknown,
-    val periodEndAt: java.time.Instant? = null
+    val periodEndAt: java.time.Instant? = null,
+    val observatorySnapshot: ObservatorySnapshot? = null,
+    val isReadingObservatory: Boolean = true,
+    val observatoryReadFailed: Boolean = false
 )

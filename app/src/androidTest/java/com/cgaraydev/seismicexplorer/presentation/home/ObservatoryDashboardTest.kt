@@ -26,7 +26,12 @@ class ObservatoryDashboardTest {
             SeismicExplorerTheme(darkTheme = true) {
                 ObservatoryDashboard(
                     state = HomeUiState(
-                        earthquakes = listOf(event("one", 3.8), event("two", 5.4)),
+                        observatorySnapshot = ObservatorySnapshot(
+                            listOf(event("one", 3.8), event("two", 5.4)),
+                            TimeWindow.LAST_DAY,
+                            end
+                        ),
+                        isReadingObservatory = false,
                         isReadingLocal = false,
                         periodEndAt = end
                     ),
