@@ -1,5 +1,6 @@
 package com.cgaraydev.seismicexplorer.presentation.home
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
 import com.cgaraydev.seismicexplorer.domain.model.EarthquakeQuery
@@ -422,6 +423,60 @@ class HomeViewModelTest {
         assertEquals(HomeRefreshState.Failed(RefreshFailure.CONNECTION), state.refreshState)
         assertEquals(listOf("cached"), state.observatorySnapshot!!.earthquakes.map { it.id })
         assertEquals(now, state.observatorySnapshot.endAt)
+    }
+
+    @Test
+    fun differentViewModelInstancesKeepIndependentSelections() = runTest {
+        val summary = HomeViewModel(repository, clock, SavedStateHandle())
+        val catalog = HomeViewModel(repository, clock, SavedStateHandle())
+        viewModel = summary
+        advanceUntilIdle()
+
+        summary.onAction(HomeAction.SelectTimeWindow(TimeWindow.LAST_WEEK))
+        catalog.onAction(HomeAction.SelectTimeWindow(TimeWindow.LAST_MONTH))
+        catalog.onAction(HomeAction.SelectMagnitude(MagnitudeThreshold.MAGNITUDE_4_5))
+        advanceUntilIdle()
+
+        assertEquals(TimeWindow.LAST_WEEK, summary.uiState.value.timeWindow)
+        assertEquals(MagnitudeThreshold.ALL, summary.uiState.value.minimumMagnitude)
+        assertEquals(TimeWindow.LAST_MONTH, catalog.uiState.value.timeWindow)
+        assertEquals(MagnitudeThreshold.MAGNITUDE_4_5, catalog.uiState.value.minimumMagnitude)
+        catalog.viewModelScope.cancel()
+    }
+
+    @Test
+    fun savedStateRestoresPeriodAndMagnitudeAfterRecreation() = runTest {
+        val handle = SavedStateHandle()
+        viewModel = HomeViewModel(repository, clock, handle)
+        advanceUntilIdle()
+
+        viewModel.onAction(HomeAction.SelectTimeWindow(TimeWindow.LAST_MONTH))
+        viewModel.onAction(HomeAction.SelectMagnitude(MagnitudeThreshold.MAGNITUDE_2_5))
+        advanceUntilIdle()
+        assertEquals("LAST_MONTH", handle.get<String>("home_selected_time_window"))
+        assertEquals("MAGNITUDE_2_5", handle.get<String>("home_selected_magnitude"))
+
+        viewModel.viewModelScope.cancel()
+        viewModel = HomeViewModel(repository, clock, handle)
+        advanceUntilIdle()
+        assertEquals(TimeWindow.LAST_MONTH, viewModel.uiState.value.timeWindow)
+        assertEquals(MagnitudeThreshold.MAGNITUDE_2_5, viewModel.uiState.value.minimumMagnitude)
+        assertEquals(RecentWindow.LAST_30_DAYS, repository.syncRequests.last())
+    }
+
+    @Test
+    fun invalidSavedFilterNamesFallBackToDefaults() = runTest {
+        viewModel = HomeViewModel(
+            repository, clock, SavedStateHandle(
+                mapOf(
+                    "home_selected_time_window" to "REMOVED_WINDOW",
+                    "home_selected_magnitude" to "REMOVED_MAGNITUDE"
+                )
+            )
+        )
+        advanceUntilIdle()
+        assertEquals(TimeWindow.LAST_DAY, viewModel.uiState.value.timeWindow)
+        assertEquals(MagnitudeThreshold.ALL, viewModel.uiState.value.minimumMagnitude)
     }
 
     private fun createViewModel() {

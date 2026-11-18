@@ -47,7 +47,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
-/** Catálogo funcional con la misma selección y fuente Room que el Observatorio. */
+/** Catálogo con filtros propios, sobre la misma fuente local Room que el Observatorio. */
 @Composable
 fun SeismicCatalogScreen(
     state: HomeUiState,

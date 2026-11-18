@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="map_location_settings_required">Debes ajustar la configuración de ubicación para utilizar esta función.</string>
-    <string name="map_location_settings_unavailable">La configuración actual no permite obtener una ubicación por red. Revisa los ajustes de ubicación del dispositivo.</string>
-    <string name="map_location_temporarily_unavailable">Android todavía no ha conseguido una ubicación. Espera un momento y vuelve a intentarlo.</string>
-    <string name="map_location_configure">Configurar ubicación</string>
-    <string name="map_location_open_settings">Abrir ajustes de ubicación</string>
-</resources>

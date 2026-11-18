@@ -32,17 +32,11 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.cgaraydev.seismicexplorer.R
-import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 import com.cgaraydev.seismicexplorer.presentation.detail.EarthquakeDetailRoute
 import com.cgaraydev.seismicexplorer.presentation.detail.EarthquakeDetailViewModel
-import com.cgaraydev.seismicexplorer.presentation.home.HomeAction
 import com.cgaraydev.seismicexplorer.presentation.home.HomeViewModel
-import com.cgaraydev.seismicexplorer.presentation.home.MagnitudeThreshold
 import com.cgaraydev.seismicexplorer.presentation.home.ObservatoryDashboard
 import com.cgaraydev.seismicexplorer.presentation.home.SeismicCatalogScreen
-import com.cgaraydev.seismicexplorer.presentation.home.TimeWindow
-import com.cgaraydev.seismicexplorer.presentation.map.MapFilterSelection
-import com.cgaraydev.seismicexplorer.presentation.map.MapMagnitudeFilter
 import com.cgaraydev.seismicexplorer.presentation.map.SeismicMapRoute
 
 private enum class ObservatoryTab(val labelRes: Int, val drawableRes: Int, val testTag: String) {
@@ -100,20 +94,14 @@ fun SeismicNavHost() {
     )
 }
 
-/** Un ViewModel y una selección compartida para Resumen y Catálogo. */
+/** Cada pestaña gestiona sus filtros; todas usan el mismo repositorio y caché Room. */
 @Composable
 private fun ObservatoryTabs(
-    onEarthquakeClick: (String) -> Unit,
-    viewModel: HomeViewModel = hiltViewModel()
+    onEarthquakeClick: (String) -> Unit
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
     var currentTab by rememberSaveable { mutableStateOf(ObservatoryTab.SUMMARY) }
     val tabStates = rememberSaveableStateHolder()
 
-    LifecycleResumeEffect(viewModel) {
-        viewModel.onResumed()
-        onPauseOrDispose { }
-    }
     BackHandler(enabled = currentTab != ObservatoryTab.SUMMARY) {
         currentTab = ObservatoryTab.SUMMARY
     }
@@ -147,54 +135,38 @@ private fun ObservatoryTabs(
         Box(Modifier.fillMaxSize().padding(bottom = padding.calculateBottomPadding())) {
             when (currentTab) {
                 ObservatoryTab.SUMMARY -> tabStates.SaveableStateProvider("summary") {
+                    // Clave estable: la selección del Resumen no se comparte con Eventos.
+                    val summaryViewModel: HomeViewModel = hiltViewModel(key = "observatory_summary")
+                    val summaryState by summaryViewModel.uiState.collectAsStateWithLifecycle()
+                    LifecycleResumeEffect(summaryViewModel) {
+                        summaryViewModel.onResumed()
+                        onPauseOrDispose { }
+                    }
                     ObservatoryDashboard(
-                        state = state,
-                        onAction = viewModel::onAction,
+                        state = summaryState,
+                        onAction = summaryViewModel::onAction,
                         onOpenCatalog = { currentTab = ObservatoryTab.CATALOG },
                         onOpenEarthquake = onEarthquakeClick
                     )
                 }
                 ObservatoryTab.CATALOG -> tabStates.SaveableStateProvider("catalog") {
+                    val catalogViewModel: HomeViewModel = hiltViewModel(key = "observatory_catalog")
+                    val catalogState by catalogViewModel.uiState.collectAsStateWithLifecycle()
+                    LifecycleResumeEffect(catalogViewModel) {
+                        catalogViewModel.onResumed()
+                        onPauseOrDispose { }
+                    }
                     SeismicCatalogScreen(
-                        state = state,
-                        onAction = viewModel::onAction,
+                        state = catalogState,
+                        onAction = catalogViewModel::onAction,
                         onEarthquakeClick = onEarthquakeClick
                     )
                 }
                 ObservatoryTab.MAP -> tabStates.SaveableStateProvider("map") {
-                    val sharedFilters = MapFilterSelection(
-                        timeWindow = when (state.timeWindow) {
-                            TimeWindow.LAST_DAY -> RecentWindow.LAST_DAY
-                            TimeWindow.LAST_WEEK -> RecentWindow.LAST_WEEK
-                            TimeWindow.LAST_MONTH -> RecentWindow.LAST_30_DAYS
-                        },
-                        magnitude = when (state.minimumMagnitude) {
-                            MagnitudeThreshold.ALL -> MapMagnitudeFilter.ALL
-                            MagnitudeThreshold.MAGNITUDE_2_5 -> MapMagnitudeFilter.MAGNITUDE_2_5
-                            MagnitudeThreshold.MAGNITUDE_4_5 -> MapMagnitudeFilter.MAGNITUDE_4_5
-                        }
-                    )
                     SeismicMapRoute(
                         onBack = { currentTab = ObservatoryTab.SUMMARY },
                         onEarthquakeClick = onEarthquakeClick,
-                        sharedFilters = sharedFilters,
-                        inTabNavigation = true,
-                        onSharedTimeWindowChanged = { window ->
-                            val homeWindow = when (window) {
-                                RecentWindow.LAST_DAY -> TimeWindow.LAST_DAY
-                                RecentWindow.LAST_WEEK -> TimeWindow.LAST_WEEK
-                                RecentWindow.LAST_30_DAYS -> TimeWindow.LAST_MONTH
-                            }
-                            viewModel.onAction(HomeAction.SelectTimeWindow(homeWindow))
-                        },
-                        onSharedMagnitudeChanged = { magnitude ->
-                            val selected = when (magnitude) {
-                                MapMagnitudeFilter.ALL -> MagnitudeThreshold.ALL
-                                MapMagnitudeFilter.MAGNITUDE_2_5 -> MagnitudeThreshold.MAGNITUDE_2_5
-                                MapMagnitudeFilter.MAGNITUDE_4_5 -> MagnitudeThreshold.MAGNITUDE_4_5
-                            }
-                            viewModel.onAction(HomeAction.SelectMagnitude(selected))
-                        }
+                        inTabNavigation = true
                     )
                 }
             }

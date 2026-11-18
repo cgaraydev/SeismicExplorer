@@ -103,6 +103,48 @@ class MainActivityTest {
         composeRule.onNodeWithTag("observatory_dashboard").assertIsDisplayed()
     }
 
+    @Test
+    fun summaryAndCatalogKeepIndependentPeriodsAndMagnitude() {
+        // El período elegido en Resumen no cambia el filtro del catálogo.
+        composeRule.onNodeWithTag("observatory_window").performClick()
+        composeRule.onNodeWithText("7 días").performClick()
+        composeRule.onNodeWithTag("tab_catalog").performClick()
+        composeRule.onNodeWithTag("catalog_filter_summary")
+            .assertTextContains("24 horas", substring = true)
+
+        // El catálogo modifica solamente su propia selección.
+        composeRule.onNodeWithTag("catalog_filter_toggle").performClick()
+        composeRule.onNodeWithTag("catalog_list")
+            .performScrollToNode(hasTestTag("catalog_period_LAST_MONTH"))
+        composeRule.onNodeWithTag("catalog_period_LAST_MONTH").performClick()
+        composeRule.onNodeWithTag("catalog_list")
+            .performScrollToNode(hasTestTag("catalog_magnitude_MAGNITUDE_4_5"))
+        composeRule.onNodeWithTag("catalog_magnitude_MAGNITUDE_4_5").performClick()
+        composeRule.onNodeWithTag("catalog_filter_summary")
+            .assertTextContains("30 días", substring = true)
+        composeRule.onNodeWithTag("catalog_filter_summary")
+            .assertTextContains("M 4.5+", substring = true)
+
+        composeRule.onNodeWithTag("tab_summary").performClick()
+        composeRule.onNodeWithTag("observatory_window")
+            .assertTextContains("7 días", substring = true)
+        composeRule.onNodeWithTag("tab_catalog").performClick()
+        composeRule.onNodeWithTag("catalog_filter_summary")
+            .assertTextContains("30 días", substring = true)
+        composeRule.onNodeWithTag("catalog_filter_summary")
+            .assertTextContains("M 4.5+", substring = true)
+    }
+
+    @Test
+    fun catalogFilterChangesDoNotAffectSummaryPeriod() {
+        composeRule.onNodeWithTag("tab_catalog").performClick()
+        composeRule.onNodeWithTag("catalog_filter_toggle").performClick()
+        composeRule.onNodeWithTag("catalog_period_LAST_WEEK").performClick()
+        composeRule.onNodeWithTag("tab_summary").performClick()
+        composeRule.onNodeWithTag("observatory_window")
+            .assertTextContains("24 h", substring = true)
+    }
+
     private class FakeEarthquakeRepository :
         EarthquakeRepository {
 

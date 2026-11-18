@@ -82,6 +82,13 @@
     <string name="map_depth_intermediate">70–300 km</string>
     <string name="map_depth_deep">Más de 300 km</string>
     <string name="map_depth_unknown_notice">Los eventos con profundidad desconocida o negativa solo se incluyen al seleccionar todas las profundidades.</string>
+    <string name="map_location_settings_required">Debes ajustar la configuración de ubicación para utilizar esta función.</string>
+    <string name="map_location_settings_unavailable">La configuración actual no permite obtener una ubicación por red. Revisa los ajustes de ubicación del dispositivo.</string>
+    <string name="map_location_temporarily_unavailable">Android todavía no ha conseguido una ubicación. Espera un momento y vuelve a intentarlo.</string>
+    <string name="map_location_configure">Configurar ubicación</string>
+    <string name="map_location_open_settings">Abrir ajustes de ubicación</string>
+    <string name="map_style_load_failed">No se pudo cargar el mapa base. Puedes reintentarlo sin cambiar los filtros.</string>
+    <string name="map_style_retry">Reintentar mapa</string>
 
     <string name="feed_status_fresh">Datos recientes · %1$s</string>
     <string name="feed_status_stale">Datos desactualizados · última descarga: %1$s</string>

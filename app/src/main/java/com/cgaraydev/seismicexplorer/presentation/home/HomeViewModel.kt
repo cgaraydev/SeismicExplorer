@@ -1,6 +1,7 @@
 package com.cgaraydev.seismicexplorer.presentation.home
 
 import android.util.Log
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cgaraydev.seismicexplorer.domain.model.FeedSyncResult
@@ -24,10 +25,21 @@ import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: EarthquakeRepository,
-    private val clock: Clock
+    private val clock: Clock,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(HomeUiState(periodEndAt = clock.instant()))
+    // Mantiene compatibles los tests existentes que construyen el ViewModel directamente.
+    internal constructor(repository: EarthquakeRepository, clock: Clock) :
+        this(repository, clock, SavedStateHandle())
+
+    private val _uiState = MutableStateFlow(
+        HomeUiState(
+            timeWindow = restoredEnum(SAVED_TIME_WINDOW, TimeWindow.LAST_DAY),
+            minimumMagnitude = restoredEnum(SAVED_MAGNITUDE, MagnitudeThreshold.ALL),
+            periodEndAt = clock.instant()
+        )
+    )
 
     val uiState: StateFlow<HomeUiState> =
         _uiState.asStateFlow()
@@ -94,6 +106,7 @@ class HomeViewModel @Inject constructor(
     private fun selectTimeWindow(window: TimeWindow) {
         if (_uiState.value.timeWindow == window) return
 
+        savedStateHandle[SAVED_TIME_WINDOW] = window.name
         _uiState.update { current ->
             current.copy(
                 timeWindow = window,
@@ -120,6 +133,7 @@ class HomeViewModel @Inject constructor(
             return
         }
 
+        savedStateHandle[SAVED_MAGNITUDE] = threshold.name
         _uiState.update { current ->
             current.copy(minimumMagnitude = threshold)
         }
@@ -196,8 +210,8 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * El Resumen observa todos los terremotos de la ventana, independientemente
-     * del filtro de magnitud que comparten Eventos y Mapa.
+     * El Resumen observa todos los terremotos de su ventana, sin filtro de
+     * magnitud, aunque el catálogo utilice otro período o umbral.
      * La colección y sus límites se publican como una única instantánea.
      */
     private fun observeObservatorySelection(clearEvents: Boolean) {
@@ -374,7 +388,14 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    private inline fun <reified T : Enum<T>> restoredEnum(key: String, default: T): T {
+        val savedName = savedStateHandle.get<String>(key)
+        return enumValues<T>().firstOrNull { it.name == savedName } ?: default
+    }
+
     private companion object {
         const val TAG = "HomeViewModel"
+        const val SAVED_TIME_WINDOW = "home_selected_time_window"
+        const val SAVED_MAGNITUDE = "home_selected_magnitude"
     }
 }

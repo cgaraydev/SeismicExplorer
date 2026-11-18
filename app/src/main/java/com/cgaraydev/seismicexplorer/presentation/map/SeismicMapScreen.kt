@@ -68,23 +68,12 @@ import org.maplibre.android.geometry.LatLng
 fun SeismicMapRoute(
     onBack: () -> Unit,
     onEarthquakeClick: (String) -> Unit,
-    sharedFilters: MapFilterSelection? = null,
-    onSharedTimeWindowChanged: (RecentWindow) -> Unit = {},
-    onSharedMagnitudeChanged: (MapMagnitudeFilter) -> Unit = {},
     inTabNavigation: Boolean = false,
     viewModel: SeismicMapViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedFilters by viewModel.filters.collectAsStateWithLifecycle()
     val syncState by viewModel.syncState.collectAsStateWithLifecycle()
-
-    // El Observatorio gobierna el período y la magnitud al entrar en la pestaña.
-    LaunchedEffect(sharedFilters?.timeWindow, sharedFilters?.magnitude) {
-        sharedFilters?.let { filters ->
-            viewModel.selectTimeWindow(filters.timeWindow)
-            viewModel.selectMagnitude(filters.magnitude)
-        }
-    }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -244,14 +233,8 @@ fun SeismicMapRoute(
         onEarthquakeClick = onEarthquakeClick,
         state = state,
         showBackButton = !inTabNavigation,
-        onTimeWindowSelect = { window ->
-            viewModel.selectTimeWindow(window)
-            if (sharedFilters != null) onSharedTimeWindowChanged(window)
-        },
-        onMagnitudeSelect = { magnitude ->
-            viewModel.selectMagnitude(magnitude)
-            if (sharedFilters != null) onSharedMagnitudeChanged(magnitude)
-        },
+        onTimeWindowSelect = viewModel::selectTimeWindow,
+        onMagnitudeSelect = viewModel::selectMagnitude,
         onDepthFilterSelect = viewModel::selectDepthFilter,
         initialCamera = cameraPosition,
         onCameraChanged = { camera ->
