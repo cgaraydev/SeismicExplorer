@@ -12,6 +12,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import com.cgaraydev.seismicexplorer.data.local.dao.FeedSyncDao
+import com.cgaraydev.seismicexplorer.data.local.dao.ScientificDetailCacheDao
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -43,5 +44,10 @@ object DatabaseModule {
     ): FeedSyncDao {
         return database.feedSyncDao()
     }
+
+    @Provides
+    fun provideScientificDetailCacheDao(
+        database: SeismicDatabase
+    ): ScientificDetailCacheDao = database.scientificDetailCacheDao()
 
 }

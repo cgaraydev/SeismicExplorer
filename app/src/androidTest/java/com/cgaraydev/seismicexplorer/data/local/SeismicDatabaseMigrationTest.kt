@@ -31,6 +31,68 @@ class SeismicDatabaseMigrationTest {
     )
 
     @Test
+    fun migrationFrom3To4_preservesExistingEventsAndCreatesCache() = runTest {
+        instrumentation.targetContext.deleteDatabase(databaseName)
+        val old = migrationHelper.createDatabase(3)
+        try {
+            old.execSQL("""INSERT INTO earthquakes (
+                id, magnitude, place, latitude, longitude, depthKilometers,
+                occurredAtEpochMillis, updatedAtEpochMillis, detailUrl, magType, reviewStatus
+            ) VALUES ('existing-v3', 5.5, 'Chile', -33.4, -71.6, 12.0,
+                1700000000000, 1700000001000, NULL, 'mww', 'reviewed')""".trimIndent())
+            old.execSQL("""INSERT INTO feed_sync (feedName, lastSuccessEpochMillis)
+                VALUES ('all_day', 1700000002000)""".trimIndent())
+        } finally {
+            old.close()
+        }
+        val migrated = migrationHelper.runMigrationsAndValidate(version = 4, migrations = emptyList())
+        try {
+            migrated.prepare("SELECT id, magType, reviewStatus FROM earthquakes").use { stmt ->
+                assertTrue(stmt.step())
+                assertEquals("existing-v3", stmt.getText(0))
+                assertEquals("mww", stmt.getText(1))
+                assertEquals("reviewed", stmt.getText(2))
+                assertFalse(stmt.step())
+            }
+            migrated.prepare("SELECT lastSuccessEpochMillis FROM feed_sync").use { stmt ->
+                assertTrue(stmt.step())
+                assertEquals(1700000002000L, stmt.getLong(0))
+            }
+            migrated.prepare("SELECT COUNT(*) FROM scientific_detail_cache").use { stmt ->
+                assertTrue(stmt.step())
+                assertEquals(0L, stmt.getLong(0))
+            }
+        } finally { migrated.close() }
+    }
+
+    @Test
+    fun migrationFrom1To4_preservesEventsThroughAllMigrations() = runTest {
+        instrumentation.targetContext.deleteDatabase(databaseName)
+        val old = migrationHelper.createDatabase(1)
+        try {
+            old.execSQL("""INSERT INTO earthquakes (
+                id, magnitude, place, latitude, longitude, depthKilometers,
+                occurredAtEpochMillis, updatedAtEpochMillis, detailUrl
+            ) VALUES ('existing-v1', 4.1, 'Chile', -33.4, -71.6, 12.0,
+                1700000000000, 1700000001000, NULL)""".trimIndent())
+        } finally { old.close() }
+        val migrated = migrationHelper.runMigrationsAndValidate(version = 4, migrations = emptyList())
+        try {
+            migrated.prepare("SELECT id, magType, reviewStatus FROM earthquakes").use { stmt ->
+                assertTrue(stmt.step())
+                assertEquals("existing-v1", stmt.getText(0))
+                assertTrue(stmt.isNull(1))
+                assertTrue(stmt.isNull(2))
+                assertFalse(stmt.step())
+            }
+            migrated.prepare("SELECT COUNT(*) FROM scientific_detail_cache").use { stmt ->
+                assertTrue(stmt.step())
+                assertEquals(0L, stmt.getLong(0))
+            }
+        } finally { migrated.close() }
+    }
+
+    @Test
     fun migrationFrom2To3_preservesEventsAndFeedSync() = runTest {
         instrumentation.targetContext.deleteDatabase(databaseName)
         val old = migrationHelper.createDatabase(2)

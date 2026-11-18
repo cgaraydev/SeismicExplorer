@@ -1,6 +1,8 @@
 package com.cgaraydev.seismicexplorer.di
 
 import com.cgaraydev.seismicexplorer.data.repository.OfflineFirstEarthquakeRepository
+import com.cgaraydev.seismicexplorer.data.repository.OfflineFirstScientificDetailRepository
+import com.cgaraydev.seismicexplorer.domain.repository.ScientificDetailRepository
 import com.cgaraydev.seismicexplorer.domain.repository.EarthquakeRepository
 import dagger.Binds
 import dagger.Module
@@ -18,6 +20,11 @@ abstract class RepositoryModule {
     abstract fun bindEarthquakeRepository(
         implementation: OfflineFirstEarthquakeRepository
     ): EarthquakeRepository
+
+    @Binds
+    abstract fun bindScientificDetailRepository(
+        implementation: OfflineFirstScientificDetailRepository
+    ): ScientificDetailRepository
 
     companion object {
 

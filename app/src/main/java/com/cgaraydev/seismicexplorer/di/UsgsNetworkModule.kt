@@ -1,6 +1,8 @@
 package com.cgaraydev.seismicexplorer.di
 
 import com.cgaraydev.seismicexplorer.data.remote.api.UsgsEarthquakeApi
+import com.cgaraydev.seismicexplorer.data.remote.api.UsgsScientificDetailApi
+import com.cgaraydev.seismicexplorer.data.remote.UsgsScientificDetailParser
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -43,4 +45,14 @@ object UsgsNetworkModule {
     ): UsgsEarthquakeApi {
         return retrofit.create(UsgsEarthquakeApi::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideUsgsScientificDetailApi(retrofit: Retrofit): UsgsScientificDetailApi =
+        retrofit.create(UsgsScientificDetailApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideUsgsScientificDetailParser(json: Json): UsgsScientificDetailParser =
+        UsgsScientificDetailParser(json)
 }
