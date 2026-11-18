@@ -37,5 +37,6 @@ data class HomeUiState(
     val isReadingLocal: Boolean = true,
     val localReadFailed: Boolean = false,
     val refreshState: HomeRefreshState = HomeRefreshState.Idle,
-    val feedCacheStatus: FeedCacheStatus = FeedCacheStatus.Unknown
+    val feedCacheStatus: FeedCacheStatus = FeedCacheStatus.Unknown,
+    val periodEndAt: java.time.Instant? = null
 )

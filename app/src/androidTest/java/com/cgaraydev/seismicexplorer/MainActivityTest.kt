@@ -57,13 +57,9 @@ class MainActivityTest {
 
     @Test
     fun launch_displaysHomeScreen() {
-        composeRule
-            .onNodeWithText("El planeta, hoy")
-            .assertIsDisplayed()
-
-        composeRule
-            .onNodeWithText("Un atlas para observar y comprender la actividad sísmica.")
-            .assertIsDisplayed()
+        composeRule.onNodeWithText("Observatorio").assertIsDisplayed()
+        composeRule.onNodeWithTag("observatory_window").assertIsDisplayed()
+        composeRule.onNodeWithTag("tab_summary").assertIsDisplayed()
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
             fakeRepository.syncRequests.contains(
@@ -80,11 +76,9 @@ class MainActivityTest {
 
     @Test
     fun selectingPeriod_updatesStateThroughViewModel() {
-        composeRule.onNodeWithTag("home_list").performScrollToNode(hasTestTag("explore_filters_toggle"))
-        composeRule.onNodeWithTag("explore_filters_toggle").performClick()
-        composeRule.onNodeWithTag("home_list").performScrollToNode(hasTestTag("explore_period_LAST_WEEK"))
-        composeRule.onNodeWithTag("explore_period_LAST_WEEK").performClick()
-        composeRule.onNodeWithTag("explore_filter_summary")
+        composeRule.onNodeWithTag("observatory_window").performClick()
+        composeRule.onNodeWithText("7 días").performClick()
+        composeRule.onNodeWithTag("observatory_window")
             .assertTextContains("7 días", substring = true)
 
 
@@ -99,6 +93,14 @@ class MainActivityTest {
                 RecentWindow.LAST_WEEK
             )
         )
+    }
+
+    @Test
+    fun bottomNavigation_opensCatalog() {
+        composeRule.onNodeWithTag("tab_catalog").performClick()
+        composeRule.onNodeWithTag("catalog_list").assertIsDisplayed()
+        composeRule.onNodeWithTag("tab_summary").performClick()
+        composeRule.onNodeWithTag("observatory_dashboard").assertIsDisplayed()
     }
 
     private class FakeEarthquakeRepository :

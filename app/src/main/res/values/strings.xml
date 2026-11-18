@@ -131,4 +131,38 @@
     <string name="editorial_learn_source">Guía introductoria. La información detallada y revisada de cada evento está disponible en su fuente USGS.</string>
     <string name="editorial_close">Entendido</string>
 
+    <!-- OBSERVATORIO 3.3.0: RESUMEN Y NAVEGACIÓN -->
+    <string name="observatory_title">Observatorio</string>
+    <string name="observatory_window_day">Mundo · Últimas 24 h</string>
+    <string name="observatory_window_week">Mundo · Últimos 7 días</string>
+    <string name="observatory_window_month">Mundo · Últimos 30 días</string>
+    <string name="observatory_data_scope">Eventos disponibles · USGS</string>
+    <string name="observatory_sync_failed">No se pudo actualizar el período. Se muestran los datos disponibles.</string>
+    <string name="observatory_settings">Ajustes</string>
+    <string name="observatory_settings_description">Las preferencias avanzadas se incorporarán en una fase posterior. Por ahora, la aplicación sigue el tema del sistema y utiliza datos sísmicos de USGS.</string>
+    <string name="observatory_close">Cerrar</string>
+    <string name="observatory_registered_events">Eventos registrados</string>
+    <string name="observatory_maximum">Mayor magnitud</string>
+    <string name="observatory_magnitudes">Magnitudes</string>
+    <string name="observatory_events_per_hour">Eventos por hora</string>
+    <string name="observatory_events_per_day">Eventos por día</string>
+    <string name="observatory_chart_accessibility">Distribución de %1$d eventos en el período seleccionado</string>
+    <string name="observatory_no_events">Sin eventos disponibles para representar en este período.</string>
+    <string name="observatory_open_map">Mapa</string>
+    <string name="observatory_open_catalog">Eventos</string>
+    <string name="observatory_strongest_label">Mayor magnitud · %1$s</string>
+    <string name="observatory_other_statistics">Más estadísticas</string>
+    <string name="observatory_above_25">Eventos de M 2.5 o superior</string>
+    <string name="observatory_max_depth">Profundidad máxima conocida</string>
+    <string name="observatory_view_events">Ver eventos</string>
+    <string name="observatory_view_detail">Ver detalle</string>
+    <string name="observatory_no_max_event">Sin magnitudes conocidas</string>
+    <string name="observatory_above_45">Eventos de M 4.5 o superior</string>
+    <string name="observatory_average_depth">Profundidad media conocida</string>
+    <string name="observatory_data_caveat">Las cifras corresponden a los eventos disponibles en el dispositivo para los filtros activos. Pueden no representar la totalidad de los sismos ocurridos.</string>
+    <string name="observatory_tab_summary">Resumen</string>
+    <string name="observatory_tab_map">Mapa</string>
+    <string name="observatory_tab_catalog">Eventos</string>
+    <string name="observatory_catalog">Eventos</string>
+    <string name="observatory_catalog_description">Explora la actividad sísmica disponible y ajusta los filtros.</string>
 </resources>

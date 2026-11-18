@@ -27,7 +27,7 @@ class HomeViewModel @Inject constructor(
     private val clock: Clock
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(HomeUiState())
+    private val _uiState = MutableStateFlow(HomeUiState(periodEndAt = clock.instant()))
 
     val uiState: StateFlow<HomeUiState> =
         _uiState.asStateFlow()
@@ -142,7 +142,8 @@ class HomeViewModel @Inject constructor(
                     current.earthquakes
                 },
                 isReadingLocal = true,
-                localReadFailed = false
+                localReadFailed = false,
+                periodEndAt = queryEndTime
             )
         }
 

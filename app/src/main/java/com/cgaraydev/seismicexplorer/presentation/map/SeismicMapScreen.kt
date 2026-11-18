@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -66,11 +68,23 @@ import org.maplibre.android.geometry.LatLng
 fun SeismicMapRoute(
     onBack: () -> Unit,
     onEarthquakeClick: (String) -> Unit,
+    sharedFilters: MapFilterSelection? = null,
+    onSharedTimeWindowChanged: (RecentWindow) -> Unit = {},
+    onSharedMagnitudeChanged: (MapMagnitudeFilter) -> Unit = {},
+    inTabNavigation: Boolean = false,
     viewModel: SeismicMapViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedFilters by viewModel.filters.collectAsStateWithLifecycle()
     val syncState by viewModel.syncState.collectAsStateWithLifecycle()
+
+    // El Observatorio gobierna el período y la magnitud al entrar en la pestaña.
+    LaunchedEffect(sharedFilters?.timeWindow, sharedFilters?.magnitude) {
+        sharedFilters?.let { filters ->
+            viewModel.selectTimeWindow(filters.timeWindow)
+            viewModel.selectMagnitude(filters.magnitude)
+        }
+    }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -229,8 +243,15 @@ fun SeismicMapRoute(
         onBack = onBack,
         onEarthquakeClick = onEarthquakeClick,
         state = state,
-        onTimeWindowSelect = viewModel::selectTimeWindow,
-        onMagnitudeSelect = viewModel::selectMagnitude,
+        showBackButton = !inTabNavigation,
+        onTimeWindowSelect = { window ->
+            viewModel.selectTimeWindow(window)
+            if (sharedFilters != null) onSharedTimeWindowChanged(window)
+        },
+        onMagnitudeSelect = { magnitude ->
+            viewModel.selectMagnitude(magnitude)
+            if (sharedFilters != null) onSharedMagnitudeChanged(magnitude)
+        },
         onDepthFilterSelect = viewModel::selectDepthFilter,
         initialCamera = cameraPosition,
         onCameraChanged = { camera ->
@@ -295,6 +316,7 @@ fun SeismicMapRoute(
 fun SeismicMapScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    showBackButton: Boolean = true,
     state: SeismicMapUiState = SeismicMapUiState(),
     onEarthquakeClick: (String) -> Unit = {},
     initialCamera: CameraPosition = defaultSeismicCameraPosition(),
@@ -351,14 +373,18 @@ fun SeismicMapScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        contentWindowInsets = if (showBackButton) androidx.compose.material3.ScaffoldDefaults.contentWindowInsets
+            else WindowInsets.statusBars,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(stringResource(R.string.map_title))
                 },
                 navigationIcon = {
-                    TextButton(onClick = onBack) {
-                        Text(stringResource(R.string.detail_back))
+                    if (showBackButton) {
+                        TextButton(onClick = onBack) {
+                            Text(stringResource(R.string.detail_back))
+                        }
                     }
                 },
                 actions = {
