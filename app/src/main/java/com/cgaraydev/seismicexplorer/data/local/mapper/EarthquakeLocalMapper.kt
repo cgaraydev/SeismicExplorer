@@ -15,7 +15,9 @@ fun Earthquake.toEntity(): EarthquakeEntity {
         depthKilometers = depthKilometers,
         occurredAtEpochMillis = occurredAt.toEpochMilli(),
         updatedAtEpochMillis = updatedAt.toEpochMilli(),
-        detailUrl = detailUrl
+        detailUrl = detailUrl,
+        magType = magType,
+        reviewStatus = reviewStatus
     )
 }
 
@@ -31,6 +33,8 @@ fun EarthquakeEntity.toDomain(): Earthquake {
         depthKilometers = depthKilometers,
         occurredAt = Instant.ofEpochMilli(occurredAtEpochMillis),
         updatedAt = Instant.ofEpochMilli(updatedAtEpochMillis),
-        detailUrl = detailUrl
+        detailUrl = detailUrl,
+        magType = magType,
+        reviewStatus = reviewStatus
     )
 }

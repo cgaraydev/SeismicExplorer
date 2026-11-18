@@ -39,6 +39,23 @@ class EarthquakeDetailScreenTest {
     }
 
     @Test
+    fun detailShowsMagnitudeTypeAndReviewStatus() {
+        composeRule.setContent {
+            SeismicExplorerTheme(darkTheme = true) {
+                EarthquakeDetailScreen(
+                    state = EarthquakeDetailUiState.Content(
+                        sampleEarthquake().copy(magType = "mww", reviewStatus = "reviewed")
+                    ),
+                    onBack = {},
+                    onOpenSource = {}
+                )
+            }
+        }
+        composeRule.onNodeWithText("mww").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Revisado").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
     fun notFoundState_displaysInformativeMessage() {
         composeRule.setContent {
             SeismicExplorerTheme {

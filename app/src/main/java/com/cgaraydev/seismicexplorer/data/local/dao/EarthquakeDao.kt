@@ -80,7 +80,7 @@ abstract class EarthquakeDao {
 
     @Query(
         """
-        SELECT id, updatedAtEpochMillis
+        SELECT id, updatedAtEpochMillis, magType, reviewStatus
         FROM earthquakes
         WHERE id IN (:ids)
         """
@@ -88,6 +88,22 @@ abstract class EarthquakeDao {
     protected abstract suspend fun getExistingVersions(
         ids: List<String>
     ): List<EarthquakeVersion>
+
+    // Enriquecer registros migrados sin modificar el resto de una revisión ya almacenada.
+    @Query(
+        """
+        UPDATE earthquakes
+        SET magType = COALESCE(magType, :magType),
+            reviewStatus = COALESCE(reviewStatus, :reviewStatus)
+        WHERE id = :id AND updatedAtEpochMillis = :updatedAtEpochMillis
+        """
+    )
+    protected abstract suspend fun fillMissingScientificMetadata(
+        id: String,
+        updatedAtEpochMillis: Long,
+        magType: String?,
+        reviewStatus: String?
+    )
 
     @Upsert
     protected abstract suspend fun upsertFeedSync(entity: FeedSyncEntity)
@@ -172,17 +188,33 @@ abstract class EarthquakeDao {
         newestPerId.chunked(400).forEach { batch ->
             val existingVersions = getExistingVersions(
                 batch.map { it.id }
-            ).associate { it.id to it.updatedAtEpochMillis }
+            ).associateBy { it.id }
 
             val newOrUpdated = batch.filter { earthquake ->
                 val storedVersion = existingVersions[earthquake.id]
-
                 storedVersion == null ||
-                        earthquake.updatedAtEpochMillis > storedVersion
+                    earthquake.updatedAtEpochMillis > storedVersion.updatedAtEpochMillis
             }
-
             if (newOrUpdated.isNotEmpty()) {
                 upsertEarthquakes(newOrUpdated)
+            }
+
+            // Igual timestamp: mantener el registro anterior, pero completar metadatos
+            // ausentes. No se sustituyen ni magnitud, ni ubicación, ni valores existentes.
+            batch.forEach { earthquake ->
+                val storedVersion = existingVersions[earthquake.id]
+                if (storedVersion != null &&
+                    storedVersion.updatedAtEpochMillis == earthquake.updatedAtEpochMillis &&
+                    ((storedVersion.magType == null && earthquake.magType != null) ||
+                        (storedVersion.reviewStatus == null && earthquake.reviewStatus != null))
+                ) {
+                    fillMissingScientificMetadata(
+                        id = earthquake.id,
+                        updatedAtEpochMillis = earthquake.updatedAtEpochMillis,
+                        magType = earthquake.magType,
+                        reviewStatus = earthquake.reviewStatus
+                    )
+                }
             }
         }
     }

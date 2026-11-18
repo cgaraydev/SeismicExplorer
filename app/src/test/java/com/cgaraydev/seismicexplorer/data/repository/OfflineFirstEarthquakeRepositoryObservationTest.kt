@@ -114,6 +114,12 @@ class OfflineFirstEarthquakeRepositoryObservationTest {
 
         protected override suspend fun upsertEarthquakes(earthquakes: List<EarthquakeEntity>) = Unit
         protected override suspend fun getExistingVersions(ids: List<String>): List<EarthquakeVersion> = emptyList()
+        protected override suspend fun fillMissingScientificMetadata(
+            id: String,
+            updatedAtEpochMillis: Long,
+            magType: String?,
+            reviewStatus: String?
+        ) = Unit
         protected override suspend fun upsertFeedSync(entity: FeedSyncEntity) = Unit
         protected override suspend fun findReconciliationCandidates(
             startMillis: Long,

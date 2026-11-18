@@ -62,6 +62,8 @@ private fun UsgsEarthquakeFeatureDto.toDomainOrNull(): Earthquake? {
         depthKilometers = depth,
         occurredAt = Instant.ofEpochMilli(occurredAt),
         updatedAt = Instant.ofEpochMilli(updatedAt),
-        detailUrl = eventProperties.url?.trim()?.takeIf { it.isNotEmpty() }
+        detailUrl = eventProperties.url?.trim()?.takeIf { it.isNotEmpty() },
+        magType = eventProperties.magType?.trim()?.takeIf { it.isNotEmpty() },
+        reviewStatus = eventProperties.status?.trim()?.takeIf { it.isNotEmpty() }
     )
 }

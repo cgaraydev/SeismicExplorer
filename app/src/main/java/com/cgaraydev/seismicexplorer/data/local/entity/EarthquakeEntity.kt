@@ -19,5 +19,7 @@ data class EarthquakeEntity(
     val depthKilometers: Double?,
     val occurredAtEpochMillis: Long,
     val updatedAtEpochMillis: Long,
-    val detailUrl: String?
+    val detailUrl: String?,
+    val magType: String? = null,
+    val reviewStatus: String? = null
 )

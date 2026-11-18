@@ -219,6 +219,25 @@ private fun EarthquakeDetailContent(
                     value = dateFormatter.format(earthquake.updatedAt)
                 )
 
+                DetailField(
+                    label = stringResource(R.string.detail_magnitude_type),
+                    value = earthquake.magType ?: stringResource(R.string.detail_unknown)
+                )
+                Text(
+                    text = stringResource(R.string.detail_magnitude_type_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                val reviewLabel = when (earthquake.reviewStatus?.lowercase(Locale.ROOT)) {
+                    "reviewed" -> R.string.detail_reviewed
+                    "automatic" -> R.string.detail_automatic
+                    else -> R.string.detail_unknown
+                }
+                DetailField(
+                    label = stringResource(R.string.detail_review_status),
+                    value = stringResource(reviewLabel)
+                )
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         DetailField(

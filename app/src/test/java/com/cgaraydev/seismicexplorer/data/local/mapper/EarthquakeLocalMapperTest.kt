@@ -36,6 +36,15 @@ class EarthquakeLocalMapperTest {
         assertEquals(original, restored)
     }
 
+    @Test
+    fun roundTrip_preservesMagnitudeTypeAndReviewStatus() {
+        val original = sampleEarthquake().copy(
+            magType = "mww",
+            reviewStatus = "reviewed"
+        )
+        assertEquals(original, original.toEntity().toDomain())
+    }
+
     private fun sampleEarthquake() = Earthquake(
         id = "us123",
         magnitude = 4.5,

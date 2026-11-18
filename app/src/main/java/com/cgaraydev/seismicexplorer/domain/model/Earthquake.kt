@@ -10,7 +10,9 @@ data class Earthquake(
     val depthKilometers: Double?,
     val occurredAt: Instant,
     val updatedAt: Instant,
-    val detailUrl: String?
+    val detailUrl: String?,
+    val magType: String? = null,
+    val reviewStatus: String? = null
 ) {
     init {
         require(id.isNotBlank()) {

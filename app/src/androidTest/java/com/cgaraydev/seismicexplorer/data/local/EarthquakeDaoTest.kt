@@ -220,6 +220,34 @@ class EarthquakeDaoTest {
     }
 
     @Test
+    fun equalTimestamp_enrichesOnlyMissingScientificMetadata() = runTest {
+        val original = sampleEntity("metadata", recentTime, 4.5).copy(
+            place = "Lugar original", magType = null, reviewStatus = null
+        )
+        dao.upsertIfNewer(listOf(original))
+
+        dao.upsertIfNewer(listOf(original.copy(
+            magnitude = 6.9,
+            place = "No sobrescribir",
+            magType = "mww",
+            reviewStatus = "reviewed"
+        )))
+
+        val stored = dao.observeEarthquake("metadata").first()!!
+        assertEquals(4.5, stored.magnitude!!, 0.0)
+        assertEquals("Lugar original", stored.place)
+        assertEquals("mww", stored.magType)
+        assertEquals("reviewed", stored.reviewStatus)
+
+        dao.upsertIfNewer(listOf(original.copy(
+            magType = "mb", reviewStatus = "automatic"
+        )))
+        val preserved = dao.observeEarthquake("metadata").first()!!
+        assertEquals("mww", preserved.magType)
+        assertEquals("reviewed", preserved.reviewStatus)
+    }
+
+    @Test
     fun batchesLargerThan400_preserveAllRecordsAndUpdateThem() = runTest {
         val original = (1..805).map { index ->
             sampleEntity(

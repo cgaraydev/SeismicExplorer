@@ -38,6 +38,7 @@ class UsgsEarthquakeMapperTest {
                             "updated": 1700000010000,
                             "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us123",
                             "type": "earthquake",
+                            "magType": "mww",
                             "status": "reviewed"
                         },
                         "geometry": {
@@ -57,6 +58,8 @@ class UsgsEarthquakeMapperTest {
         val earthquake = earthquakes.single()
 
         assertEquals("us123", earthquake.id)
+        assertEquals("mww", earthquake.magType)
+        assertEquals("reviewed", earthquake.reviewStatus)
         assertEquals(4.5, earthquake.magnitude!!, 0.0)
         assertEquals(-33.4, earthquake.coordinates.latitude, 0.0)
         assertEquals(-71.6, earthquake.coordinates.longitude, 0.0)
@@ -73,7 +76,9 @@ class UsgsEarthquakeMapperTest {
             properties = validProperties().copy(
                 mag = null,
                 place = null,
-                url = null
+                url = null,
+                magType = null,
+                status = null
             ),
             geometry = validGeometry().copy(
                 coordinates = listOf(-71.6, -33.4)
@@ -88,6 +93,18 @@ class UsgsEarthquakeMapperTest {
         assertNull(earthquake.place)
         assertNull(earthquake.depthKilometers)
         assertNull(earthquake.detailUrl)
+        assertNull(earthquake.magType)
+        assertNull(earthquake.reviewStatus)
+    }
+
+    @Test
+    fun blankScientificMetadata_isTreatedAsUnknown() {
+        val feature = validFeature().copy(
+            properties = validProperties().copy(magType = "  ", status = " ")
+        )
+        val earthquake = UsgsEarthquakeCollectionDto(listOf(feature)).toDomain().single()
+        assertNull(earthquake.magType)
+        assertNull(earthquake.reviewStatus)
     }
 
     @Test

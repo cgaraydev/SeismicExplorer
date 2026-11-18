@@ -29,7 +29,10 @@ data class UsgsEarthquakePropertiesDto(
     val time: Long? = null,
     val updated: Long? = null,
     val url: String? = null,
-    val type: String? = null
+    val type: String? = null,
+    // Códigos y estados publicados por el proveedor; no son equivalentes a "Richter".
+    val magType: String? = null,
+    val status: String? = null
 )
 
 @Serializable

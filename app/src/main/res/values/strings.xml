@@ -298,4 +298,10 @@
     <string name="learn_revision_source_updates">USGS · Por qué cambian las magnitudes</string>
     <string name="learn_revision_source_agencies">USGS · Diferencias entre agencias</string>
     <string name="learn_revision_source_removed">USGS · Correcciones y eventos retirados</string>
+    <!-- DATOS CIENTÍFICOS USGS 3.5.1 -->
+    <string name="detail_magnitude_type">Tipo de magnitud (USGS)</string>
+    <string name="detail_magnitude_type_note">El código indica el método reportado por la fuente. No todas las magnitudes corresponden a Richter; el dato puede revisarse.</string>
+    <string name="detail_review_status">Estado de la estimación</string>
+    <string name="detail_reviewed">Revisado</string>
+    <string name="detail_automatic">Automático</string>
 </resources>
