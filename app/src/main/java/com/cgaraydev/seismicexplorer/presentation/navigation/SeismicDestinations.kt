@@ -13,3 +13,8 @@ data object MapDestination : NavKey
 data class EarthquakeDetailDestination(
     val earthquakeId: String
 ) : NavKey
+
+@Serializable
+data class LearnArticleDestination(
+    val articleId: String
+) : NavKey

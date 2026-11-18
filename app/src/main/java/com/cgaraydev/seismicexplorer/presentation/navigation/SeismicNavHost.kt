@@ -19,6 +19,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -37,12 +38,16 @@ import com.cgaraydev.seismicexplorer.presentation.detail.EarthquakeDetailViewMod
 import com.cgaraydev.seismicexplorer.presentation.home.HomeViewModel
 import com.cgaraydev.seismicexplorer.presentation.home.ObservatoryDashboard
 import com.cgaraydev.seismicexplorer.presentation.home.SeismicCatalogScreen
+import com.cgaraydev.seismicexplorer.presentation.learn.LearnArticleScreen
+import com.cgaraydev.seismicexplorer.presentation.learn.LearnCatalog
+import com.cgaraydev.seismicexplorer.presentation.learn.LearnHomeScreen
 import com.cgaraydev.seismicexplorer.presentation.map.SeismicMapRoute
 
 private enum class ObservatoryTab(val labelRes: Int, val drawableRes: Int, val testTag: String) {
     SUMMARY(R.string.observatory_tab_summary, R.drawable.ic_observatory_summary, "tab_summary"),
     MAP(R.string.observatory_tab_map, R.drawable.ic_atlas_map, "tab_map"),
-    CATALOG(R.string.observatory_tab_catalog, R.drawable.ic_atlas_events, "tab_catalog")
+    CATALOG(R.string.observatory_tab_catalog, R.drawable.ic_atlas_events, "tab_catalog"),
+    LEARN(R.string.observatory_tab_learn, R.drawable.ic_observatory_learn, "tab_learn")
 }
 
 @Composable
@@ -88,7 +93,23 @@ fun SeismicNavHost() {
                 >(
                     creationCallback = { factory -> factory.create(destination) }
                 )
-                EarthquakeDetailRoute(viewModel = viewModel, onBack = navigateBack)
+                EarthquakeDetailRoute(
+                    viewModel = viewModel,
+                    onBack = navigateBack,
+                    onOpenLearn = {
+                        if (backStack.lastOrNull() == destination) {
+                            backStack.add(LearnArticleDestination(LearnCatalog.MAGNITUDE_INTENSITY))
+                        }
+                    }
+                )
+            }
+            entry<LearnArticleDestination> { destination ->
+                val uriHandler = LocalUriHandler.current
+                LearnArticleScreen(
+                    articleId = destination.articleId,
+                    onBack = navigateBack,
+                    onOpenSource = uriHandler::openUri
+                )
             }
         }
     )
@@ -100,10 +121,15 @@ private fun ObservatoryTabs(
     onEarthquakeClick: (String) -> Unit
 ) {
     var currentTab by rememberSaveable { mutableStateOf(ObservatoryTab.SUMMARY) }
+    var selectedLearnArticle by rememberSaveable { mutableStateOf<String?>(null) }
     val tabStates = rememberSaveableStateHolder()
 
     BackHandler(enabled = currentTab != ObservatoryTab.SUMMARY) {
-        currentTab = ObservatoryTab.SUMMARY
+        if (currentTab == ObservatoryTab.LEARN && selectedLearnArticle != null) {
+            selectedLearnArticle = null
+        } else {
+            currentTab = ObservatoryTab.SUMMARY
+        }
     }
 
     Scaffold(
@@ -168,6 +194,19 @@ private fun ObservatoryTabs(
                         onEarthquakeClick = onEarthquakeClick,
                         inTabNavigation = true
                     )
+                }
+                ObservatoryTab.LEARN -> tabStates.SaveableStateProvider("learn") {
+                    val articleId = selectedLearnArticle
+                    if (articleId == null) {
+                        LearnHomeScreen(onOpenArticle = { selectedLearnArticle = it })
+                    } else {
+                        val uriHandler = LocalUriHandler.current
+                        LearnArticleScreen(
+                            articleId = articleId,
+                            onBack = { selectedLearnArticle = null },
+                            onOpenSource = uriHandler::openUri
+                        )
+                    }
                 }
             }
         }
