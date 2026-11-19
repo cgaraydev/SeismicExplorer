@@ -18,6 +18,7 @@ import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody
 import okhttp3.ResponseBody.Companion.toResponseBody
+import okio.Buffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -111,6 +112,77 @@ class OfflineFirstScientificDetailRepositoryTest {
         assertEquals(1, api.calls)
     }
 
+    @Test fun olderServerRevisionDoesNotReplaceNewerCachedGeoJson() = runBlocking {
+        val currentJson = detail("us123", 300L)
+        val stored = ScientificDetailCacheEntity(
+            eventId = "us123",
+            sourceUpdatedAtEpochMillis = 300L,
+            fetchedAtEpochMillis = now - OfflineFirstScientificDetailRepository.CACHE_TTL_MILLIS - 1,
+            payloadJson = currentJson
+        )
+        cache.rows["us123"] = stored
+        api.payload = detail("us123", 200L)
+
+        val result = repository.getDetail(
+            eventId = "us123", knownUpdatedAtEpochMillis = 400L, forceRefresh = true
+        ) as ScientificDetailResult.Available
+
+        assertEquals(1, api.calls)
+        assertEquals(ScientificDetailSource.CACHE, result.source)
+        assertTrue(result.isStale)
+        assertEquals(300L, result.detail.sourceUpdatedAtEpochMillis)
+        assertEquals(stored, cache.rows["us123"])
+    }
+
+    @Test fun expiredNewerCacheIsNotReturnedOrDowngradedByOlderServerResponse() = runBlocking {
+        val stored = ScientificDetailCacheEntity(
+            eventId = "us123",
+            sourceUpdatedAtEpochMillis = 300L,
+            fetchedAtEpochMillis = now - OfflineFirstScientificDetailRepository.CACHE_RETENTION_MILLIS - 1,
+            payloadJson = detail("us123", 300L)
+        )
+        cache.rows["us123"] = stored
+        api.payload = detail("us123", 200L)
+
+        assertEquals(
+            ScientificDetailResult.Failed(ScientificDetailFailure.INVALID_RESPONSE),
+            repository.getDetail("us123", forceRefresh = true)
+        )
+        assertEquals(stored, cache.rows["us123"])
+    }
+
+    @Test fun newerServerRevisionReplacesOlderCachedGeoJson() = runBlocking {
+        cache.rows["us123"] = ScientificDetailCacheEntity(
+            "us123", 100L, now - OfflineFirstScientificDetailRepository.CACHE_TTL_MILLIS - 1,
+            detail("us123", 100L)
+        )
+        api.payload = detail("us123", 500L)
+
+        val result = repository.getDetail("us123", forceRefresh = true)
+            as ScientificDetailResult.Available
+        assertEquals(ScientificDetailSource.NETWORK, result.source)
+        assertEquals(500L, result.detail.sourceUpdatedAtEpochMillis)
+        assertEquals(500L, cache.rows["us123"]?.sourceUpdatedAtEpochMillis)
+        assertEquals(detail("us123", 500L), cache.rows["us123"]?.payloadJson)
+    }
+
+    @Test fun responseWithUnknownContentLengthIsRejectedDuringBoundedRead() = runBlocking {
+        val oversized = Buffer().writeUtf8(
+            "x".repeat(OfflineFirstScientificDetailRepository.MAX_DETAIL_BYTES + 1)
+        )
+        api.responseBodyOverride = object : ResponseBody() {
+            override fun contentType() = "application/json".toMediaType()
+            override fun contentLength() = -1L
+            override fun source(): okio.BufferedSource = oversized
+        }
+
+        assertEquals(
+            ScientificDetailResult.Failed(ScientificDetailFailure.RESPONSE_TOO_LARGE),
+            repository.getDetail("us123")
+        )
+        assertTrue(cache.rows.isEmpty())
+    }
+
     @Test fun differentEventIdDoesNotOverwriteCache() = runBlocking {
         api.payload = detail("other")
         val result = repository.getDetail("us123")
@@ -160,10 +232,11 @@ class OfflineFirstScientificDetailRepositoryTest {
         var payload = ""
         var calls = 0
         var failure: Exception? = null
+        var responseBodyOverride: ResponseBody? = null
         override suspend fun getDetail(eventId: String): ResponseBody {
             calls++
             failure?.let { throw it }
-            return payload.toResponseBody("application/json".toMediaType())
+            return responseBodyOverride ?: payload.toResponseBody("application/json".toMediaType())
         }
     }
 

@@ -4,10 +4,18 @@ import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import retrofit2.http.Streaming
 import org.junit.Test
 import retrofit2.Retrofit
 
 class UsgsScientificDetailApiHttpTest {
+    @Test fun detailEndpointIsAnnotatedForStreaming() {
+        val method = UsgsScientificDetailApi::class.java.declaredMethods
+            .single { it.name == "getDetail" }
+        assertTrue(method.isAnnotationPresent(Streaming::class.java))
+    }
+
     @Test fun fixedEndpointUsesRequestedIdWithoutUrlRedirectParameter() = runBlocking {
         val server = MockWebServer()
         server.start()

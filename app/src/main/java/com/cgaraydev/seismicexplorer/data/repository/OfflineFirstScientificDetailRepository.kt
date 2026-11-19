@@ -17,10 +17,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.SerializationException
 import okhttp3.ResponseBody
 import retrofit2.HttpException
 
@@ -57,7 +58,7 @@ class OfflineFirstScientificDetailRepository @Inject constructor(
     ): ScientificDetailResult {
         val now = clock.millis()
         val existing = cache.get(eventId)?.let { entity ->
-            val parsed = runCatching { parser.parse(entity.payloadJson, eventId) }.getOrNull()
+            val parsed = parseOffMain(entity.payloadJson, eventId)
             if (parsed == null || parsed.sourceUpdatedAtEpochMillis != entity.sourceUpdatedAtEpochMillis) {
                 null
             } else {
@@ -88,13 +89,20 @@ class OfflineFirstScientificDetailRepository @Inject constructor(
             return staleOrFailure(existing, cachedAge, ScientificDetailFailure.CONNECTION)
         }
 
-        val parsed = try {
-            parser.parse(raw, eventId)
-        } catch (exception: SerializationException) {
-            null
-        } catch (exception: IllegalArgumentException) {
-            null
-        } ?: return staleOrFailure(existing, cachedAge, ScientificDetailFailure.INVALID_RESPONSE)
+        val parsed = parseOffMain(raw, eventId)
+            ?: return staleOrFailure(existing, cachedAge, ScientificDetailFailure.INVALID_RESPONSE)
+
+        // No degradar un evento ya conocido aunque el servidor devuelva una revision anterior.
+        // Una copia caducada (>7 dias) se conserva en disco, pero no se presenta como vigente.
+        if (existing != null &&
+            parsed.sourceUpdatedAtEpochMillis < existing.second.sourceUpdatedAtEpochMillis
+        ) {
+            return if (cachedAge != null && cachedAge >= 0L && cachedAge <= CACHE_RETENTION_MILLIS) {
+                available(existing.first, existing.second, ScientificDetailSource.CACHE, true)
+            } else {
+                ScientificDetailResult.Failed(ScientificDetailFailure.INVALID_RESPONSE)
+            }
+        }
 
         val entity = ScientificDetailCacheEntity(
             eventId = eventId,
@@ -108,6 +116,21 @@ class OfflineFirstScientificDetailRepository @Inject constructor(
         val isStale = knownUpdatedAtEpochMillis != null &&
             parsed.sourceUpdatedAtEpochMillis < knownUpdatedAtEpochMillis
         return available(entity, parsed, ScientificDetailSource.NETWORK, isStale)
+    }
+
+    /** El parsing de JSON, tanto de red como de Room, nunca se ejecuta en Main. */
+    private suspend fun parseOffMain(
+        raw: String,
+        eventId: String
+    ): UsgsScientificDetailParser.Parsed? = withContext(Dispatchers.Default) {
+        try {
+            parser.parse(raw, eventId)
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: RuntimeException) {
+            // Payload malformado: no debe provocar crash ni romper la politica offline-first.
+            null
+        }
     }
 
     private fun staleOrFailure(
@@ -147,6 +170,7 @@ class OfflineFirstScientificDetailRepository @Inject constructor(
         body.byteStream().use { input ->
             val chunk = ByteArray(8192)
             while (true) {
+                currentCoroutineContext().ensureActive()
                 val read = input.read(chunk)
                 if (read < 0) break
                 if (result.size() + read > MAX_DETAIL_BYTES) throw ResponseTooLargeException()
