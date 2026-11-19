@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="detail_visual_title">Evento sísmico</string>
+    <string name="detail_visual_type">Tipo de magnitud</string>
+    <string name="detail_visual_share">Compartir evento</string>
+    <string name="detail_visual_share_text">%1$s · %2$s\n%3$s\nFuente: USGS · ID: %4$s</string>
+    <string name="detail_visual_future_access">Próximas herramientas científicas</string>
+    <string name="detail_visual_future_title">El expediente científico</string>
+    <string name="detail_visual_future_note">Estas herramientas están previstas para futuras versiones. No indican que USGS haya publicado esos productos para este evento. La consulta científica actual sigue disponible en la ficha.</string>
+    <string name="detail_visual_planned">Próximamente</string>
+    <string name="detail_visual_close">Volver al evento</string>
+    <string name="detail_visual_dyfi">Cómo se sintió · DYFI</string>
+    <string name="detail_visual_dyfi_body">Reportes ciudadanos e intensidad percibida, diferenciados de la intensidad estimada de ShakeMap.</string>
+    <string name="detail_visual_impact">Impacto estimado · PAGER</string>
+    <string name="detail_visual_impact_body">Estimaciones publicadas y exposición de población. No equivalen a daños ni víctimas confirmados.</string>
+    <string name="detail_visual_tectonic">Contexto tectónico</string>
+    <string name="detail_visual_tectonic_body">Placas, ciudades próximas y contexto regional atribuido a su fuente. La falla más cercana no implica causalidad.</string>
+    <string name="detail_visual_rupture">Mecanismo y ruptura</string>
+    <string name="detail_visual_rupture_body">Mecanismos focales, tensor de momento y modelos de ruptura, cuando estén publicados.</string>
+    <string name="detail_visual_stations">Estaciones y mediciones</string>
+    <string name="detail_visual_stations_body">Observaciones, fases e incertidumbres disponibles, con unidades y explicación de cada parámetro.</string>
+    <string name="detail_visual_history">Versiones y secuencia</string>
+    <string name="detail_visual_history_body">Revisiones documentadas y eventos próximos en espacio y tiempo, sin clasificarlos automáticamente como réplicas.</string>
+</resources>

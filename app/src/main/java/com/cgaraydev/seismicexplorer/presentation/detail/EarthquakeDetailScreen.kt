@@ -1,5 +1,8 @@
 package com.cgaraydev.seismicexplorer.presentation.detail
 
+import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -104,11 +107,38 @@ fun EarthquakeDetailScreen(
     onRequestShakeMapImage: () -> Unit = {},
     onOpenRevisionLearn: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             CenterAlignedTopAppBar(
-                title = {},
+                title = { Text(stringResource(R.string.detail_visual_title),
+                    style = MaterialTheme.typography.titleMedium) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background),
+                actions = {
+                    val event = (state as? EarthquakeDetailUiState.Content)?.earthquake
+                    if (event != null) {
+                        val sharedMagnitude = event.magnitude?.let {
+                            stringResource(R.string.home_event_magnitude, it)
+                        } ?: stringResource(R.string.home_event_magnitude_unknown)
+                        val sharedPlace = localizedEarthquakePlace(event.place)
+                        val sharedTime = EarthquakeTimeFormatter.utc(event.occurredAt,
+                            LocalConfiguration.current.locales[0])
+                        val shareText = stringResource(R.string.detail_visual_share_text,
+                            sharedMagnitude, sharedPlace, sharedTime, event.id)
+                        val chooserTitle = stringResource(R.string.detail_visual_share)
+                        IconButton(onClick = {
+                            context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, shareText)
+                            }, chooserTitle))
+                        }, modifier = Modifier.testTag("detail_share")) {
+                            Icon(painterResource(R.drawable.ic_detail_share),
+                                contentDescription = chooserTitle)
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(
                         onClick = onBack,
@@ -205,7 +235,9 @@ private fun EarthquakeDetailContent(
     val magnitude = earthquake.magnitude?.let {
         stringResource(R.string.home_event_magnitude, it)
     } ?: stringResource(R.string.home_event_magnitude_unknown)
-    val place = localizedEarthquakePlace(earthquake.place)
+    val place = localizedEarthquakePlace(earthquake.place).replaceFirstChar {
+        if (it.isLowerCase()) it.titlecase(locale) else it.toString()
+    }
     val officialPage = earthquake.detailUrl?.takeIf { url ->
         val uri = url.toUri()
         uri.scheme.equals("https", ignoreCase = true) &&
@@ -271,6 +303,7 @@ private fun EarthquakeDetailContent(
             tag = "detail_jump_region",
             onClick = { coroutineScope.launch { regionalSection.bringIntoView() } }
         )
+        DetailFutureFeatures()
         Text(
             text = stringResource(R.string.detail_essential_scientific_section),
             style = MaterialTheme.typography.headlineSmall,

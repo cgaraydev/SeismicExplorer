@@ -306,6 +306,38 @@ class EarthquakeDetailScreenTest {
             .assertDoesNotExist()
     }
 
+    @Test
+    fun futureToolsAreExplicitAndNeverRequestScientificData() {
+        var requests = 0
+        composeRule.setContent {
+            SeismicExplorerTheme(darkTheme = true) {
+                EarthquakeDetailScreen(
+                    state = EarthquakeDetailUiState.Content(sampleEarthquake()),
+                    onBack = {}, onOpenSource = {},
+                    onRequestScientificDetail = { requests++ },
+                    onRequestShakeMapImage = { requests++ }
+                )
+            }
+        }
+        composeRule.onNodeWithTag("detail_future_open").performScrollTo().performClick()
+        composeRule.onNodeWithTag("detail_future_sheet", useUnmergedTree = true).assertExists()
+        composeRule.onNodeWithText("Cómo se sintió · DYFI").assertIsDisplayed()
+        composeRule.runOnIdle { assertEquals(0, requests) }
+        composeRule.onNodeWithTag("detail_future_close").performScrollTo().performClick()
+        composeRule.onNodeWithTag("detail_future_sheet", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun longPlaceIsPreservedInEssentialHero() {
+        val place = "Región de la isla Georgia del Sur y una descripción geográfica extensa"
+        composeRule.setContent {
+            SeismicExplorerTheme {
+                EarthquakeEssentialHero(sampleEarthquake(), place, "M 5,3", {})
+            }
+        }
+        composeRule.onNodeWithTag("detail_place").assertTextContains(place).assertIsDisplayed()
+    }
+
     private fun sampleEarthquake() = Earthquake(
         id = "us123",
         magnitude = 4.5,

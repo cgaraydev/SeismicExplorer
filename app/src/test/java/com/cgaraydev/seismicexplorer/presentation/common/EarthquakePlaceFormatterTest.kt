@@ -9,6 +9,14 @@ class EarthquakePlaceFormatterTest {
     private val spanish = Locale.forLanguageTag("es-CL")
     private val english = Locale.ENGLISH
 
+    @Test
+    fun translatesSouthGeorgiaRegionWithoutChangingUnknownNames() {
+        org.junit.Assert.assertEquals("región de la isla Georgia del Sur",
+            EarthquakePlaceFormatter.format("South Georgia Island region", java.util.Locale("es")))
+        org.junit.Assert.assertEquals("South Georgia Island region",
+            EarthquakePlaceFormatter.format("South Georgia Island region", java.util.Locale.ENGLISH))
+    }
+
     @Test fun translatedSixteenPointCompassBearings() {
         val expected = mapOf(
             "N" to "N", "NNE" to "NNE", "NE" to "NE", "ENE" to "ENE",

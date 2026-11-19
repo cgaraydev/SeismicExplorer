@@ -86,6 +86,7 @@ object EarthquakePlaceFormatter {
             return name.dropLast(", U.S. Virgin Islands".length) + ", Islas Vírgenes de EE. UU."
         }
         return when (name.lowercase(Locale.ROOT)) {
+        "south georgia island" -> "la isla Georgia del Sur"
         "south sandwich islands" -> "islas Sandwich del Sur"
         "south sandwich islands region" -> "región de las islas Sandwich del Sur"
         "south atlantic ocean" -> "océano Atlántico Sur"
