@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.cgaraydev.seismicexplorer.R
+import com.cgaraydev.seismicexplorer.presentation.common.localizedEarthquakePlace
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
 import com.cgaraydev.seismicexplorer.presentation.common.AtlasWaveformIcon
 import java.time.ZoneId
@@ -100,7 +101,7 @@ private fun FeaturedText(earthquake: Earthquake) {
         } ?: stringResource(R.string.home_event_magnitude_unknown),
             style = MaterialTheme.typography.displayMedium,
             color = MaterialTheme.colorScheme.secondary)
-        Text(earthquake.place ?: stringResource(R.string.home_event_place_unknown),
+        Text(localizedEarthquakePlace(earthquake.place),
             style = MaterialTheme.typography.titleLarge)
     }
 }

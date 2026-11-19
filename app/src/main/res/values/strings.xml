@@ -317,7 +317,7 @@
     <string name="detail_science_stale">Los datos almacenados o publicados pueden no reflejar la última revisión del evento.</string>
     <string name="detail_science_product_count">%1$d productos activos de %2$d tipos</string>
     <string name="detail_science_no_products">USGS no incluye productos científicos activos en este inventario.</string>
-    <string name="detail_science_disclaimer">Se muestran únicamente tipos de productos publicados. Sus mapas, mediciones y archivos aún no se descargan ni se interpretan en esta pantalla.</string>
+    <string name="detail_science_disclaimer">Los productos se publican y actualizan por separado. La disponibilidad de mapas y otros datos depende de cada evento y de su fuente.</string>
     <string name="detail_science_learn">¿Por qué cambian los datos de un terremoto?</string>
     <string name="detail_science_invalid_event">Este identificador no permite consultar el detalle científico.</string>
     <string name="detail_science_not_found">USGS no tiene disponible el detalle científico de este evento.</string>
@@ -352,4 +352,26 @@
     <string name="detail_shakemap_invalid">El archivo recibido no es una imagen JPEG válida y compatible.</string>
     <string name="detail_shakemap_caveat">ShakeMap combina observaciones y modelos; no muestra daños observados ni intensidad reportada por personas. USGS es la fuente científica.</string>
     <string name="detail_shakemap_accessibility">Mapa estimado de intensidad sísmica de ShakeMap, elaborado por USGS para este evento.</string>
+    <!-- 3.6.1 · FICHA ESENCIAL -->
+    <string name="detail_essential_local_time">Hora local del dispositivo</string>
+    <string name="detail_essential_utc_time">Hora universal (UTC)</string>
+    <string name="detail_essential_epicenter">Epicentro · USGS</string>
+    <string name="detail_essential_explore">Explorar este evento</string>
+    <string name="detail_essential_intensity">Intensidad y efectos</string>
+    <string name="detail_essential_intensity_idle">Consulta los productos científicos disponibles</string>
+    <string name="detail_essential_intensity_error">Consulta no disponible; puedes reintentar</string>
+    <string name="detail_essential_intensity_available">ShakeMap identificado · consultar intensidad estimada</string>
+    <string name="detail_essential_intensity_no_map">Inventario consultado · intensidad no disponible</string>
+    <string name="detail_essential_source">Fuente y medición</string>
+    <string name="detail_essential_source_description">Método, revisión y procedencia USGS</string>
+    <string name="detail_essential_region">Contexto regional</string>
+    <string name="detail_essential_region_description">Epicentro y coordenadas registradas</string>
+    <string name="detail_essential_region_note">Estas coordenadas sitúan el epicentro publicado. Por sí solas no permiten identificar la falla causante del evento.</string>
+    <string name="detail_essential_scientific_section">Información para profundizar</string>
+    <!-- 3.6.1.1 · Refinamiento visual -->
+    <string name="detail_essential_magnitude">Magnitud</string>
+    <string name="detail_essential_scale">Escala</string>
+    <string name="detail_essential_status">Estado</string>
+    <string name="detail_essential_scale_help_button">Explicación del tipo de magnitud</string>
+    <string name="detail_essential_scale_info_title">Tipo de magnitud publicado</string>
 </resources>

@@ -57,6 +57,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cgaraydev.seismicexplorer.R
+import com.cgaraydev.seismicexplorer.presentation.common.localizedEarthquakePlace
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
 import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 import com.cgaraydev.seismicexplorer.domain.model.RefreshFailure
@@ -397,8 +398,7 @@ private fun EarthquakeCard(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = earthquake.place
-                        ?: stringResource(R.string.home_event_place_unknown),
+                    text = localizedEarthquakePlace(earthquake.place),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,

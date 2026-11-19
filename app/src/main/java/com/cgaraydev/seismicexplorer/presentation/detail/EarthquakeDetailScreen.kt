@@ -1,26 +1,26 @@
 package com.cgaraydev.seismicexplorer.presentation.detail
 
-import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.Image
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
@@ -29,26 +29,33 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cgaraydev.seismicexplorer.R
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
+import com.cgaraydev.seismicexplorer.domain.model.GeoCoordinates
 import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailFailure
 import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailSource
-import com.cgaraydev.seismicexplorer.domain.model.ShakeMapResourceKind
 import com.cgaraydev.seismicexplorer.domain.model.ShakeMapResource
-import com.cgaraydev.seismicexplorer.domain.model.GeoCoordinates
+import com.cgaraydev.seismicexplorer.domain.model.ShakeMapResourceKind
+import com.cgaraydev.seismicexplorer.presentation.common.localizedEarthquakePlace
+import com.cgaraydev.seismicexplorer.presentation.common.EarthquakeTimeFormatter
 import com.cgaraydev.seismicexplorer.ui.theme.SeismicExplorerTheme
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -101,12 +108,17 @@ fun EarthquakeDetailScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    Text(stringResource(R.string.detail_title))
-                },
+                title = {},
                 navigationIcon = {
-                    TextButton(onClick = onBack) {
-                        Text(stringResource(R.string.detail_back))
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.testTag("detail_back_button")
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_detail_back),
+                            contentDescription = stringResource(R.string.detail_back),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 }
             )
@@ -180,195 +192,176 @@ private fun EarthquakeDetailContent(
     val locale = LocalConfiguration.current.locales[0]
     var showMagnitudeInfo by rememberSaveable { mutableStateOf(false) }
     var showDepthInfo by rememberSaveable { mutableStateOf(false) }
+    var showScaleInfo by rememberSaveable { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val scientificSection = remember { BringIntoViewRequester() }
+    val sourceSection = remember { BringIntoViewRequester() }
+    val regionalSection = remember { BringIntoViewRequester() }
 
     val dateFormatter = DateTimeFormatter
         .ofLocalizedDateTime(FormatStyle.MEDIUM)
         .withLocale(locale)
         .withZone(ZoneId.systemDefault())
-
     val magnitude = earthquake.magnitude?.let {
         stringResource(R.string.home_event_magnitude, it)
     } ?: stringResource(R.string.home_event_magnitude_unknown)
-
-    val place = earthquake.place
-        ?: stringResource(R.string.home_event_place_unknown)
-
+    val place = localizedEarthquakePlace(earthquake.place)
     val officialPage = earthquake.detailUrl?.takeIf { url ->
-        val uri = Uri.parse(url)
-
+        val uri = url.toUri()
         uri.scheme.equals("https", ignoreCase = true) &&
-                uri.host.equals("earthquake.usgs.gov", ignoreCase = true)
+            uri.host.equals("earthquake.usgs.gov", ignoreCase = true)
     }
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 16.dp, vertical = 16.dp)
+            .testTag("detail_essential_root"),
+        verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = magnitude,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.headlineLarge
-            )
-            IconButton(onClick = { showMagnitudeInfo = true },
-                modifier = Modifier.testTag("detail_magnitude_info")) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_learn_info),
-                    contentDescription = stringResource(R.string.learn_magnitude_info_button),
-                    tint = MaterialTheme.colorScheme.secondary
-                )
-            }
-        }
-
-        Text(
-            text = place,
-            style = MaterialTheme.typography.titleLarge
+        EarthquakeEssentialHero(
+            earthquake = earthquake,
+            place = place,
+            magnitude = magnitude,
+            onMagnitudeInfo = { showMagnitudeInfo = true }
         )
-
-        OutlinedCard(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.detail_event_information),
-                    style = MaterialTheme.typography.titleMedium
-                )
-
-                DetailField(
-                    label = stringResource(R.string.detail_occurred_at),
-                    value = dateFormatter.format(earthquake.occurredAt)
-                )
-
-                DetailField(
-                    label = stringResource(R.string.detail_updated_at),
-                    value = dateFormatter.format(earthquake.updatedAt)
-                )
-
-                DetailField(
-                    label = stringResource(R.string.detail_magnitude_type),
-                    value = earthquake.magType ?: stringResource(R.string.detail_unknown)
-                )
-                Text(
-                    text = stringResource(R.string.detail_magnitude_type_note),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                val reviewLabel = when (earthquake.reviewStatus?.lowercase(Locale.ROOT)) {
-                    "reviewed" -> R.string.detail_reviewed
-                    "automatic" -> R.string.detail_automatic
-                    else -> R.string.detail_unknown
-                }
-                DetailField(
-                    label = stringResource(R.string.detail_review_status),
-                    value = stringResource(reviewLabel)
-                )
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        DetailField(
-                            label = stringResource(R.string.detail_depth),
-                            value = earthquake.depthKilometers?.let { depth ->
-                                stringResource(R.string.detail_depth_value, depth)
-                            } ?: stringResource(R.string.detail_unknown)
-                        )
+        EarthquakeEssentialMetrics(
+            earthquake = earthquake,
+            onDepthInfo = { showDepthInfo = true },
+            onScaleInfo = { showScaleInfo = true }
+        )
+        EarthquakeEssentialMap(earthquake)
+        Text(
+            text = stringResource(R.string.detail_essential_explore),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        EarthquakeEssentialJump(
+            number = "01",
+            title = stringResource(R.string.detail_essential_intensity),
+            description = when (scientificState) {
+                ScientificDetailUiState.Idle -> stringResource(R.string.detail_essential_intensity_idle)
+                ScientificDetailUiState.Loading -> stringResource(R.string.detail_science_loading)
+                is ScientificDetailUiState.Error -> stringResource(R.string.detail_essential_intensity_error)
+                is ScientificDetailUiState.Available -> stringResource(
+                    if (scientificState.detail.shakeMap?.resources?.any {
+                        it.kind == ShakeMapResourceKind.INTENSITY_MAP
+                    } == true) {
+                        R.string.detail_essential_intensity_available
+                    } else {
+                        R.string.detail_essential_intensity_no_map
                     }
-                    IconButton(
-                        onClick = { showDepthInfo = true },
-                        modifier = Modifier.testTag("detail_depth_info")
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_learn_info),
-                            contentDescription = stringResource(R.string.learn_depth_info_button),
-                            tint = MaterialTheme.colorScheme.secondary
-                        )
-                    }
-                }
-            }
-        }
-
-        OutlinedCard(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.detail_location),
-                    style = MaterialTheme.typography.titleMedium
                 )
-
-                DetailField(
-                    label = stringResource(R.string.detail_latitude),
-                    value = formatCoordinate(
-                        earthquake.coordinates.latitude,
-                        locale
-                    )
-                )
-
-                DetailField(
-                    label = stringResource(R.string.detail_longitude),
-                    value = formatCoordinate(
-                        earthquake.coordinates.longitude,
-                        locale
-                    )
-                )
-            }
-        }
-
+            },
+            tag = "detail_jump_intensity",
+            onClick = { coroutineScope.launch { scientificSection.bringIntoView() } }
+        )
+        EarthquakeEssentialJump(
+            number = "02",
+            title = stringResource(R.string.detail_essential_source),
+            description = stringResource(R.string.detail_essential_source_description),
+            tag = "detail_jump_source",
+            onClick = { coroutineScope.launch { sourceSection.bringIntoView() } }
+        )
+        EarthquakeEssentialJump(
+            number = "03",
+            title = stringResource(R.string.detail_essential_region),
+            description = stringResource(R.string.detail_essential_region_description),
+            tag = "detail_jump_region",
+            onClick = { coroutineScope.launch { regionalSection.bringIntoView() } }
+        )
+        Text(
+            text = stringResource(R.string.detail_essential_scientific_section),
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(top = 12.dp)
+        )
         ScientificDetailCard(
             earthquake = earthquake,
             state = scientificState,
             onRequest = onRequestScientificDetail,
             shakeMapImageState = shakeMapImageState,
             onRequestShakeMapImage = onRequestShakeMapImage,
-            onOpenRevisions = onOpenRevisionLearn
+            onOpenRevisions = onOpenRevisionLearn,
+            modifier = Modifier.bringIntoViewRequester(scientificSection)
         )
 
         OutlinedCard(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().bringIntoViewRequester(sourceSection)
+                .testTag("detail_essential_source_section")
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = stringResource(R.string.detail_source),
-                    style = MaterialTheme.typography.titleMedium
+                Text(stringResource(R.string.detail_essential_source),
+                    style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.detail_magnitude_type_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                DetailField(
+                    label = stringResource(R.string.detail_essential_local_time),
+                    value = EarthquakeTimeFormatter.local(
+                        earthquake.occurredAt,
+                        ZoneId.systemDefault(),
+                        locale
+                    )
                 )
-
+                DetailField(
+                    label = stringResource(R.string.detail_updated_at),
+                    value = dateFormatter.format(earthquake.updatedAt)
+                )
                 DetailField(
                     label = stringResource(R.string.detail_event_id),
                     value = earthquake.id
                 )
-
-                Text(
-                    text = stringResource(R.string.detail_provider),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
+                Text(stringResource(R.string.detail_provider),
+                    style = MaterialTheme.typography.bodyMedium)
                 if (officialPage != null) {
-                    OutlinedButton(
-                        onClick = {
-                            onOpenSource(officialPage)
-                        }
-                    ) {
+                    OutlinedButton(onClick = { onOpenSource(officialPage) }) {
                         Text(stringResource(R.string.detail_open_official))
                     }
                 }
             }
         }
-
+        OutlinedCard(
+            modifier = Modifier.fillMaxWidth().bringIntoViewRequester(regionalSection)
+                .testTag("detail_essential_region_section")
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(stringResource(R.string.detail_essential_region),
+                    style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.detail_essential_region_note),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        DetailField(
+                            label = stringResource(R.string.detail_latitude),
+                            value = formatCoordinate(earthquake.coordinates.latitude, locale)
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        DetailField(
+                            label = stringResource(R.string.detail_longitude),
+                            value = formatCoordinate(earthquake.coordinates.longitude, locale)
+                        )
+                    }
+                }
+            }
+        }
         Text(
             text = stringResource(R.string.home_disclaimer),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp)
         )
     }
 
@@ -393,6 +386,30 @@ private fun EarthquakeDetailContent(
                     modifier = Modifier.fillMaxWidth().testTag("detail_depth_learn_button")
                 ) {
                     Text(stringResource(R.string.learn_depth_sheet_read_article))
+                }
+            }
+        }
+    }
+
+    if (showScaleInfo) {
+        ModalBottomSheet(
+            onDismissRequest = { showScaleInfo = false },
+            modifier = Modifier.testTag("detail_scale_sheet")
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.detail_essential_scale_info_title),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Text(
+                    text = stringResource(R.string.detail_magnitude_type_note),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                TextButton(onClick = { showScaleInfo = false }) {
+                    Text(stringResource(R.string.observatory_close))
                 }
             }
         }
@@ -433,10 +450,11 @@ private fun ScientificDetailCard(
     shakeMapImageState: ShakeMapImageUiState,
     onRequestShakeMapImage: () -> Unit,
     onRequest: () -> Unit,
-    onOpenRevisions: () -> Unit
+    onOpenRevisions: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val colors = MaterialTheme.colorScheme
-    OutlinedCard(modifier = Modifier.fillMaxWidth().testTag("detail_science_card")) {
+    OutlinedCard(modifier = modifier.fillMaxWidth().testTag("detail_science_card")) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)

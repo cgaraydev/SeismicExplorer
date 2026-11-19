@@ -1,6 +1,7 @@
 package com.cgaraydev.seismicexplorer.presentation.detail
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -41,7 +42,7 @@ class EarthquakeDetailScreenTest {
         }
 
         composeRule
-            .onNodeWithText("Coast of Chile")
+            .onNodeWithTag("detail_place")
             .assertIsDisplayed()
     }
 
@@ -132,18 +133,27 @@ class EarthquakeDetailScreenTest {
     @Test
     fun imageButtonOnlyAppearsWhenVerifiedJpegIsPublished() {
         var requests = 0
-        val image = ShakeMapResource(ShakeMapResourceKind.INTENSITY_MAP,
+        val image = ShakeMapResource(
+            ShakeMapResourceKind.INTENSITY_MAP,
             "https://earthquake.usgs.gov/realtime/product/shakemap/us123/us/1700000000/download/intensity.jpg",
-            "image/jpeg", 1000L)
-        val scientific = ScientificDetail("us123", 1700000000000L, 1700000000100L,
-            listOf("shakemap"), 1, ShakeMapProduct("us", "us123", 1700000000000L,
-                "RELEASED", listOf(image)))
+            "image/jpeg", 1000L
+        )
+        val scientific = ScientificDetail(
+            "us123", 1700000000000L, 1700000000100L,
+            listOf("shakemap"), 1, ShakeMapProduct(
+                "us", "us123", 1700000000000L,
+                "RELEASED", listOf(image)
+            )
+        )
         composeRule.setContent {
             SeismicExplorerTheme(darkTheme = true) {
-                EarthquakeDetailScreen(state = EarthquakeDetailUiState.Content(sampleEarthquake()),
+                EarthquakeDetailScreen(
+                    state = EarthquakeDetailUiState.Content(sampleEarthquake()),
                     onBack = {}, onOpenSource = {},
-                    scientificState = ScientificDetailUiState.Available(scientific,
-                        ScientificDetailSource.NETWORK, false),
+                    scientificState = ScientificDetailUiState.Available(
+                        scientific,
+                        ScientificDetailSource.NETWORK, false
+                    ),
                     onRequestShakeMapImage = { requests++ })
             }
         }
@@ -160,14 +170,50 @@ class EarthquakeDetailScreenTest {
                     state = EarthquakeDetailUiState.Content(sampleEarthquake()),
                     onBack = {}, onOpenSource = {},
                     scientificState = ScientificDetailUiState.Available(
-                        ScientificDetail("us123", 1700000000000L, 1700000000100L,
-                            listOf("losspager"), 1), ScientificDetailSource.CACHE, false
+                        ScientificDetail(
+                            "us123", 1700000000000L, 1700000000100L,
+                            listOf("losspager"), 1
+                        ), ScientificDetailSource.CACHE, false
                     )
                 )
             }
         }
         composeRule.onNodeWithText("PAGER · estimaciones de impacto · losspager")
             .performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun essentialDetailDisplaysTwoExplicitTimeZonesAndNavigation() {
+        composeRule.setContent {
+            SeismicExplorerTheme(darkTheme = true) {
+                EarthquakeDetailScreen(
+                    state = EarthquakeDetailUiState.Content(sampleEarthquake()),
+                    onBack = {}, onOpenSource = {}
+                )
+            }
+        }
+        composeRule.onNodeWithText("Hora local del dispositivo")
+            .performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("detail_time_utc").assertTextContains("UTC", substring = true)
+        composeRule.onNodeWithTag("detail_essential_metrics").assertExists()
+        composeRule.onNodeWithTag("detail_jump_intensity").assertExists()
+    }
+
+    @Test
+    fun scaleHelpOpensExplanationWithoutDepthIcon() {
+        composeRule.setContent {
+            SeismicExplorerTheme(darkTheme = true) {
+                EarthquakeDetailScreen(
+                    state = EarthquakeDetailUiState.Content(
+                        sampleEarthquake().copy(magType = "mww")
+                    ),
+                    onBack = {},
+                    onOpenSource = {}
+                )
+            }
+        }
+        composeRule.onNodeWithTag("detail_scale_info").performScrollTo().performClick()
+        composeRule.onNodeWithTag("detail_scale_sheet", useUnmergedTree = true).assertExists()
     }
 
     @Test
@@ -202,7 +248,7 @@ class EarthquakeDetailScreenTest {
         }
 
         composeRule
-            .onNodeWithText("Volver")
+            .onNodeWithTag("detail_back_button")
             .performClick()
 
         composeRule.runOnIdle {

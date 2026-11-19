@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.cgaraydev.seismicexplorer.R
+import com.cgaraydev.seismicexplorer.presentation.common.localizedEarthquakePlace
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
 import com.cgaraydev.seismicexplorer.domain.model.FeedCacheStatus
 import com.cgaraydev.seismicexplorer.presentation.common.FeedCacheStatusText
@@ -241,7 +242,7 @@ private fun CatalogEarthquakeCard(earthquake: Earthquake, onClick: () -> Unit) {
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    earthquake.place ?: stringResource(R.string.home_event_place_unknown),
+                    localizedEarthquakePlace(earthquake.place),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 2,
