@@ -153,6 +153,24 @@ class EarthquakeDetailScreenTest {
     }
 
     @Test
+    fun lossPagerProductUsesTranslatedLabel() {
+        composeRule.setContent {
+            SeismicExplorerTheme(darkTheme = true) {
+                EarthquakeDetailScreen(
+                    state = EarthquakeDetailUiState.Content(sampleEarthquake()),
+                    onBack = {}, onOpenSource = {},
+                    scientificState = ScientificDetailUiState.Available(
+                        ScientificDetail("us123", 1700000000000L, 1700000000100L,
+                            listOf("losspager"), 1), ScientificDetailSource.CACHE, false
+                    )
+                )
+            }
+        }
+        composeRule.onNodeWithText("PAGER · estimaciones de impacto · losspager")
+            .performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
     fun notFoundState_displaysInformativeMessage() {
         composeRule.setContent {
             SeismicExplorerTheme {

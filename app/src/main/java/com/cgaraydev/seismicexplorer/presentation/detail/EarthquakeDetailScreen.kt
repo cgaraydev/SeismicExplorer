@@ -624,7 +624,7 @@ private fun ShakeMapIntensityPreview(
 private fun scientificProductNameRes(type: String): Int? = when (type.lowercase(Locale.ROOT)) {
     "shakemap" -> R.string.detail_science_shakemap
     "dyfi" -> R.string.detail_science_dyfi
-    "pager" -> R.string.detail_science_pager
+    "pager", "losspager" -> R.string.detail_science_pager
     "moment-tensor" -> R.string.detail_science_moment_tensor
     "finite-fault" -> R.string.detail_science_finite_fault
     "phase-data" -> R.string.detail_science_phase_data

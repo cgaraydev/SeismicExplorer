@@ -1,7 +1,7 @@
 package com.cgaraydev.seismicexplorer.presentation.detail
 
 import android.util.Log
-import android.graphics.BitmapFactory
+import com.cgaraydev.seismicexplorer.core.image.ShakeMapJpegDecoder
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -112,22 +112,9 @@ class EarthquakeDetailViewModel @AssistedInject constructor(
         }
     }
 
-    /** Decodificación muestreada: no expandir un JPEG comprimido a un bitmap gigantesco. */
-    private fun decodeBoundedJpeg(bytes: ByteArray): androidx.compose.ui.graphics.ImageBitmap? {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-        val width = bounds.outWidth
-        val height = bounds.outHeight
-        if (width !in 1..16_384 || height !in 1..16_384 ||
-            width.toLong() * height.toLong() > 100_000_000L) return null
-        var sampleSize = 1
-        while (width / sampleSize > 2048 || height / sampleSize > 2048 ||
-            (width.toLong() / sampleSize) * (height.toLong() / sampleSize) > 4_000_000L) {
-            sampleSize *= 2
-        }
-        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size,
-            BitmapFactory.Options().apply { inSampleSize = sampleSize })?.asImageBitmap()
-    }
+    /** Usa exactamente la misma validación muestreada que el repositorio de caché. */
+    private fun decodeBoundedJpeg(bytes: ByteArray): androidx.compose.ui.graphics.ImageBitmap? =
+        ShakeMapJpegDecoder.decode(bytes)?.asImageBitmap()
 
     /** Una apertura del detalle nunca inicia esta consulta: solo una acción del usuario. */
     fun requestScientificDetail() {
