@@ -1,0 +1,27 @@
+{
+  "type": "Feature",
+  "id": "us7000tz37",
+  "properties": {
+    "type": "earthquake",
+    "updated": 1795036656107,
+    "products": {
+      "shakemap": [
+        {
+          "status": "UPDATE",
+          "source": "us",
+          "code": "us7000tz37",
+          "preferredWeight": 100,
+          "updateTime": 1795036656107,
+          "contents": {
+            "download/intensity.jpg": {
+              "contentType": "image/jpeg",
+              "lastModified": 1795036652000,
+              "length": 78728,
+              "url": "https://earthquake.usgs.gov/pdl/products/urn:usgs-product:us:shakemap:us7000tz37:1795036656107/contents/download/intensity.jpg"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

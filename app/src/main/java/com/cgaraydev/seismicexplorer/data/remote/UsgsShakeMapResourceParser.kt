@@ -3,7 +3,6 @@ package com.cgaraydev.seismicexplorer.data.remote
 import com.cgaraydev.seismicexplorer.domain.model.ShakeMapProduct
 import com.cgaraydev.seismicexplorer.domain.model.ShakeMapResource
 import com.cgaraydev.seismicexplorer.domain.model.ShakeMapResourceKind
-import java.net.URI
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -51,7 +50,7 @@ internal object UsgsShakeMapResourceParser {
         val contents = selected["contents"] as? JsonObject
         val resources = supported.mapNotNull { (path, kind) ->
             val metadata = contents?.get(path) as? JsonObject ?: return@mapNotNull null
-            val url = metadata.string("url")?.takeIf { isTrustedResourceUrl(it, path) }
+            val url = metadata.string("url")?.takeIf { ShakeMapImageUrlPolicy.acceptsResource(it, path) }
                 ?: return@mapNotNull null
             val size = metadata.long("length")?.takeIf { it >= 0L }
             ShakeMapResource(
@@ -80,19 +79,4 @@ internal object UsgsShakeMapResourceParser {
     private fun JsonObject.long(key: String): Long? =
         (this[key] as? JsonPrimitive)?.longOrNull
 
-    private fun isTrustedResourceUrl(raw: String, contentPath: String): Boolean {
-        val uri = runCatching { URI(raw) }.getOrNull() ?: return false
-        if (!uri.scheme.equals("https", ignoreCase = true) ||
-            !uri.host.equals("earthquake.usgs.gov", ignoreCase = true) ||
-            uri.rawUserInfo != null || uri.rawQuery != null || uri.rawFragment != null ||
-            (uri.port != -1 && uri.port != 443)
-        ) return false
-        val path = uri.rawPath ?: return false
-        if ('%' in path || path.split('/').any { it == ".." || it == "." }) return false
-        if (!path.startsWith("/product/shakemap/") &&
-            !path.startsWith("/realtime/product/shakemap/") &&
-            !path.startsWith("/archive/product/shakemap/")
-        ) return false
-        return path.endsWith("/$contentPath")
-    }
 }

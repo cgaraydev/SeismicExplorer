@@ -73,6 +73,24 @@ class OfflineFirstScientificDetailRepositoryTest {
         assertEquals(1, api.calls) // No se descargó el JPG ni se consultó otra API.
     }
 
+    @Test fun cachedPdlGeoJsonIsReparsedWithoutNetworkRequest() = runBlocking {
+        val fixture = javaClass.classLoader!!.getResourceAsStream(
+            "usgs/shakemap_pdl_excerpt_us7000tz37.json"
+        )!!.bufferedReader().use { it.readText() }
+        cache.rows["us7000tz37"] = ScientificDetailCacheEntity(
+            eventId = "us7000tz37",
+            sourceUpdatedAtEpochMillis = 1795036656107L,
+            fetchedAtEpochMillis = now,
+            payloadJson = fixture
+        )
+        val result = repository.getDetail("us7000tz37") as ScientificDetailResult.Available
+        assertEquals(ScientificDetailSource.CACHE, result.source)
+        val jpg = result.detail.shakeMap!!.resources.single()
+        assertEquals(ShakeMapResourceKind.INTENSITY_MAP, jpg.kind)
+        assertTrue(jpg.url.contains("/pdl/products/urn:usgs-product:us:shakemap:"))
+        assertEquals(0, api.calls)
+    }
+
     @Test fun staleCacheIsReturnedWhenNetworkFails() = runBlocking {
         cache.rows["us123"] = ScientificDetailCacheEntity(
             "us123", 100L, now - OfflineFirstScientificDetailRepository.CACHE_TTL_MILLIS - 1,

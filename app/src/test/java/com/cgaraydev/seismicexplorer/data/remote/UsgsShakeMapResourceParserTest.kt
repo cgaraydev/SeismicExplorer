@@ -56,6 +56,45 @@ class UsgsShakeMapResourceParserTest {
         assertTrue(ShakeMapImageUrlPolicy.accepts(resource.url))
     }
 
+    @Test fun pdlExcerptFromUs7000tz37PreservesExactPublishedUrl() {
+        // Recorte de GeoJSON con URL y metadatos reportados por USGS para este evento.
+        val payload = javaClass.classLoader!!.getResourceAsStream(
+            "usgs/shakemap_pdl_excerpt_us7000tz37.json"
+        )!!.bufferedReader().use { it.readText() }
+        val parsed = UsgsScientificDetailParser(json).parse(payload, "us7000tz37")!!
+        val expected = "https://earthquake.usgs.gov/pdl/products/" +
+            "urn:usgs-product:us:shakemap:us7000tz37:1795036656107/" +
+            "contents/download/intensity.jpg"
+        val product = parsed.shakeMap!!
+        val resource = product.resources.single()
+        assertEquals("us", product.source)
+        assertEquals("us7000tz37", product.code)
+        assertEquals(ShakeMapResourceKind.INTENSITY_MAP, resource.kind)
+        assertEquals(expected, resource.url)
+        assertEquals("image/jpeg", resource.contentType)
+        assertEquals(78728L, resource.lengthBytes)
+        assertTrue(ShakeMapImageUrlPolicy.accepts(resource.url))
+    }
+
+    @Test fun pdlParsesDistinctKindsAndRejectsInvalidUrlsWithoutLosingProduct() {
+        val prefix = "https://earthquake.usgs.gov/pdl/products/" +
+            "urn:usgs-product:ci:shakemap:ci41363167:1795036656107/contents/"
+        val data = products("""{
+            "status":"UPDATE", "source":"ci", "code":"ci41363167",
+            "contents":{
+                "download/intensity.jpg":{"url":"${prefix}download/intensity.jpg"},
+                "download/grid.xml":{"url":"${prefix}download/grid.xml"},
+                "download/stationlist.json":{"url":"${prefix}download/stationlist.json"},
+                "download/intensity_overlay.png":{"url":"${prefix}download/intensity_overlay.png?tracking=1"}
+            }
+        }""")
+        val product = UsgsShakeMapResourceParser.extract(data)!!
+        assertEquals("ci", product.source)
+        assertEquals(listOf(ShakeMapResourceKind.INTENSITY_MAP,
+            ShakeMapResourceKind.GRID_XML, ShakeMapResourceKind.STATION_OBSERVATIONS),
+            product.resources.map { it.kind })
+    }
+
     @Test fun newestVersionWinsWhenWeightsAreTied() {
         val data = products("""
             {"status":"UPDATE","preferredWeight":100,"updateTime":100,"code":"older"},
