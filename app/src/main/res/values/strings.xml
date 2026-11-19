@@ -333,4 +333,23 @@
     <string name="detail_science_phase_data">Fases sísmicas · observaciones de estaciones</string>
     <string name="detail_science_origin">Origen · estimaciones de localización</string>
     <string name="detail_science_magnitude">Magnitud · estimaciones publicadas</string>
+    <!-- 3.5.5: VISOR OPCIONAL SHAKEMAP -->
+    <string name="detail_shakemap_title">Mapa de intensidad ShakeMap</string>
+    <string name="detail_shakemap_description">Representación estimada del movimiento sísmico para este evento.</string>
+    <string name="detail_shakemap_source">Producto de ShakeMap · fuente: %1$s</string>
+    <string name="detail_shakemap_view">Cargar mapa de intensidad</string>
+    <string name="detail_shakemap_retry">Volver a cargar el mapa</string>
+    <string name="detail_shakemap_loading">Descargando el mapa…</string>
+    <string name="detail_shakemap_network">Mapa descargado desde USGS</string>
+    <string name="detail_shakemap_cache">Mapa recuperado de la caché local</string>
+    <string name="detail_shakemap_cached_stale">La copia guardada puede estar desactualizada.</string>
+    <string name="detail_shakemap_metadata_stale">Los metadatos científicos pueden estar desactualizados.</string>
+    <string name="detail_shakemap_unavailable">USGS publica ShakeMap, pero no hay un JPEG de intensidad compatible.</string>
+    <string name="detail_shakemap_not_found">El mapa no está disponible en la fuente.</string>
+    <string name="detail_shakemap_connection">No se pudo descargar el mapa. Comprueba la conexión.</string>
+    <string name="detail_shakemap_service">USGS no pudo entregar el recurso en este momento.</string>
+    <string name="detail_shakemap_too_large">El mapa excede el tamaño permitido para descargarlo.</string>
+    <string name="detail_shakemap_invalid">El archivo recibido no es una imagen JPEG válida y compatible.</string>
+    <string name="detail_shakemap_caveat">ShakeMap combina observaciones y modelos; no muestra daños observados ni intensidad reportada por personas. USGS es la fuente científica.</string>
+    <string name="detail_shakemap_accessibility">Mapa estimado de intensidad sísmica de ShakeMap, elaborado por USGS para este evento.</string>
 </resources>

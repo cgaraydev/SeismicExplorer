@@ -17,6 +17,10 @@ import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 import com.cgaraydev.seismicexplorer.domain.model.RefreshResult
 import com.cgaraydev.seismicexplorer.domain.repository.EarthquakeRepository
 import com.cgaraydev.seismicexplorer.domain.repository.ScientificDetailRepository
+import com.cgaraydev.seismicexplorer.domain.repository.ShakeMapImageRepository
+import com.cgaraydev.seismicexplorer.domain.model.ShakeMapImageResult
+import com.cgaraydev.seismicexplorer.domain.model.ShakeMapImageFailure
+import com.cgaraydev.seismicexplorer.domain.model.ShakeMapResource
 import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailFailure
 import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailResult
 import dagger.hilt.android.testing.BindValue
@@ -55,6 +59,13 @@ class MainActivityTest {
             forceRefresh: Boolean
         ): ScientificDetailResult =
             ScientificDetailResult.Failed(ScientificDetailFailure.EVENT_NOT_FOUND)
+    }
+
+    @BindValue
+    @JvmField
+    val imageRepository: ShakeMapImageRepository = object : ShakeMapImageRepository {
+        override suspend fun load(resource: ShakeMapResource): ShakeMapImageResult =
+            ShakeMapImageResult.Failed(ShakeMapImageFailure.NOT_FOUND)
     }
 
     @BindValue

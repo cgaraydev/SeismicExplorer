@@ -9,6 +9,12 @@ import com.cgaraydev.seismicexplorer.domain.model.RecentWindow
 import com.cgaraydev.seismicexplorer.domain.model.RefreshResult
 import com.cgaraydev.seismicexplorer.domain.repository.EarthquakeRepository
 import com.cgaraydev.seismicexplorer.domain.repository.ScientificDetailRepository
+import com.cgaraydev.seismicexplorer.domain.repository.ShakeMapImageRepository
+import com.cgaraydev.seismicexplorer.domain.model.ShakeMapImageResult
+import com.cgaraydev.seismicexplorer.domain.model.ShakeMapImageFailure
+import com.cgaraydev.seismicexplorer.domain.model.ShakeMapProduct
+import com.cgaraydev.seismicexplorer.domain.model.ShakeMapResource
+import com.cgaraydev.seismicexplorer.domain.model.ShakeMapResourceKind
 import com.cgaraydev.seismicexplorer.domain.model.ScientificDetail
 import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailFailure
 import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailResult
@@ -43,6 +49,7 @@ class EarthquakeDetailViewModelTest {
 
     private lateinit var repository: FakeRepository
     private lateinit var scienceRepository: FakeScientificRepository
+    private val imageRepository = FakeImageRepository()
     private lateinit var viewModel: EarthquakeDetailViewModel
 
     @Before
@@ -184,6 +191,7 @@ class EarthquakeDetailViewModelTest {
         viewModel = EarthquakeDetailViewModel(
             repository = repository,
             scientificRepository = scienceRepository,
+            shakeMapImageRepository = imageRepository,
             destination = EarthquakeDetailDestination(
                 earthquakeId = id
             )
@@ -203,6 +211,39 @@ class EarthquakeDetailViewModelTest {
         updatedAt = Instant.parse("2026-11-14T10:30:00Z"),
         detailUrl = null
     )
+
+    @Test
+    fun shakeMapIsNotDownloadedUntilPressedAndFailureIsExplicit() = runTest {
+        scienceRepository.result = ScientificDetailResult.Available(
+            detail = ScientificDetail("us123", 1700000000000L, 1700000000100L,
+                listOf("shakemap"), 1, ShakeMapProduct(
+                    source = "us", code = "us123", updatedAtEpochMillis = 1700000000000L,
+                    mapStatus = "RELEASED", resources = listOf(ShakeMapResource(
+                        ShakeMapResourceKind.INTENSITY_MAP,
+                        "https://earthquake.usgs.gov/realtime/product/shakemap/us123/us/1700000000/download/intensity.jpg",
+                        "image/jpeg", 512L
+                    ))
+                )), source = ScientificDetailSource.NETWORK, isStale = false
+        )
+        createViewModel("us123")
+        assertEquals(0, imageRepository.calls)
+        viewModel.requestScientificDetail()
+        advanceUntilIdle()
+        assertEquals(0, imageRepository.calls)
+        viewModel.requestShakeMapImage()
+        advanceUntilIdle()
+        assertEquals(1, imageRepository.calls)
+        assertEquals(ShakeMapImageUiState.Error(ShakeMapImageFailure.CONNECTION),
+            viewModel.shakeMapImageState.value)
+    }
+
+    private class FakeImageRepository : ShakeMapImageRepository {
+        var calls = 0
+        override suspend fun load(resource: ShakeMapResource): ShakeMapImageResult {
+            calls++
+            return ShakeMapImageResult.Failed(ShakeMapImageFailure.CONNECTION)
+        }
+    }
 
     private class FakeScientificRepository : ScientificDetailRepository {
         val calls = mutableListOf<Triple<String, Long?, Boolean>>()

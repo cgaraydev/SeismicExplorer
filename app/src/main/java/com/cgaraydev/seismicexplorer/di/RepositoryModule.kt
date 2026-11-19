@@ -1,6 +1,8 @@
 package com.cgaraydev.seismicexplorer.di
 
 import com.cgaraydev.seismicexplorer.data.repository.OfflineFirstEarthquakeRepository
+import com.cgaraydev.seismicexplorer.data.repository.CachedShakeMapImageRepository
+import com.cgaraydev.seismicexplorer.domain.repository.ShakeMapImageRepository
 import com.cgaraydev.seismicexplorer.data.repository.OfflineFirstScientificDetailRepository
 import com.cgaraydev.seismicexplorer.domain.repository.ScientificDetailRepository
 import com.cgaraydev.seismicexplorer.domain.repository.EarthquakeRepository
@@ -20,6 +22,11 @@ abstract class RepositoryModule {
     abstract fun bindEarthquakeRepository(
         implementation: OfflineFirstEarthquakeRepository
     ): EarthquakeRepository
+
+    @Binds
+    abstract fun bindShakeMapImageRepository(
+        implementation: CachedShakeMapImageRepository
+    ): ShakeMapImageRepository
 
     @Binds
     abstract fun bindScientificDetailRepository(

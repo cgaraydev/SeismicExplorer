@@ -4,6 +4,9 @@ import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,6 +45,8 @@ import com.cgaraydev.seismicexplorer.R
 import com.cgaraydev.seismicexplorer.domain.model.Earthquake
 import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailFailure
 import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailSource
+import com.cgaraydev.seismicexplorer.domain.model.ShakeMapResourceKind
+import com.cgaraydev.seismicexplorer.domain.model.ShakeMapResource
 import com.cgaraydev.seismicexplorer.domain.model.GeoCoordinates
 import com.cgaraydev.seismicexplorer.ui.theme.SeismicExplorerTheme
 import java.time.Instant
@@ -60,6 +65,7 @@ fun EarthquakeDetailRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val scientificState by viewModel.scientificState.collectAsStateWithLifecycle()
+    val shakeMapImageState by viewModel.shakeMapImageState.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
 
     EarthquakeDetailScreen(
@@ -70,6 +76,8 @@ fun EarthquakeDetailRoute(
         onOpenDepthLearn = onOpenDepthLearn,
         scientificState = scientificState,
         onRequestScientificDetail = viewModel::requestScientificDetail,
+        shakeMapImageState = shakeMapImageState,
+        onRequestShakeMapImage = viewModel::requestShakeMapImage,
         onOpenRevisionLearn = onOpenRevisionLearn
     )
 }
@@ -85,6 +93,8 @@ fun EarthquakeDetailScreen(
     onOpenDepthLearn: () -> Unit = {},
     scientificState: ScientificDetailUiState = ScientificDetailUiState.Idle,
     onRequestScientificDetail: () -> Unit = {},
+    shakeMapImageState: ShakeMapImageUiState = ShakeMapImageUiState.Idle,
+    onRequestShakeMapImage: () -> Unit = {},
     onOpenRevisionLearn: () -> Unit = {}
 ) {
     Scaffold(
@@ -143,6 +153,8 @@ fun EarthquakeDetailScreen(
                     onOpenDepthLearn = onOpenDepthLearn,
                     scientificState = scientificState,
                     onRequestScientificDetail = onRequestScientificDetail,
+                    shakeMapImageState = shakeMapImageState,
+                    onRequestShakeMapImage = onRequestShakeMapImage,
                     onOpenRevisionLearn = onOpenRevisionLearn,
                     modifier = Modifier.padding(innerPadding)
                 )
@@ -160,6 +172,8 @@ private fun EarthquakeDetailContent(
     onOpenDepthLearn: () -> Unit,
     scientificState: ScientificDetailUiState,
     onRequestScientificDetail: () -> Unit,
+    shakeMapImageState: ShakeMapImageUiState,
+    onRequestShakeMapImage: () -> Unit,
     onOpenRevisionLearn: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -312,6 +326,8 @@ private fun EarthquakeDetailContent(
             earthquake = earthquake,
             state = scientificState,
             onRequest = onRequestScientificDetail,
+            shakeMapImageState = shakeMapImageState,
+            onRequestShakeMapImage = onRequestShakeMapImage,
             onOpenRevisions = onOpenRevisionLearn
         )
 
@@ -414,6 +430,8 @@ private fun EarthquakeDetailContent(
 private fun ScientificDetailCard(
     earthquake: Earthquake,
     state: ScientificDetailUiState,
+    shakeMapImageState: ShakeMapImageUiState,
+    onRequestShakeMapImage: () -> Unit,
     onRequest: () -> Unit,
     onOpenRevisions: () -> Unit
 ) {
@@ -490,6 +508,24 @@ private fun ScientificDetailCard(
                                 modifier = Modifier.testTag("detail_science_product_$productType"))
                         }
                     }
+                    val shakeMap = detail.shakeMap
+                    if (shakeMap != null) {
+                        val jpg = shakeMap.resources.firstOrNull {
+                            it.kind == ShakeMapResourceKind.INTENSITY_MAP
+                        }
+                        if (jpg != null) {
+                            ShakeMapIntensityPreview(
+                                resource = jpg,
+                                state = shakeMapImageState,
+                                sourceName = shakeMap.source,
+                                metadataStale = stale,
+                                onRequest = onRequestShakeMapImage
+                            )
+                        } else {
+                            Text(stringResource(R.string.detail_shakemap_unavailable),
+                                color = colors.onSurfaceVariant)
+                        }
+                    }
                     Text(stringResource(R.string.detail_science_disclaimer),
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.onSurfaceVariant)
@@ -511,6 +547,77 @@ private fun ScientificDetailCard(
                 Text(stringResource(R.string.detail_science_learn))
             }
         }
+    }
+}
+
+/** El JPEG pertenece al producto de USGS: nunca equivale a observaciones directas de daños. */
+@Composable
+private fun ShakeMapIntensityPreview(
+    resource: ShakeMapResource,
+    state: ShakeMapImageUiState,
+    sourceName: String?,
+    metadataStale: Boolean,
+    onRequest: () -> Unit
+) {
+    val colors = MaterialTheme.colorScheme
+    Column(modifier = Modifier.fillMaxWidth().testTag("detail_shakemap_section"),
+        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(stringResource(R.string.detail_shakemap_title),
+            style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
+        Text(stringResource(R.string.detail_shakemap_description),
+            style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+        Text(stringResource(R.string.detail_shakemap_source, sourceName ?: "USGS"),
+            style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+        if (metadataStale) {
+            Text(stringResource(R.string.detail_shakemap_metadata_stale),
+                color = colors.onSurfaceVariant)
+        }
+        when (state) {
+            ShakeMapImageUiState.Idle -> Unit
+            ShakeMapImageUiState.Loading -> Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+                Text(stringResource(R.string.detail_shakemap_loading), color = colors.onSurface)
+            }
+            is ShakeMapImageUiState.Error -> Text(
+                stringResource(when (state.reason) {
+                    com.cgaraydev.seismicexplorer.domain.model.ShakeMapImageFailure.INVALID_RESOURCE -> R.string.detail_shakemap_invalid
+                    com.cgaraydev.seismicexplorer.domain.model.ShakeMapImageFailure.TOO_LARGE -> R.string.detail_shakemap_too_large
+                    com.cgaraydev.seismicexplorer.domain.model.ShakeMapImageFailure.NOT_FOUND -> R.string.detail_shakemap_not_found
+                    com.cgaraydev.seismicexplorer.domain.model.ShakeMapImageFailure.CONNECTION -> R.string.detail_shakemap_connection
+                    com.cgaraydev.seismicexplorer.domain.model.ShakeMapImageFailure.SERVICE -> R.string.detail_shakemap_service
+                    com.cgaraydev.seismicexplorer.domain.model.ShakeMapImageFailure.INVALID_IMAGE -> R.string.detail_shakemap_invalid
+                }), modifier = Modifier.testTag("detail_shakemap_error"), color = colors.onSurface
+            )
+            is ShakeMapImageUiState.Available -> {
+                Image(bitmap = state.image,
+                    contentDescription = stringResource(R.string.detail_shakemap_accessibility),
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 380.dp)
+                        .testTag("detail_shakemap_image"))
+                Text(stringResource(if (state.fromCache) R.string.detail_shakemap_cache
+                    else R.string.detail_shakemap_network),
+                    color = colors.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium)
+                if (state.isStale) {
+                    Text(stringResource(R.string.detail_shakemap_cached_stale),
+                        color = colors.onSurfaceVariant)
+                }
+            }
+        }
+        OutlinedButton(
+            onClick = onRequest,
+            enabled = state != ShakeMapImageUiState.Loading,
+            modifier = Modifier.fillMaxWidth().testTag("detail_shakemap_request")
+        ) {
+            Text(stringResource(if (state is ShakeMapImageUiState.Available)
+                R.string.detail_shakemap_retry else R.string.detail_shakemap_view))
+        }
+        Text(stringResource(R.string.detail_shakemap_caveat),
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.onSurfaceVariant)
     }
 }
 

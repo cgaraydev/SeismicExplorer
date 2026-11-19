@@ -89,7 +89,8 @@ internal object UsgsShakeMapResourceParser {
         ) return false
         val path = uri.rawPath ?: return false
         if ('%' in path || path.split('/').any { it == ".." || it == "." }) return false
-        if (!path.startsWith("/realtime/product/shakemap/") &&
+        if (!path.startsWith("/product/shakemap/") &&
+            !path.startsWith("/realtime/product/shakemap/") &&
             !path.startsWith("/archive/product/shakemap/")
         ) return false
         return path.endsWith("/$contentPath")

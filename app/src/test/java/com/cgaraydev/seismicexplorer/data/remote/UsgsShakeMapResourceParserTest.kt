@@ -39,6 +39,23 @@ class UsgsShakeMapResourceParserTest {
         assertEquals("image/jpeg", result.resources.first().contentType)
     }
 
+    @Test fun officialProductUrlProducesCompatibleJpeg() {
+        val imageUrl = "https://earthquake.usgs.gov/product/shakemap/us123/us/1700000004000/download/intensity.jpg"
+        val raw = """{
+            "type":"Feature","id":"us123","properties":{
+                "type":"earthquake","updated":1700000003000,
+                "products":{"shakemap":[{"status":"UPDATE","preferredWeight":100,
+                    "contents":{"download/intensity.jpg":{"url":"$imageUrl","contentType":"image/jpeg"}}
+                }]}
+            }
+        }"""
+        val detail = UsgsScientificDetailParser(json).parse(raw, "us123")!!
+        val resource = detail.shakeMap!!.resources.single()
+        assertEquals(ShakeMapResourceKind.INTENSITY_MAP, resource.kind)
+        assertEquals(imageUrl, resource.url)
+        assertTrue(ShakeMapImageUrlPolicy.accepts(resource.url))
+    }
+
     @Test fun newestVersionWinsWhenWeightsAreTied() {
         val data = products("""
             {"status":"UPDATE","preferredWeight":100,"updateTime":100,"code":"older"},

@@ -11,6 +11,9 @@ import com.cgaraydev.seismicexplorer.domain.model.GeoCoordinates
 import com.cgaraydev.seismicexplorer.domain.model.ScientificDetail
 import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailFailure
 import com.cgaraydev.seismicexplorer.domain.model.ScientificDetailSource
+import com.cgaraydev.seismicexplorer.domain.model.ShakeMapProduct
+import com.cgaraydev.seismicexplorer.domain.model.ShakeMapResource
+import com.cgaraydev.seismicexplorer.domain.model.ShakeMapResourceKind
 import com.cgaraydev.seismicexplorer.ui.theme.SeismicExplorerTheme
 import java.time.Instant
 import org.junit.Assert.assertEquals
@@ -124,6 +127,29 @@ class EarthquakeDetailScreenTest {
         }
         composeRule.onNodeWithTag("detail_science_error").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("detail_science_product_shakemap").assertDoesNotExist()
+    }
+
+    @Test
+    fun imageButtonOnlyAppearsWhenVerifiedJpegIsPublished() {
+        var requests = 0
+        val image = ShakeMapResource(ShakeMapResourceKind.INTENSITY_MAP,
+            "https://earthquake.usgs.gov/realtime/product/shakemap/us123/us/1700000000/download/intensity.jpg",
+            "image/jpeg", 1000L)
+        val scientific = ScientificDetail("us123", 1700000000000L, 1700000000100L,
+            listOf("shakemap"), 1, ShakeMapProduct("us", "us123", 1700000000000L,
+                "RELEASED", listOf(image)))
+        composeRule.setContent {
+            SeismicExplorerTheme(darkTheme = true) {
+                EarthquakeDetailScreen(state = EarthquakeDetailUiState.Content(sampleEarthquake()),
+                    onBack = {}, onOpenSource = {},
+                    scientificState = ScientificDetailUiState.Available(scientific,
+                        ScientificDetailSource.NETWORK, false),
+                    onRequestShakeMapImage = { requests++ })
+            }
+        }
+        composeRule.onNodeWithTag("detail_shakemap_request").performScrollTo().performClick()
+        composeRule.runOnIdle { assertEquals(1, requests) }
+        composeRule.onNodeWithTag("detail_shakemap_image").assertDoesNotExist()
     }
 
     @Test

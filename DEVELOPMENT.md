@@ -125,6 +125,7 @@ filtro de screen resumen, el principal de arriba q selecciona tiempo, cuando se 
 en el detalle, en la parte q dice fecha y hora local, se puede incluir tambien la hora UTC
 el identificador usgs puede llevar un icono para copiarlo al portapaleles en caso de q este identificador sirva para algo
 hay tests q hacen pruebas a screens q ahora son diferentes
+los eventos deben tener filtros de organizacion tipo a-z, por ejemplo de magnitud o profundidad
 
 
 
