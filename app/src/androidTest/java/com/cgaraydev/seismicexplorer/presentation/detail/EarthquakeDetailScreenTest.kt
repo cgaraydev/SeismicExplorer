@@ -75,6 +75,7 @@ class EarthquakeDetailScreenTest {
                 )
             }
         }
+        composeRule.onNodeWithTag("detail_tab_impact").performClick()
         composeRule.onNodeWithTag("detail_science_idle").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("detail_science_product_shakemap").assertDoesNotExist()
         composeRule.runOnIdle { assertEquals(0, requests) }
@@ -103,6 +104,7 @@ class EarthquakeDetailScreenTest {
                 )
             }
         }
+        composeRule.onNodeWithTag("detail_tab_impact").performClick()
         composeRule.onNodeWithTag("detail_science_status").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("detail_science_stale").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("detail_science_product_shakemap")
@@ -126,6 +128,7 @@ class EarthquakeDetailScreenTest {
                 )
             }
         }
+        composeRule.onNodeWithTag("detail_tab_impact").performClick()
         composeRule.onNodeWithTag("detail_science_error").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("detail_science_product_shakemap").assertDoesNotExist()
     }
@@ -157,6 +160,7 @@ class EarthquakeDetailScreenTest {
                     onRequestShakeMapImage = { requests++ })
             }
         }
+        composeRule.onNodeWithTag("detail_tab_impact").performClick()
         composeRule.onNodeWithTag("detail_shakemap_request").performScrollTo().performClick()
         composeRule.runOnIdle { assertEquals(1, requests) }
         composeRule.onNodeWithTag("detail_shakemap_image").assertDoesNotExist()
@@ -178,6 +182,7 @@ class EarthquakeDetailScreenTest {
                 )
             }
         }
+        composeRule.onNodeWithTag("detail_tab_impact").performClick()
         composeRule.onNodeWithText("PAGER · estimaciones de impacto · losspager")
             .performScrollTo().assertIsDisplayed()
     }
@@ -192,11 +197,16 @@ class EarthquakeDetailScreenTest {
                 )
             }
         }
-        composeRule.onNodeWithText("Hora local del dispositivo")
-            .performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithTag("detail_time_utc").assertTextContains("UTC", substring = true)
+        composeRule.onNodeWithTag("detail_time_utc")
+            .assertTextContains("UTC", substring = true)
         composeRule.onNodeWithTag("detail_essential_metrics").assertExists()
         composeRule.onNodeWithTag("detail_jump_intensity").assertExists()
+        composeRule.onNodeWithTag("detail_tab_data").performClick()
+        composeRule.onNodeWithText("Hora local del dispositivo")
+            .performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("detail_tab_science").performClick()
+        composeRule.onNodeWithTag("detail_essential_region_section").assertExists()
+        composeRule.onNodeWithTag("detail_tab_summary").performClick()
     }
 
     @Test
@@ -272,6 +282,7 @@ class EarthquakeDetailScreenTest {
             }
         }
 
+        composeRule.onNodeWithTag("detail_tab_data").performClick()
         composeRule
             .onNodeWithText("Ver evento en USGS")
             .performScrollTo()
@@ -301,6 +312,7 @@ class EarthquakeDetailScreenTest {
             }
         }
 
+        composeRule.onNodeWithTag("detail_tab_data").performClick()
         composeRule
             .onNodeWithText("Ver evento en USGS")
             .assertDoesNotExist()
@@ -319,6 +331,7 @@ class EarthquakeDetailScreenTest {
                 )
             }
         }
+        composeRule.onNodeWithTag("detail_tab_impact").performClick()
         composeRule.onNodeWithTag("detail_future_open").performScrollTo().performClick()
         composeRule.onNodeWithTag("detail_future_sheet", useUnmergedTree = true).assertExists()
         composeRule.onNodeWithText("Cómo se sintió · DYFI").assertIsDisplayed()

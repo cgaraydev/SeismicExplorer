@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="detail_pilot_dial_label">MAGNITUD</string>
+    <string name="detail_pilot_scale">Escala</string>
+    <string name="detail_pilot_status">Estado</string>
+</resources>

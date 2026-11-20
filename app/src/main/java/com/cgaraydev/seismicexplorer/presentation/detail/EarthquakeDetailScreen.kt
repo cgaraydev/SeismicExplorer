@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -116,29 +114,6 @@ fun EarthquakeDetailScreen(
                     style = MaterialTheme.typography.titleMedium) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background),
-                actions = {
-                    val event = (state as? EarthquakeDetailUiState.Content)?.earthquake
-                    if (event != null) {
-                        val sharedMagnitude = event.magnitude?.let {
-                            stringResource(R.string.home_event_magnitude, it)
-                        } ?: stringResource(R.string.home_event_magnitude_unknown)
-                        val sharedPlace = localizedEarthquakePlace(event.place)
-                        val sharedTime = EarthquakeTimeFormatter.utc(event.occurredAt,
-                            LocalConfiguration.current.locales[0])
-                        val shareText = stringResource(R.string.detail_visual_share_text,
-                            sharedMagnitude, sharedPlace, sharedTime, event.id)
-                        val chooserTitle = stringResource(R.string.detail_visual_share)
-                        IconButton(onClick = {
-                            context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, shareText)
-                            }, chooserTitle))
-                        }, modifier = Modifier.testTag("detail_share")) {
-                            Icon(painterResource(R.drawable.ic_detail_share),
-                                contentDescription = chooserTitle)
-                        }
-                    }
-                },
                 navigationIcon = {
                     IconButton(
                         onClick = onBack,
@@ -224,9 +199,6 @@ private fun EarthquakeDetailContent(
     var showDepthInfo by rememberSaveable { mutableStateOf(false) }
     var showScaleInfo by rememberSaveable { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
-    val scientificSection = remember { BringIntoViewRequester() }
-    val sourceSection = remember { BringIntoViewRequester() }
-    val regionalSection = remember { BringIntoViewRequester() }
 
     val dateFormatter = DateTimeFormatter
         .ofLocalizedDateTime(FormatStyle.MEDIUM)
@@ -244,10 +216,19 @@ private fun EarthquakeDetailContent(
             uri.host.equals("earthquake.usgs.gov", ignoreCase = true)
     }
 
+    var activeTab by rememberSaveable(earthquake.id) {
+        mutableStateOf(EventDetailTab.RESUMEN)
+    }
+    val scrollState = rememberScrollState()
+    val switchTab: (EventDetailTab) -> Unit = { next ->
+        activeTab = next
+        coroutineScope.launch { scrollState.animateScrollTo(0) }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
             .padding(horizontal = 16.dp, vertical = 16.dp)
             .testTag("detail_essential_root"),
         verticalArrangement = Arrangement.spacedBy(13.dp)
@@ -263,133 +244,174 @@ private fun EarthquakeDetailContent(
             onDepthInfo = { showDepthInfo = true },
             onScaleInfo = { showScaleInfo = true }
         )
-        EarthquakeEssentialMap(earthquake)
-        Text(
-            text = stringResource(R.string.detail_essential_explore),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        EarthquakeEssentialJump(
-            number = "01",
-            title = stringResource(R.string.detail_essential_intensity),
-            description = when (scientificState) {
-                ScientificDetailUiState.Idle -> stringResource(R.string.detail_essential_intensity_idle)
-                ScientificDetailUiState.Loading -> stringResource(R.string.detail_science_loading)
-                is ScientificDetailUiState.Error -> stringResource(R.string.detail_essential_intensity_error)
-                is ScientificDetailUiState.Available -> stringResource(
-                    if (scientificState.detail.shakeMap?.resources?.any {
-                        it.kind == ShakeMapResourceKind.INTENSITY_MAP
-                    } == true) {
-                        R.string.detail_essential_intensity_available
-                    } else {
-                        R.string.detail_essential_intensity_no_map
-                    }
-                )
-            },
-            tag = "detail_jump_intensity",
-            onClick = { coroutineScope.launch { scientificSection.bringIntoView() } }
-        )
-        EarthquakeEssentialJump(
-            number = "02",
-            title = stringResource(R.string.detail_essential_source),
-            description = stringResource(R.string.detail_essential_source_description),
-            tag = "detail_jump_source",
-            onClick = { coroutineScope.launch { sourceSection.bringIntoView() } }
-        )
-        EarthquakeEssentialJump(
-            number = "03",
-            title = stringResource(R.string.detail_essential_region),
-            description = stringResource(R.string.detail_essential_region_description),
-            tag = "detail_jump_region",
-            onClick = { coroutineScope.launch { regionalSection.bringIntoView() } }
-        )
-        DetailFutureFeatures()
-        Text(
-            text = stringResource(R.string.detail_essential_scientific_section),
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(top = 12.dp)
-        )
-        ScientificDetailCard(
-            earthquake = earthquake,
-            state = scientificState,
-            onRequest = onRequestScientificDetail,
-            shakeMapImageState = shakeMapImageState,
-            onRequestShakeMapImage = onRequestShakeMapImage,
-            onOpenRevisions = onOpenRevisionLearn,
-            modifier = Modifier.bringIntoViewRequester(scientificSection)
+        EarthquakeEventTabs(
+            selected = activeTab,
+            onSelect = switchTab
         )
 
-        OutlinedCard(
-            modifier = Modifier.fillMaxWidth().bringIntoViewRequester(sourceSection)
-                .testTag("detail_essential_source_section")
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(stringResource(R.string.detail_essential_source),
-                    style = MaterialTheme.typography.titleLarge)
-                Text(stringResource(R.string.detail_magnitude_type_note),
+        when (activeTab) {
+            EventDetailTab.RESUMEN -> {
+                EarthquakeEssentialMap(earthquake)
+                Text(
+                    text = stringResource(R.string.detail_tab_summary_intro),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                DetailField(
-                    label = stringResource(R.string.detail_essential_local_time),
-                    value = EarthquakeTimeFormatter.local(
-                        earthquake.occurredAt,
-                        ZoneId.systemDefault(),
-                        locale
-                    )
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                DetailField(
-                    label = stringResource(R.string.detail_updated_at),
-                    value = dateFormatter.format(earthquake.updatedAt)
+                Text(
+                    text = stringResource(R.string.detail_essential_explore),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                DetailField(
-                    label = stringResource(R.string.detail_event_id),
-                    value = earthquake.id
+                EarthquakeEssentialJump(
+                    number = "01",
+                    title = stringResource(R.string.detail_essential_intensity),
+                    description = when (scientificState) {
+                        ScientificDetailUiState.Idle -> stringResource(R.string.detail_essential_intensity_idle)
+                        ScientificDetailUiState.Loading -> stringResource(R.string.detail_science_loading)
+                        is ScientificDetailUiState.Error -> stringResource(R.string.detail_essential_intensity_error)
+                        is ScientificDetailUiState.Available -> stringResource(
+                            if (scientificState.detail.shakeMap?.resources?.any {
+                                it.kind == ShakeMapResourceKind.INTENSITY_MAP
+                            } == true) {
+                                R.string.detail_essential_intensity_available
+                            } else {
+                                R.string.detail_essential_intensity_no_map
+                            }
+                        )
+                    },
+                    tag = "detail_jump_intensity",
+                    onClick = { switchTab(EventDetailTab.IMPACTO) }
                 )
-                Text(stringResource(R.string.detail_provider),
-                    style = MaterialTheme.typography.bodyMedium)
-                if (officialPage != null) {
-                    OutlinedButton(onClick = { onOpenSource(officialPage) }) {
-                        Text(stringResource(R.string.detail_open_official))
-                    }
-                }
+                EarthquakeEssentialJump(
+                    number = "02",
+                    title = stringResource(R.string.detail_essential_source),
+                    description = stringResource(R.string.detail_essential_source_description),
+                    tag = "detail_jump_source",
+                    onClick = { switchTab(EventDetailTab.DATOS) }
+                )
+                EarthquakeEssentialJump(
+                    number = "03",
+                    title = stringResource(R.string.detail_essential_region),
+                    description = stringResource(R.string.detail_essential_region_description),
+                    tag = "detail_jump_region",
+                    onClick = { switchTab(EventDetailTab.CIENCIA) }
+                )
             }
-        }
-        OutlinedCard(
-            modifier = Modifier.fillMaxWidth().bringIntoViewRequester(regionalSection)
-                .testTag("detail_essential_region_section")
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(stringResource(R.string.detail_essential_region),
-                    style = MaterialTheme.typography.titleLarge)
-                Text(stringResource(R.string.detail_essential_region_note),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+
+            EventDetailTab.IMPACTO -> {
+                Text(
+                    text = stringResource(R.string.detail_tab_impact_header),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                ScientificDetailCard(
+                    earthquake = earthquake,
+                    state = scientificState,
+                    onRequest = onRequestScientificDetail,
+                    shakeMapImageState = shakeMapImageState,
+                    onRequestShakeMapImage = onRequestShakeMapImage,
+                    onOpenRevisions = onOpenRevisionLearn
+                )
+                DetailFutureFeatures()
+            }
+
+            EventDetailTab.CIENCIA -> {
+                Text(
+                    text = stringResource(R.string.detail_tab_science_header),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                OutlinedCard(
                     modifier = Modifier.fillMaxWidth()
+                        .testTag("detail_essential_region_section")
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        DetailField(
-                            label = stringResource(R.string.detail_latitude),
-                            value = formatCoordinate(earthquake.coordinates.latitude, locale)
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.detail_essential_region),
+                            style = MaterialTheme.typography.titleLarge
                         )
+                        Text(
+                            stringResource(R.string.detail_essential_region_note),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                DetailField(
+                                    label = stringResource(R.string.detail_latitude),
+                                    value = formatCoordinate(earthquake.coordinates.latitude, locale)
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                DetailField(
+                                    label = stringResource(R.string.detail_longitude),
+                                    value = formatCoordinate(earthquake.coordinates.longitude, locale)
+                                )
+                            }
+                        }
                     }
-                    Column(modifier = Modifier.weight(1f)) {
-                        DetailField(
-                            label = stringResource(R.string.detail_longitude),
-                            value = formatCoordinate(earthquake.coordinates.longitude, locale)
+                }
+            }
+
+            EventDetailTab.DATOS -> {
+                Text(
+                    text = stringResource(R.string.detail_tab_data_header),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                OutlinedCard(
+                    modifier = Modifier.fillMaxWidth()
+                        .testTag("detail_essential_source_section")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.detail_essential_source),
+                            style = MaterialTheme.typography.titleLarge
                         )
+                        Text(
+                            stringResource(R.string.detail_magnitude_type_note),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        DetailField(
+                            label = stringResource(R.string.detail_essential_local_time),
+                            value = EarthquakeTimeFormatter.local(
+                                earthquake.occurredAt,
+                                ZoneId.systemDefault(),
+                                locale
+                            )
+                        )
+                        DetailField(
+                            label = stringResource(R.string.detail_updated_at),
+                            value = dateFormatter.format(earthquake.updatedAt)
+                        )
+                        DetailField(
+                            label = stringResource(R.string.detail_event_id),
+                            value = earthquake.id
+                        )
+                        Text(
+                            stringResource(R.string.detail_provider),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        if (officialPage != null) {
+                            OutlinedButton(onClick = { onOpenSource(officialPage) }) {
+                                Text(stringResource(R.string.detail_open_official))
+                            }
+                        }
                     }
                 }
             }
         }
+
         Text(
             text = stringResource(R.string.home_disclaimer),
             style = MaterialTheme.typography.bodySmall,
@@ -397,6 +419,7 @@ private fun EarthquakeDetailContent(
             modifier = Modifier.padding(bottom = 8.dp)
         )
     }
+
 
     if (showDepthInfo) {
         ModalBottomSheet(

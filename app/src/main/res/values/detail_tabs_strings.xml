@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="detail_tab_summary">Resumen</string>
+    <string name="detail_tab_impact">Impacto</string>
+    <string name="detail_tab_science">Ciencia</string>
+    <string name="detail_tab_data">Datos</string>
+    <string name="detail_tab_summary_intro">El mapa muestra la ubicación del epicentro reportada por USGS. No representa la intensidad de la sacudida ni un área estimada de daños.</string>
+    <string name="detail_tab_impact_header">Intensidad y efectos</string>
+    <string name="detail_tab_science_header">Contexto y análisis</string>
+    <string name="detail_tab_data_header">Datos y procedencia</string>
+</resources>

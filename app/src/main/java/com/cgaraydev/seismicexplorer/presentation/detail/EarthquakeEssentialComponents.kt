@@ -35,6 +35,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cgaraydev.seismicexplorer.R
@@ -46,7 +50,7 @@ import java.util.Locale
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
 
-/** Cabecera editorial adaptable; conserva el lugar completo y cambia a columna con texto grande. */
+/** Cabecera geológica editorial: trazos decorativos y magnitud dinámica de texto real. */
 @Composable
 internal fun EarthquakeEssentialHero(
     earthquake: Earthquake,
@@ -60,57 +64,87 @@ internal fun EarthquakeEssentialHero(
         EarthquakeTimeFormatter.utc(earthquake.occurredAt, locale)
     }
     val colors = MaterialTheme.colorScheme
-
+    val dramatic = colors.background.luminance() < 0.45f
+    val headerColors = if (dramatic) {
+        listOf(Color(0xFF0C3444), Color(0xFF0C1E2C), Color(0xFF211B23))
+    } else {
+        listOf(colors.surfaceContainer, colors.surfaceContainerLow, colors.surface)
+    }
+    val headerText = if (dramatic) Color(0xFFF4F4F0) else colors.onSurface
+    val headerSecondaryText = if (dramatic) Color(0xFFD0DDE2) else colors.onSurfaceVariant
     val largeText = LocalConfiguration.current.fontScale > 1.25f
-    Column(
-        modifier = modifier.fillMaxWidth().testTag("detail_essential_hero"),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .background(Brush.horizontalGradient(headerColors))
+            .testTag("detail_essential_hero")
     ) {
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val stacked = maxWidth < 330.dp || largeText
-            val magnitudeContent: @Composable () -> Unit = {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(stringResource(R.string.detail_essential_magnitude),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = colors.onSurfaceVariant)
-                        DetailQuestionButton(onMagnitudeInfo,
-                            stringResource(R.string.learn_magnitude_info_button),
-                            Modifier.testTag("detail_magnitude_info"))
-                    }
-                    Text(magnitude,
-                        modifier = Modifier.testTag("detail_magnitude_primary"),
-                        style = MaterialTheme.typography.displaySmall.copy(
-                            fontSize = 40.sp, lineHeight = 48.sp),
-                        fontWeight = FontWeight.Bold, color = colors.secondary)
-                }
+        GeologicalHeaderContours(Modifier.matchParentSize())
+        val stacked = maxWidth < 335.dp || largeText
+        if (stacked) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                MagnitudeDial(
+                    valueText = magnitude,
+                    onOpenMagnitudeEducation = onMagnitudeInfo,
+                    educationDescription = stringResource(R.string.learn_magnitude_info_button),
+                    diameter = 168.dp
+                )
+                Text(
+                    text = place,
+                    modifier = Modifier.fillMaxWidth().testTag("detail_place"),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = headerText
+                )
+                Text(
+                    text = utcTime,
+                    modifier = Modifier.fillMaxWidth().testTag("detail_time_utc"),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = headerSecondaryText
+                )
             }
-            val placeContent: @Composable () -> Unit = {
-                Text(place, style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold, color = colors.onSurface,
-                    modifier = Modifier.testTag("detail_place"))
-            }
-            if (stacked) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    magnitudeContent()
-                    placeContent()
-                }
-            } else {
-                Row(verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column(Modifier.weight(0.95f)) { magnitudeContent() }
-                    Box(Modifier.width(1.dp).height(72.dp).background(colors.outlineVariant))
-                    Column(Modifier.weight(1.4f)) { placeContent() }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                MagnitudeDial(
+                    valueText = magnitude,
+                    onOpenMagnitudeEducation = onMagnitudeInfo,
+                    educationDescription = stringResource(R.string.learn_magnitude_info_button),
+                    diameter = 150.dp
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = place,
+                        modifier = Modifier.testTag("detail_place"),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = headerText
+                    )
+                    Text(
+                        text = utcTime,
+                        modifier = Modifier.testTag("detail_time_utc"),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = headerSecondaryText
+                    )
                 }
             }
         }
-        Text(utcTime, style = MaterialTheme.typography.bodyMedium,
-            color = colors.onSurfaceVariant, modifier = Modifier.testTag("detail_time_utc"))
-        HorizontalDivider(color = colors.outlineVariant)
     }
 }
 
-/** Métricas compactas; disposición vertical con texto grande o poco ancho. */
+/** Ficha alineada: tres cabeceras y tres valores a la misma altura. */
 @Composable
 internal fun EarthquakeEssentialMetrics(
     earthquake: Earthquake,
@@ -129,82 +163,98 @@ internal fun EarthquakeEssentialMetrics(
         else -> R.string.detail_unknown
     }
 
-    val depthHelpDescription = stringResource(R.string.learn_depth_info_button)
-
-    BoxWithConstraints(modifier.fillMaxWidth().testTag("detail_essential_metrics")) {
-        val stacked = maxWidth < 320.dp || LocalConfiguration.current.fontScale > 1.25f
-        val depthContent: @Composable () -> Unit = {
-            Column(Modifier.clip(RoundedCornerShape(8.dp))
-                .clickable(onClick = onDepthInfo).heightIn(min = 48.dp)
-                .testTag("detail_depth_info")
-                .semantics { contentDescription = depthHelpDescription },
-                verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stringResource(R.string.detail_depth),
-                    style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
-                Text(depth, style = MaterialTheme.typography.titleMedium)
-            }
-        }
-        val typeContent: @Composable () -> Unit = {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stringResource(R.string.detail_visual_type),
-                    style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(magnitudeType, style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.weight(1f))
-                    DetailQuestionButton(onScaleInfo,
-                        stringResource(R.string.detail_essential_scale_help_button),
-                        Modifier.testTag("detail_scale_info"))
+    Surface(
+        modifier = modifier.fillMaxWidth().testTag("detail_essential_metrics"),
+        shape = RoundedCornerShape(18.dp),
+        color = colors.surfaceContainerLow
+    ) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val stacked = maxWidth < 325.dp || LocalConfiguration.current.fontScale > 1.25f
+            if (stacked) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    SeismicMetricColumn(
+                        title = stringResource(R.string.detail_depth), value = depth,
+                        onClick = onDepthInfo, tag = "detail_depth_info",
+                        a11y = stringResource(R.string.learn_depth_info_button)
+                    )
+                    SeismicMetricColumn(
+                        title = stringResource(R.string.detail_pilot_scale), value = magnitudeType,
+                        onClick = onScaleInfo, tag = "detail_scale_info",
+                        a11y = stringResource(R.string.detail_essential_scale_help_button)
+                    )
+                    SeismicMetricColumn(
+                        title = stringResource(R.string.detail_pilot_status), value = stringResource(review),
+                        onClick = null, tag = "detail_metric_status", a11y = null
+                    )
                 }
-            }
-        }
-        val statusContent: @Composable () -> Unit = {
-            Surface(color = colors.secondaryContainer, shape = RoundedCornerShape(50)) {
-                Text(stringResource(review), style = MaterialTheme.typography.labelMedium,
-                    color = colors.onSecondaryContainer,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp))
-            }
-        }
-        if (stacked) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                depthContent()
-                typeContent()
-                statusContent()
-            }
-        } else {
-            Row(verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Column(Modifier.weight(1f)) { depthContent() }
-                Column(Modifier.weight(1.45f)) { typeContent() }
-                statusContent()
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    SeismicMetricColumn(
+                        title = stringResource(R.string.detail_depth), value = depth,
+                        onClick = onDepthInfo, tag = "detail_depth_info",
+                        a11y = stringResource(R.string.learn_depth_info_button),
+                        modifier = Modifier.weight(1f)
+                    )
+                    SeismicMetricColumn(
+                        title = stringResource(R.string.detail_pilot_scale), value = magnitudeType,
+                        onClick = onScaleInfo, tag = "detail_scale_info",
+                        a11y = stringResource(R.string.detail_essential_scale_help_button),
+                        modifier = Modifier.weight(1f)
+                    )
+                    SeismicMetricColumn(
+                        title = stringResource(R.string.detail_pilot_status), value = stringResource(review),
+                        onClick = null, tag = "detail_metric_status", a11y = null,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
     }
 }
 
-/** Interrogación editorial pequeña con área de interacción accesible. */
 @Composable
-private fun DetailQuestionButton(
-    onClick: () -> Unit,
-    description: String,
+private fun SeismicMetricColumn(
+    title: String,
+    value: String,
+    onClick: (() -> Unit)?,
+    tag: String,
+    a11y: String?,
     modifier: Modifier = Modifier
 ) {
-    val colors = MaterialTheme.colorScheme
-    IconButton(
-        onClick = onClick,
-        modifier = modifier.size(48.dp).semantics { contentDescription = description }
+    val base = modifier.testTag(tag)
+    val clickable = if (onClick != null) {
+        base.clip(RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick)
+            .then(if (a11y != null) Modifier.semantics { contentDescription = a11y } else Modifier)
+    } else base
+    Column(
+        modifier = clickable.heightIn(min = 54.dp).padding(horizontal = 2.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
-        Box(
-            modifier = Modifier.size(19.dp)
-                .border(1.dp, colors.secondary, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "?",
-                style = MaterialTheme.typography.labelSmall,
-                color = colors.secondary,
-                fontWeight = FontWeight.Bold
-            )
-        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            maxLines = 1
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1
+        )
     }
 }
 
