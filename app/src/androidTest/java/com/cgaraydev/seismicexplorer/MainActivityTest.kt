@@ -3,6 +3,7 @@ package com.cgaraydev.seismicexplorer
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.assertTextContains
@@ -268,6 +269,40 @@ class MainActivityTest {
         composeRule.onNodeWithTag("tab_summary").performClick()
         composeRule.onNodeWithTag("observatory_dashboard").assertIsDisplayed()
         composeRule.onNodeWithTag("detail_essential_hero").assertDoesNotExist()
+    }
+
+    /** El detalle debe terminar exactamente donde comienza la barra inferior. */
+    @Test
+    fun detailHasNoUnusedSpaceAboveBottomNavigation() {
+        val time = Instant.parse("2026-11-14T10:00:00Z")
+        fakeRepository.setEvents(
+            Earthquake(
+                id = "nav-insets-test",
+                magnitude = 5.6,
+                place = "Southeast of the Loyalty Islands",
+                coordinates = com.cgaraydev.seismicexplorer.domain.model.GeoCoordinates(-22.0, 169.0),
+                depthKilometers = 10.0,
+                occurredAt = time,
+                updatedAt = time,
+                detailUrl = null
+            )
+        )
+        composeRule.onNodeWithTag("tab_catalog").performClick()
+        composeRule.onNodeWithTag("catalog_list")
+            .performScrollToNode(hasTestTag("catalog_event_nav-insets-test"))
+        composeRule.onNodeWithTag("catalog_event_nav-insets-test").performClick()
+        composeRule.onNodeWithTag("detail_essential_root").assertIsDisplayed()
+        composeRule.onNodeWithTag("observatory_bottom_bar").assertIsDisplayed()
+
+        val detailBottom = composeRule.onNodeWithTag("detail_essential_root")
+            .getUnclippedBoundsInRoot().bottom
+        val navigationTop = composeRule.onNodeWithTag("observatory_bottom_bar")
+            .getUnclippedBoundsInRoot().top
+        val gap = navigationTop - detailBottom
+        assertTrue(
+            "Existe una separacion no justificada de $gap entre detalle y navegacion",
+            kotlin.math.abs(gap.value) <= 2f
+        )
     }
 
     private class FakeEarthquakeRepository :

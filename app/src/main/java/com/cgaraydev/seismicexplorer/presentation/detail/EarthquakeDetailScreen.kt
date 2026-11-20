@@ -6,6 +6,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -108,6 +109,9 @@ fun EarthquakeDetailScreen(
     val context = LocalContext.current
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        // La barra inferior y su zona segura pertenecen al Scaffold exterior.
+        // Este Scaffold solo reserva espacio para su propia TopAppBar.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.detail_visual_title),
@@ -228,8 +232,9 @@ private fun EarthquakeDetailContent(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(scrollState)
-            .testTag("detail_essential_root"),
+            // El tag mide el viewport completo, no la altura desplazable del contenido.
+            .testTag("detail_essential_root")
+            .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
         EarthquakeEssentialHero(

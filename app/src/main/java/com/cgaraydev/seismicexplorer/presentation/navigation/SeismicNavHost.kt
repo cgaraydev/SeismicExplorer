@@ -2,6 +2,7 @@ package com.cgaraydev.seismicexplorer.presentation.navigation
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -87,7 +88,11 @@ fun SeismicNavHost() {
             }
         }
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(bottom = padding.calculateBottomPadding())) {
+        Box(
+            Modifier.fillMaxSize()
+                .padding(bottom = padding.calculateBottomPadding())
+                .consumeWindowInsets(padding)
+        ) {
             NavDisplay(
                 backStack = backStack,
                 onBack = navigateBack,
@@ -165,6 +170,7 @@ private fun ObservatoryBottomBar(
     onSelectTab: (ObservatoryTab) -> Unit
 ) {
     NavigationBar(
+        modifier = Modifier.testTag("observatory_bottom_bar"),
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp
     ) {
