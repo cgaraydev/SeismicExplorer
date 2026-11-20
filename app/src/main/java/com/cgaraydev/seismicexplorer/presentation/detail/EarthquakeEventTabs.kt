@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -62,6 +65,14 @@ internal fun EarthquakeEventTabs(
                     modifier = Modifier.fillMaxWidth().testTag(tab.testTag),
                     selectedContentColor = scheme.secondary,
                     unselectedContentColor = scheme.onSurfaceVariant,
+                    icon = {
+                        Icon(painterResource(when (tab) {
+                            EventDetailTab.RESUMEN -> R.drawable.ic_detail_summary
+                            EventDetailTab.IMPACTO -> R.drawable.ic_detail_impact
+                            EventDetailTab.CIENCIA -> R.drawable.ic_detail_science
+                            EventDetailTab.DATOS -> R.drawable.ic_detail_data
+                        }), null, Modifier.size(22.dp))
+                    },
                     text = {
                         Text(
                             stringResource(tab.labelRes),

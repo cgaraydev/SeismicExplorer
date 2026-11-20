@@ -1,5 +1,7 @@
 package com.cgaraydev.seismicexplorer.presentation.detail
 
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -81,7 +83,13 @@ internal fun EarthquakeEssentialHero(
             .background(Brush.horizontalGradient(headerColors))
             .testTag("detail_essential_hero")
     ) {
-        GeologicalHeaderContours(Modifier.matchParentSize())
+        Image(painterResource(R.drawable.detail_ocean_relief), contentDescription = null,
+            modifier = Modifier.matchParentSize(), contentScale = ContentScale.Crop,
+            alignment = Alignment.TopCenter)
+        Box(Modifier.matchParentSize().background(Brush.horizontalGradient(
+            if (dramatic) listOf(Color(0xCC04131C), Color(0x9904131C))
+            else listOf(colors.surface.copy(alpha = 0.92f), colors.surface.copy(alpha = 0.86f))
+        )))
         val stacked = maxWidth < 335.dp || largeText
         if (stacked) {
             Column(
@@ -91,6 +99,7 @@ internal fun EarthquakeEssentialHero(
             ) {
                 MagnitudeDial(
                     valueText = magnitude,
+                    hasMagnitude = earthquake.magnitude != null,
                     onOpenMagnitudeEducation = onMagnitudeInfo,
                     educationDescription = stringResource(R.string.learn_magnitude_info_button),
                     diameter = 168.dp
@@ -117,6 +126,7 @@ internal fun EarthquakeEssentialHero(
             ) {
                 MagnitudeDial(
                     valueText = magnitude,
+                    hasMagnitude = earthquake.magnitude != null,
                     onOpenMagnitudeEducation = onMagnitudeInfo,
                     educationDescription = stringResource(R.string.learn_magnitude_info_button),
                     diameter = 150.dp
@@ -240,12 +250,17 @@ private fun SeismicMetricColumn(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
+        Icon(painterResource(when (tag) {
+            "detail_depth_info" -> R.drawable.ic_detail_depth
+            "detail_scale_info" -> R.drawable.ic_detail_method
+            else -> R.drawable.ic_detail_review
+        }), null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.secondary)
         Text(
             text = title,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            maxLines = 1
+            maxLines = 3
         )
         Text(
             text = value,
@@ -253,7 +268,7 @@ private fun SeismicMetricColumn(
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1
+            maxLines = 3
         )
     }
 }

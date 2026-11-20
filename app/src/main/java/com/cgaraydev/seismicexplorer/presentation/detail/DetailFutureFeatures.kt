@@ -49,12 +49,12 @@ internal fun DetailFutureFeatures() {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 val items = listOf(
-                    Triple(R.drawable.ic_detail_wave, R.string.detail_visual_dyfi, R.string.detail_visual_dyfi_body),
-                    Triple(R.drawable.ic_detail_layers, R.string.detail_visual_impact, R.string.detail_visual_impact_body),
+                    Triple(R.drawable.ic_detail_dyfi, R.string.detail_visual_dyfi, R.string.detail_visual_dyfi_body),
+                    Triple(R.drawable.ic_detail_pager, R.string.detail_visual_impact, R.string.detail_visual_impact_body),
                     Triple(R.drawable.ic_detail_region, R.string.detail_visual_tectonic, R.string.detail_visual_tectonic_body),
-                    Triple(R.drawable.ic_detail_layers, R.string.detail_visual_rupture, R.string.detail_visual_rupture_body),
-                    Triple(R.drawable.ic_detail_wave, R.string.detail_visual_stations, R.string.detail_visual_stations_body),
-                    Triple(R.drawable.ic_detail_region, R.string.detail_visual_history, R.string.detail_visual_history_body)
+                    Triple(R.drawable.ic_detail_focal, R.string.detail_visual_rupture, R.string.detail_visual_rupture_body),
+                    Triple(R.drawable.ic_detail_stations, R.string.detail_visual_stations, R.string.detail_visual_stations_body),
+                    Triple(R.drawable.ic_detail_sequence, R.string.detail_visual_history, R.string.detail_visual_history_body)
                 )
                 items.forEach { (icon, title, body) ->
                     Row(horizontalArrangement = Arrangement.spacedBy(14.dp),

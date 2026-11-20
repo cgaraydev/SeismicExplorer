@@ -258,14 +258,12 @@ private fun EarthquakeDetailContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = stringResource(R.string.detail_essential_explore),
+                    text = stringResource(R.string.detail_ocean_products),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                EarthquakeEssentialJump(
-                    number = "01",
-                    title = stringResource(R.string.detail_essential_intensity),
-                    description = when (scientificState) {
+                ScientificProductGrid(
+                    shakeMapDescription = when (scientificState) {
                         ScientificDetailUiState.Idle -> stringResource(R.string.detail_essential_intensity_idle)
                         ScientificDetailUiState.Loading -> stringResource(R.string.detail_science_loading)
                         is ScientificDetailUiState.Error -> stringResource(R.string.detail_essential_intensity_error)
@@ -279,8 +277,7 @@ private fun EarthquakeDetailContent(
                             }
                         )
                     },
-                    tag = "detail_jump_intensity",
-                    onClick = { switchTab(EventDetailTab.IMPACTO) }
+                    onOpenShakeMap = { switchTab(EventDetailTab.IMPACTO) }
                 )
                 EarthquakeEssentialJump(
                     number = "02",

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="detail_ocean_products">Productos y análisis</string>
+    <string name="detail_ocean_shakemap">Intensidad estimada del movimiento</string>
+    <string name="detail_ocean_dyfi">Intensidad reportada por la población</string>
+    <string name="detail_ocean_pager">Estimaciones de impacto</string>
+    <string name="detail_ocean_focal_title">Mecanismo focal</string>
+    <string name="detail_ocean_focal">Geometría del mecanismo sísmico</string>
+    <string name="detail_ocean_viewer_planned">Visor próximamente</string>
+    <string name="detail_ocean_planned_explanation">El visor de este producto aún no está implementado. Su presencia aquí no indica que USGS lo haya publicado para este evento. Puedes consultar el catálogo de productos disponible en la pestaña Impacto.</string>
+</resources>
