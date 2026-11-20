@@ -21,5 +21,21 @@ data class EarthquakeEntity(
     val updatedAtEpochMillis: Long,
     val detailUrl: String?,
     val magType: String? = null,
-    val reviewStatus: String? = null
+    val reviewStatus: String? = null,
+    val feltReports: Int? = null,
+    val communityIntensity: Double? = null,
+    val modeledIntensity: Double? = null,
+    val pagerAlertLevel: String? = null,
+    val tsunamiIndicator: Int? = null,
+    val significance: Int? = null,
+    val network: String? = null,
+    val networkEventCode: String? = null,
+    val associatedIds: String? = null,
+    val contributingNetworks: String? = null,
+    val publishedProductCodes: String? = null,
+    val stationCount: Int? = null,
+    val nearestStationDistanceDegrees: Double? = null,
+    val timeResidualRmsSeconds: Double? = null,
+    val azimuthalGapDegrees: Double? = null,
+    val detailGeoJsonUrl: String? = null
 )

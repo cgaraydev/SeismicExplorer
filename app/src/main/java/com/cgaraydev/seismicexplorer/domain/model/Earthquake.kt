@@ -12,7 +12,8 @@ data class Earthquake(
     val updatedAt: Instant,
     val detailUrl: String?,
     val magType: String? = null,
-    val reviewStatus: String? = null
+    val reviewStatus: String? = null,
+    val scientific: EarthquakeScientificSummary = EarthquakeScientificSummary()
 ) {
     init {
         require(id.isNotBlank()) {

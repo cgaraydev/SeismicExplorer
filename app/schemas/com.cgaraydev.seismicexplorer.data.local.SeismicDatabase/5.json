@@ -1,0 +1,236 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 5,
+    "identityHash": "2e420c422702b19a070e656192ead346",
+    "entities": [
+      {
+        "tableName": "earthquakes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `magnitude` REAL, `place` TEXT, `latitude` REAL NOT NULL, `longitude` REAL NOT NULL, `depthKilometers` REAL, `occurredAtEpochMillis` INTEGER NOT NULL, `updatedAtEpochMillis` INTEGER NOT NULL, `detailUrl` TEXT, `magType` TEXT, `reviewStatus` TEXT, `feltReports` INTEGER, `communityIntensity` REAL, `modeledIntensity` REAL, `pagerAlertLevel` TEXT, `tsunamiIndicator` INTEGER, `significance` INTEGER, `network` TEXT, `networkEventCode` TEXT, `associatedIds` TEXT, `contributingNetworks` TEXT, `publishedProductCodes` TEXT, `stationCount` INTEGER, `nearestStationDistanceDegrees` REAL, `timeResidualRmsSeconds` REAL, `azimuthalGapDegrees` REAL, `detailGeoJsonUrl` TEXT, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "magnitude",
+            "columnName": "magnitude",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "place",
+            "columnName": "place",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "latitude",
+            "columnName": "latitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "longitude",
+            "columnName": "longitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "depthKilometers",
+            "columnName": "depthKilometers",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "occurredAtEpochMillis",
+            "columnName": "occurredAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updatedAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "detailUrl",
+            "columnName": "detailUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "magType",
+            "columnName": "magType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "reviewStatus",
+            "columnName": "reviewStatus",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "feltReports",
+            "columnName": "feltReports",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "communityIntensity",
+            "columnName": "communityIntensity",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "modeledIntensity",
+            "columnName": "modeledIntensity",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "pagerAlertLevel",
+            "columnName": "pagerAlertLevel",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "tsunamiIndicator",
+            "columnName": "tsunamiIndicator",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "significance",
+            "columnName": "significance",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "network",
+            "columnName": "network",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "networkEventCode",
+            "columnName": "networkEventCode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "associatedIds",
+            "columnName": "associatedIds",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "contributingNetworks",
+            "columnName": "contributingNetworks",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "publishedProductCodes",
+            "columnName": "publishedProductCodes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "stationCount",
+            "columnName": "stationCount",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "nearestStationDistanceDegrees",
+            "columnName": "nearestStationDistanceDegrees",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "timeResidualRmsSeconds",
+            "columnName": "timeResidualRmsSeconds",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "azimuthalGapDegrees",
+            "columnName": "azimuthalGapDegrees",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "detailGeoJsonUrl",
+            "columnName": "detailGeoJsonUrl",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_earthquakes_occurredAtEpochMillis",
+            "unique": false,
+            "columnNames": [
+              "occurredAtEpochMillis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_earthquakes_occurredAtEpochMillis` ON `${TABLE_NAME}` (`occurredAtEpochMillis`)"
+          }
+        ]
+      },
+      {
+        "tableName": "feed_sync",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`feedName` TEXT NOT NULL, `lastSuccessEpochMillis` INTEGER NOT NULL, PRIMARY KEY(`feedName`))",
+        "fields": [
+          {
+            "fieldPath": "feedName",
+            "columnName": "feedName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSuccessEpochMillis",
+            "columnName": "lastSuccessEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "feedName"
+          ]
+        }
+      },
+      {
+        "tableName": "scientific_detail_cache",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`eventId` TEXT NOT NULL, `sourceUpdatedAtEpochMillis` INTEGER NOT NULL, `fetchedAtEpochMillis` INTEGER NOT NULL, `payloadJson` TEXT NOT NULL, PRIMARY KEY(`eventId`))",
+        "fields": [
+          {
+            "fieldPath": "eventId",
+            "columnName": "eventId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceUpdatedAtEpochMillis",
+            "columnName": "sourceUpdatedAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fetchedAtEpochMillis",
+            "columnName": "fetchedAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payloadJson",
+            "columnName": "payloadJson",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "eventId"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2e420c422702b19a070e656192ead346')"
+    ]
+  }
+}
