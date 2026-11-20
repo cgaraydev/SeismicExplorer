@@ -15,11 +15,20 @@ object EarthquakePlaceFormatter {
         """^(NNE|NNW|ENE|ESE|SSE|SSW|WSW|WNW|NE|NW|SE|SW|N|S|E|W)\s+of\s+(.+)$""",
         RegexOption.IGNORE_CASE
     )
+    private val writtenDirectionOfPlace = Regex(
+        """^(northeast|northwest|southeast|southwest|north|south|east|west)\s+of\s+(.+)$""",
+        RegexOption.IGNORE_CASE
+    )
     private val directionLabels = mapOf(
         "N" to "N", "NNE" to "NNE", "NE" to "NE", "ENE" to "ENE",
         "E" to "E", "ESE" to "ESE", "SE" to "SE", "SSE" to "SSE",
         "S" to "S", "SSW" to "SSO", "SW" to "SO", "WSW" to "OSO",
         "W" to "O", "WNW" to "ONO", "NW" to "NO", "NNW" to "NNO"
+    )
+    private val writtenDirections = mapOf(
+        "north" to "norte", "south" to "sur", "east" to "este", "west" to "oeste",
+        "northeast" to "noreste", "northwest" to "noroeste",
+        "southeast" to "sureste", "southwest" to "suroeste"
     )
 
     private val nearDirectionalCoast = Regex(
@@ -43,6 +52,18 @@ object EarthquakePlaceFormatter {
             val direction = directionLabels[match.groupValues[1].uppercase(Locale.ROOT)]
                 ?: return place
             return "al $direction de ${localizedName(match.groupValues[2])}"
+        }
+        writtenDirectionOfPlace.matchEntire(place)?.let { match ->
+            val direction = writtenDirections[match.groupValues[1].lowercase(Locale.ROOT)]
+                ?: return place
+            val originalName = match.groupValues[2]
+            val translatedName = localizedName(originalName)
+            // No generar híbridos como «al sur de the Unknown Islands».
+            // Las expresiones con artículo inglés se traducen solo si conocemos el topónimo.
+            if (originalName.startsWith("the ", ignoreCase = true) &&
+                translatedName.equals(originalName, ignoreCase = true)
+            ) return place
+            return "al $direction de $translatedName"
         }
         nearDirectionalCoast.matchEntire(place)?.let { match ->
             val adjective = when (match.groupValues[1].lowercase(Locale.ROOT)) {
@@ -86,19 +107,23 @@ object EarthquakePlaceFormatter {
             return name.dropLast(", U.S. Virgin Islands".length) + ", Islas Vírgenes de EE. UU."
         }
         return when (name.lowercase(Locale.ROOT)) {
-        "south georgia island" -> "la isla Georgia del Sur"
-        "south sandwich islands" -> "islas Sandwich del Sur"
-        "south sandwich islands region" -> "región de las islas Sandwich del Sur"
-        "south atlantic ocean" -> "océano Atlántico Sur"
-        "north atlantic ocean" -> "océano Atlántico Norte"
-        "pacific ocean" -> "océano Pacífico"
-        "pacific-antarctic ridge" -> "Dorsal del Pacífico-Antártico"
-        "u.s. virgin islands" -> "Islas Vírgenes de EE. UU."
-        "japan" -> "Japón"
-        "central alaska" -> "Alaska central"
-        "southern alaska" -> "sur de Alaska"
-        "northern alaska" -> "norte de Alaska"
-        else -> name
+            "the loyalty islands" -> "las islas de la Lealtad"
+            "loyalty islands" -> "islas de la Lealtad"
+            "the south sandwich islands" -> "las islas Sandwich del Sur"
+            "south georgia island" -> "la isla Georgia del Sur"
+            "south sandwich islands" -> "islas Sandwich del Sur"
+            "south sandwich islands region" -> "región de las islas Sandwich del Sur"
+            "south atlantic ocean" -> "océano Atlántico Sur"
+            "north atlantic ocean" -> "océano Atlántico Norte"
+            "pacific ocean" -> "océano Pacífico"
+            "pacific-antarctic ridge" -> "Dorsal del Pacífico-Antártico"
+            "central east pacific rise" -> "Dorsal del Pacífico Oriental Central"
+            "u.s. virgin islands" -> "Islas Vírgenes de EE. UU."
+            "japan" -> "Japón"
+            "central alaska" -> "Alaska central"
+            "southern alaska" -> "sur de Alaska"
+            "northern alaska" -> "norte de Alaska"
+            else -> name
         }
     }
 }

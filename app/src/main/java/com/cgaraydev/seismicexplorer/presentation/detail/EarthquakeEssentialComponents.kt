@@ -79,7 +79,6 @@ internal fun EarthquakeEssentialHero(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
             .background(Brush.horizontalGradient(headerColors))
             .testTag("detail_essential_hero")
     ) {
@@ -90,6 +89,16 @@ internal fun EarthquakeEssentialHero(
             if (dramatic) listOf(Color(0xCC04131C), Color(0x9904131C))
             else listOf(colors.surface.copy(alpha = 0.92f), colors.surface.copy(alpha = 0.86f))
         )))
+        // Fundido inferior: la geología se integra con la pantalla, sin borde de card.
+        Box(
+            Modifier.matchParentSize().background(
+                Brush.verticalGradient(
+                    0.0f to Color.Transparent,
+                    0.68f to Color.Transparent,
+                    1.0f to colors.background
+                )
+            )
+        )
         val stacked = maxWidth < 335.dp || largeText
         if (stacked) {
             Column(

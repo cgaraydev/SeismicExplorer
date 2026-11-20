@@ -11,10 +11,10 @@ class EarthquakePlaceFormatterTest {
 
     @Test
     fun translatesSouthGeorgiaRegionWithoutChangingUnknownNames() {
-        org.junit.Assert.assertEquals("región de la isla Georgia del Sur",
-            EarthquakePlaceFormatter.format("South Georgia Island region", java.util.Locale("es")))
-        org.junit.Assert.assertEquals("South Georgia Island region",
-            EarthquakePlaceFormatter.format("South Georgia Island region", java.util.Locale.ENGLISH))
+        assertEquals("región de la isla Georgia del Sur",
+            EarthquakePlaceFormatter.format("South Georgia Island region", spanish))
+        assertEquals("South Georgia Island region",
+            EarthquakePlaceFormatter.format("South Georgia Island region", english))
     }
 
     @Test fun translatedSixteenPointCompassBearings() {
@@ -37,6 +37,22 @@ class EarthquakePlaceFormatterTest {
         ))
     }
 
+    @Test fun writtenDirectionsTranslateTheLoyaltyIslandsWithoutChangingEnglish() {
+        assertEquals("al sureste de las islas de la Lealtad",
+            EarthquakePlaceFormatter.format("Southeast of the Loyalty Islands", spanish))
+        assertEquals("al noreste de las islas de la Lealtad",
+            EarthquakePlaceFormatter.format("Northeast of the Loyalty Islands", spanish))
+        assertEquals("al oeste de Fiji",
+            EarthquakePlaceFormatter.format("West of Fiji", spanish))
+        assertEquals("Southeast of the Loyalty Islands",
+            EarthquakePlaceFormatter.format("Southeast of the Loyalty Islands", english))
+    }
+
+    @Test fun unknownEnglishToponymsWithTheRemainUnmodified() {
+        assertEquals("South of the Unknown Islands",
+            EarthquakePlaceFormatter.format("South of the Unknown Islands", spanish))
+    }
+
     @Test fun distanceDecimalMilesAndCaseArePreserved() {
         assertEquals("12.5 mi al ONO de Anchorage", EarthquakePlaceFormatter.format(
             "12.5 mi wnw of Anchorage", spanish
@@ -53,6 +69,9 @@ class EarthquakePlaceFormatterTest {
         ))
         assertEquals("región de las islas Sandwich del Sur", EarthquakePlaceFormatter.format(
             "South Sandwich Islands region", spanish
+        ))
+        assertEquals("Dorsal del Pacífico Oriental Central", EarthquakePlaceFormatter.format(
+            "Central East Pacific Rise", spanish
         ))
     }
 

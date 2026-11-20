@@ -229,7 +229,6 @@ private fun EarthquakeDetailContent(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp, vertical = 16.dp)
             .testTag("detail_essential_root"),
         verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
@@ -239,6 +238,10 @@ private fun EarthquakeDetailContent(
             magnitude = magnitude,
             onMagnitudeInfo = { showMagnitudeInfo = true }
         )
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(13.dp)
+        ) {
         EarthquakeEssentialMetrics(
             earthquake = earthquake,
             onDepthInfo = { showDepthInfo = true },
@@ -415,6 +418,7 @@ private fun EarthquakeDetailContent(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 8.dp)
         )
+        } // Contenido del detalle con márgenes, separado de la cabecera a todo el ancho.
     }
 
 

@@ -33,7 +33,7 @@ import java.time.ZoneOffset
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -235,6 +235,41 @@ class MainActivityTest {
             .assertTextContains("24 h", substring = true)
     }
 
+    @Test
+    fun detailRetainsBottomNavigationAndRestoresOriginTab() {
+        val time = Instant.parse("2026-11-14T10:00:00Z")
+        fakeRepository.setEvents(
+            Earthquake(
+                id = "nav-test",
+                magnitude = 5.6,
+                place = "Southeast of the Loyalty Islands",
+                coordinates = com.cgaraydev.seismicexplorer.domain.model.GeoCoordinates(-22.0, 169.0),
+                depthKilometers = 10.0,
+                occurredAt = time,
+                updatedAt = time,
+                detailUrl = null
+            )
+        )
+
+        composeRule.onNodeWithTag("tab_catalog").performClick()
+        composeRule.onNodeWithTag("catalog_list")
+            .performScrollToNode(hasTestTag("catalog_event_nav-test"))
+        composeRule.onNodeWithTag("catalog_event_nav-test").performClick()
+        composeRule.onNodeWithTag("detail_essential_hero").assertIsDisplayed()
+        composeRule.onNodeWithTag("tab_catalog").assertIsDisplayed()
+        composeRule.onNodeWithTag("tab_map").assertIsDisplayed()
+        composeRule.onNodeWithTag("detail_back_button").performClick()
+        composeRule.onNodeWithTag("catalog_list").assertIsDisplayed()
+
+        // Una navegación directa desde el detalle cierra la ficha, no la apila debajo.
+        composeRule.onNodeWithTag("catalog_list")
+            .performScrollToNode(hasTestTag("catalog_event_nav-test"))
+        composeRule.onNodeWithTag("catalog_event_nav-test").performClick()
+        composeRule.onNodeWithTag("tab_summary").performClick()
+        composeRule.onNodeWithTag("observatory_dashboard").assertIsDisplayed()
+        composeRule.onNodeWithTag("detail_essential_hero").assertDoesNotExist()
+    }
+
     private class FakeEarthquakeRepository :
         EarthquakeRepository {
 
@@ -242,6 +277,10 @@ class MainActivityTest {
             MutableStateFlow<List<Earthquake>>(
                 emptyList()
             )
+
+        fun setEvents(vararg values: Earthquake) {
+            events.value = values.toList()
+        }
 
         val refreshRequests =
             ConcurrentLinkedQueue<RecentWindow>()
@@ -264,7 +303,7 @@ class MainActivityTest {
         override fun observeEarthquake(
             id: String
         ): Flow<Earthquake?> {
-            return flowOf(null)
+            return events.map { all -> all.firstOrNull { it.id == id } }
         }
 
         override suspend fun refreshRecent(

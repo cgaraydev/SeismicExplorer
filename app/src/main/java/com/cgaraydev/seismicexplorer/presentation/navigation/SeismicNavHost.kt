@@ -51,87 +51,152 @@ private enum class ObservatoryTab(val labelRes: Int, val drawableRes: Int, val t
     LEARN(R.string.observatory_tab_learn, R.drawable.ic_observatory_learn, "tab_learn")
 }
 
+/**
+ * El contenedor de navegación es dueño de la pestaña seleccionada y de la barra inferior.
+ * La ficha de un sismo no crea una segunda barra ni duplica el estado del Observatorio.
+ */
 @Composable
 fun SeismicNavHost() {
     val backStack = rememberNavBackStack(HomeDestination)
-    val navigateBack = {
+    var currentTab by rememberSaveable { mutableStateOf(ObservatoryTab.SUMMARY) }
+
+    val navigateBack: () -> Unit = {
         if (backStack.size > 1) backStack.removeLastOrNull()
         Unit
     }
+    val top = backStack.lastOrNull()
+    // Las pantallas de aprendizaje abiertas desde un detalle usan navegación de retorno,
+    // sin duplicar la barra de navegación de primer nivel.
+    val showBottomBar = top == HomeDestination || top is EarthquakeDetailDestination
 
-    NavDisplay(
-        backStack = backStack,
-        onBack = navigateBack,
-        entryDecorators = listOf(
-            rememberSaveableStateHolderNavEntryDecorator(),
-            rememberViewModelStoreNavEntryDecorator()
-        ),
-        entryProvider = entryProvider {
-            entry<HomeDestination> {
-                ObservatoryTabs(
-                    onEarthquakeClick = { earthquakeId ->
-                        if (backStack.lastOrNull() == HomeDestination) {
-                            backStack.add(EarthquakeDetailDestination(earthquakeId))
+    Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        bottomBar = {
+            if (showBottomBar) {
+                ObservatoryBottomBar(
+                    selectedTab = currentTab,
+                    onSelectTab = { destination ->
+                        // Cambiar de sección desde un detalle DESCARTA ese detalle.
+                        // Atrás no debe volver a una ficha oculta tras una pestaña.
+                        if (backStack.lastOrNull() != HomeDestination) {
+                            while (backStack.size > 1) backStack.removeLastOrNull()
                         }
+                        currentTab = destination
                     }
-                )
-            }
-            // Compatibilidad con cualquier navegación antigua a MapDestination.
-            entry<MapDestination> {
-                SeismicMapRoute(
-                    onBack = navigateBack,
-                    onEarthquakeClick = { earthquakeId ->
-                        if (backStack.lastOrNull() == MapDestination) {
-                            backStack.add(EarthquakeDetailDestination(earthquakeId))
-                        }
-                    }
-                )
-            }
-            entry<EarthquakeDetailDestination> { destination ->
-                val viewModel = hiltViewModel<
-                    EarthquakeDetailViewModel,
-                    EarthquakeDetailViewModel.Factory
-                >(
-                    creationCallback = { factory -> factory.create(destination) }
-                )
-                EarthquakeDetailRoute(
-                    viewModel = viewModel,
-                    onBack = navigateBack,
-                    onOpenLearn = {
-                        if (backStack.lastOrNull() == destination) {
-                            backStack.add(LearnArticleDestination(LearnCatalog.MAGNITUDE_INTENSITY))
-                        }
-                    },
-                    onOpenDepthLearn = {
-                        if (backStack.lastOrNull() == destination) {
-                            backStack.add(LearnArticleDestination(LearnCatalog.EPICENTER_DEPTH))
-                        }
-                    },
-                    onOpenRevisionLearn = {
-                        if (backStack.lastOrNull() == destination) {
-                            backStack.add(LearnArticleDestination(LearnCatalog.REVISIONS))
-                        }
-                    }
-                )
-            }
-            entry<LearnArticleDestination> { destination ->
-                val uriHandler = LocalUriHandler.current
-                LearnArticleScreen(
-                    articleId = destination.articleId,
-                    onBack = navigateBack,
-                    onOpenSource = uriHandler::openUri
                 )
             }
         }
-    )
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(bottom = padding.calculateBottomPadding())) {
+            NavDisplay(
+                backStack = backStack,
+                onBack = navigateBack,
+                entryDecorators = listOf(
+                    rememberSaveableStateHolderNavEntryDecorator(),
+                    rememberViewModelStoreNavEntryDecorator()
+                ),
+                entryProvider = entryProvider {
+                    entry<HomeDestination> {
+                        ObservatoryTabs(
+                            currentTab = currentTab,
+                            onSelectTab = { currentTab = it },
+                            onEarthquakeClick = { earthquakeId ->
+                                if (backStack.lastOrNull() == HomeDestination) {
+                                    backStack.add(EarthquakeDetailDestination(earthquakeId))
+                                }
+                            }
+                        )
+                    }
+                    // Compatibilidad con cualquier navegación antigua a MapDestination.
+                    entry<MapDestination> {
+                        SeismicMapRoute(
+                            onBack = navigateBack,
+                            onEarthquakeClick = { earthquakeId ->
+                                if (backStack.lastOrNull() == MapDestination) {
+                                    backStack.add(EarthquakeDetailDestination(earthquakeId))
+                                }
+                            }
+                        )
+                    }
+                    entry<EarthquakeDetailDestination> { destination ->
+                        val viewModel = hiltViewModel<
+                            EarthquakeDetailViewModel,
+                            EarthquakeDetailViewModel.Factory
+                        >(
+                            creationCallback = { factory -> factory.create(destination) }
+                        )
+                        EarthquakeDetailRoute(
+                            viewModel = viewModel,
+                            onBack = navigateBack,
+                            onOpenLearn = {
+                                if (backStack.lastOrNull() == destination) {
+                                    backStack.add(LearnArticleDestination(LearnCatalog.MAGNITUDE_INTENSITY))
+                                }
+                            },
+                            onOpenDepthLearn = {
+                                if (backStack.lastOrNull() == destination) {
+                                    backStack.add(LearnArticleDestination(LearnCatalog.EPICENTER_DEPTH))
+                                }
+                            },
+                            onOpenRevisionLearn = {
+                                if (backStack.lastOrNull() == destination) {
+                                    backStack.add(LearnArticleDestination(LearnCatalog.REVISIONS))
+                                }
+                            }
+                        )
+                    }
+                    entry<LearnArticleDestination> { destination ->
+                        val uriHandler = LocalUriHandler.current
+                        LearnArticleScreen(
+                            articleId = destination.articleId,
+                            onBack = navigateBack,
+                            onOpenSource = uriHandler::openUri
+                        )
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ObservatoryBottomBar(
+    selectedTab: ObservatoryTab,
+    onSelectTab: (ObservatoryTab) -> Unit
+) {
+    NavigationBar(
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp
+    ) {
+        ObservatoryTab.entries.forEach { tab ->
+            NavigationBarItem(
+                selected = selectedTab == tab,
+                onClick = { onSelectTab(tab) },
+                modifier = Modifier.testTag(tab.testTag),
+                icon = {
+                    Icon(painterResource(tab.drawableRes), contentDescription = null)
+                },
+                label = { Text(stringResource(tab.labelRes)) },
+                alwaysShowLabel = true,
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                    indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            )
+        }
+    }
 }
 
 /** Cada pestaña gestiona sus filtros; todas usan el mismo repositorio y caché Room. */
 @Composable
 private fun ObservatoryTabs(
+    currentTab: ObservatoryTab,
+    onSelectTab: (ObservatoryTab) -> Unit,
     onEarthquakeClick: (String) -> Unit
 ) {
-    var currentTab by rememberSaveable { mutableStateOf(ObservatoryTab.SUMMARY) }
     var selectedLearnArticle by rememberSaveable { mutableStateOf<String?>(null) }
     var showMagnitudeLab by rememberSaveable { mutableStateOf(false) }
     var returnToLabFromArticle by rememberSaveable { mutableStateOf(false) }
@@ -145,106 +210,79 @@ private fun ObservatoryTabs(
         } else if (currentTab == ObservatoryTab.LEARN && showMagnitudeLab) {
             showMagnitudeLab = false
         } else {
-            currentTab = ObservatoryTab.SUMMARY
+            onSelectTab(ObservatoryTab.SUMMARY)
         }
     }
 
-    Scaffold(
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
-                ObservatoryTab.entries.forEach { tab ->
-                    NavigationBarItem(
-                        selected = currentTab == tab,
-                        onClick = { currentTab = tab },
-                        modifier = Modifier.testTag(tab.testTag),
-                        icon = {
-                            Icon(painterResource(tab.drawableRes), contentDescription = null)
-                        },
-                        label = { Text(stringResource(tab.labelRes)) },
-                        alwaysShowLabel = true,
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                            selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                            indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    )
+    Box(Modifier.fillMaxSize()) {
+        when (currentTab) {
+            ObservatoryTab.SUMMARY -> tabStates.SaveableStateProvider("summary") {
+                // Clave estable: la selección del Resumen no se comparte con Eventos.
+                val summaryViewModel: HomeViewModel = hiltViewModel(key = "observatory_summary")
+                val summaryState by summaryViewModel.uiState.collectAsStateWithLifecycle()
+                LifecycleResumeEffect(summaryViewModel) {
+                    summaryViewModel.onResumed()
+                    onPauseOrDispose { }
                 }
+                ObservatoryDashboard(
+                    state = summaryState,
+                    onAction = summaryViewModel::onAction,
+                    onOpenCatalog = { onSelectTab(ObservatoryTab.CATALOG) },
+                    onOpenEarthquake = onEarthquakeClick
+                )
             }
-        }
-    ) { padding ->
-        Box(Modifier.fillMaxSize().padding(bottom = padding.calculateBottomPadding())) {
-            when (currentTab) {
-                ObservatoryTab.SUMMARY -> tabStates.SaveableStateProvider("summary") {
-                    // Clave estable: la selección del Resumen no se comparte con Eventos.
-                    val summaryViewModel: HomeViewModel = hiltViewModel(key = "observatory_summary")
-                    val summaryState by summaryViewModel.uiState.collectAsStateWithLifecycle()
-                    LifecycleResumeEffect(summaryViewModel) {
-                        summaryViewModel.onResumed()
-                        onPauseOrDispose { }
-                    }
-                    ObservatoryDashboard(
-                        state = summaryState,
-                        onAction = summaryViewModel::onAction,
-                        onOpenCatalog = { currentTab = ObservatoryTab.CATALOG },
-                        onOpenEarthquake = onEarthquakeClick
-                    )
+            ObservatoryTab.CATALOG -> tabStates.SaveableStateProvider("catalog") {
+                val catalogViewModel: HomeViewModel = hiltViewModel(key = "observatory_catalog")
+                val catalogState by catalogViewModel.uiState.collectAsStateWithLifecycle()
+                LifecycleResumeEffect(catalogViewModel) {
+                    catalogViewModel.onResumed()
+                    onPauseOrDispose { }
                 }
-                ObservatoryTab.CATALOG -> tabStates.SaveableStateProvider("catalog") {
-                    val catalogViewModel: HomeViewModel = hiltViewModel(key = "observatory_catalog")
-                    val catalogState by catalogViewModel.uiState.collectAsStateWithLifecycle()
-                    LifecycleResumeEffect(catalogViewModel) {
-                        catalogViewModel.onResumed()
-                        onPauseOrDispose { }
-                    }
-                    SeismicCatalogScreen(
-                        state = catalogState,
-                        onAction = catalogViewModel::onAction,
-                        onEarthquakeClick = onEarthquakeClick
+                SeismicCatalogScreen(
+                    state = catalogState,
+                    onAction = catalogViewModel::onAction,
+                    onEarthquakeClick = onEarthquakeClick
+                )
+            }
+            ObservatoryTab.MAP -> tabStates.SaveableStateProvider("map") {
+                SeismicMapRoute(
+                    onBack = { onSelectTab(ObservatoryTab.SUMMARY) },
+                    onEarthquakeClick = onEarthquakeClick,
+                    inTabNavigation = true
+                )
+            }
+            ObservatoryTab.LEARN -> tabStates.SaveableStateProvider("learn") {
+                val articleId = selectedLearnArticle
+                if (articleId != null) {
+                    val uriHandler = LocalUriHandler.current
+                    LearnArticleScreen(
+                        articleId = articleId,
+                        onBack = {
+                            selectedLearnArticle = null
+                            if (returnToLabFromArticle) showMagnitudeLab = true
+                            returnToLabFromArticle = false
+                        },
+                        onOpenSource = uriHandler::openUri
                     )
-                }
-                ObservatoryTab.MAP -> tabStates.SaveableStateProvider("map") {
-                    SeismicMapRoute(
-                        onBack = { currentTab = ObservatoryTab.SUMMARY },
-                        onEarthquakeClick = onEarthquakeClick,
-                        inTabNavigation = true
+                } else if (showMagnitudeLab) {
+                    val uriHandler = LocalUriHandler.current
+                    LearnMagnitudeLabScreen(
+                        onBack = { showMagnitudeLab = false },
+                        onOpenArticle = {
+                            selectedLearnArticle = it
+                            returnToLabFromArticle = true
+                            showMagnitudeLab = false
+                        },
+                        onOpenSource = uriHandler::openUri
                     )
-                }
-                ObservatoryTab.LEARN -> tabStates.SaveableStateProvider("learn") {
-                    val articleId = selectedLearnArticle
-                    if (articleId != null) {
-                        val uriHandler = LocalUriHandler.current
-                        LearnArticleScreen(
-                            articleId = articleId,
-                            onBack = {
-                                selectedLearnArticle = null
-                                if (returnToLabFromArticle) showMagnitudeLab = true
-                                returnToLabFromArticle = false
-                            },
-                            onOpenSource = uriHandler::openUri
-                        )
-                    } else if (showMagnitudeLab) {
-                        val uriHandler = LocalUriHandler.current
-                        LearnMagnitudeLabScreen(
-                            onBack = { showMagnitudeLab = false },
-                            onOpenArticle = {
-                                selectedLearnArticle = it
-                                returnToLabFromArticle = true
-                                showMagnitudeLab = false
-                            },
-                            onOpenSource = uriHandler::openUri
-                        )
-                    } else {
-                        LearnHomeScreen(
-                            onOpenArticle = {
-                                selectedLearnArticle = it
-                                returnToLabFromArticle = false
-                            },
-                            onOpenLaboratory = { showMagnitudeLab = true }
-                        )
-                    }
+                } else {
+                    LearnHomeScreen(
+                        onOpenArticle = {
+                            selectedLearnArticle = it
+                            returnToLabFromArticle = false
+                        },
+                        onOpenLaboratory = { showMagnitudeLab = true }
+                    )
                 }
             }
         }
